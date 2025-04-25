@@ -8,56 +8,64 @@ import { User } from '@interfaces/users.interface';
 import userModel from '@models/users.model';
 import { isEmpty } from '@utils/util';
 
-class AuthService {
-  public users = userModel;
-
-  public async signup(userData: CreateUserDto): Promise<User> {
-    if (isEmpty(userData)) throw new HttpException(400, "userData is empty");
-
-    const findUser: User = await this.users.findOne({ email: userData.email });
-    if (findUser) throw new HttpException(409, `This email ${userData.email} already exists`);
-
-    const hashedPassword = await hash(userData.password, 10);
-    const createUserData: User = await this.users.create({ ...userData, password: hashedPassword });
-
-    return createUserData;
+export const signup = async (userData: CreateUserDto): Promise<User> => {
+  if (isEmpty(userData)) {
+    throw new HttpException(400, 'userData is empty');
   }
 
-  public async login(userData: CreateUserDto): Promise<{ cookie: string; findUser: User }> {
-    if (isEmpty(userData)) throw new HttpException(400, "userData is empty");
-
-    const findUser: User = await this.users.findOne({ email: userData.email });
-    if (!findUser) throw new HttpException(409, `This email ${userData.email} was not found`);
-
-    const isPasswordMatching: boolean = await compare(userData.password, findUser.password);
-    if (!isPasswordMatching) throw new HttpException(409, "Password is not matching");
-
-    const tokenData = this.createToken(findUser);
-    const cookie = this.createCookie(tokenData);
-
-    return { cookie, findUser };
+  const findUser: User = await userModel.findOne({ email: userData.email });
+  if (findUser) {
+    throw new HttpException(409, `This email ${userData.email} already exists`);
   }
 
-  public async logout(userData: User): Promise<User> {
-    if (isEmpty(userData)) throw new HttpException(400, "userData is empty");
+  const hashedPassword = await hash(userData.password, 10);
+  const createUserData: User = await userModel.create({ ...userData, password: hashedPassword });
 
-    const findUser: User = await this.users.findOne({ email: userData.email, password: userData.password });
-    if (!findUser) throw new HttpException(409, `This email ${userData.email} was not found`);
+  return createUserData;
+};
 
-    return findUser;
+export const login = async (userData: CreateUserDto): Promise<{ cookie: string; findUser: User }> => {
+  if (isEmpty(userData)) {
+    throw new HttpException(400, 'userData is empty');
   }
 
-  public createToken(user: User): TokenData {
-    const dataStoredInToken: DataStoredInToken = { _id: user._id };
-    const secretKey: string = SECRET_KEY;
-    const expiresIn: number = 60 * 60;
-
-    return { expiresIn, token: sign(dataStoredInToken, secretKey, { expiresIn }) };
+  const findUser: User = await userModel.findOne({ email: userData.email });
+  if (!findUser) {
+    throw new HttpException(409, `This email ${userData.email} was not found`);
   }
 
-  public createCookie(tokenData: TokenData): string {
-    return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn};`;
+  const isPasswordMatching: boolean = await compare(userData.password, findUser.password);
+  if (!isPasswordMatching) {
+    throw new HttpException(409, 'Password is not matching');
   }
-}
 
-export default AuthService;
+  const tokenData = createToken(findUser);
+  const cookie = createCookie(tokenData);
+
+  return { cookie, findUser };
+};
+
+export const logout = async (userData: User): Promise<User> => {
+  if (isEmpty(userData)) {
+    throw new HttpException(400, 'userData is empty');
+  }
+
+  const findUser: User = await userModel.findOne({ email: userData.email, password: userData.password });
+  if (!findUser) {
+    throw new HttpException(409, `This email ${userData.email} was not found`);
+  }
+
+  return findUser;
+};
+
+export const createToken = (user: User): TokenData => {
+  const dataStoredInToken: DataStoredInToken = { _id: user._id };
+  const secretKey: string = SECRET_KEY;
+  const expiresIn: number = 60 * 60;
+
+  return { expiresIn, token: sign(dataStoredInToken, secretKey, { expiresIn }) };
+};
+
+export const createCookie = (tokenData: TokenData): string => {
+  return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn};`;
+};
