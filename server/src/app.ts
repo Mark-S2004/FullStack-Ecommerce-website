@@ -11,9 +11,9 @@ import swaggerUi from 'swagger-ui-express';
 import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from '@config';
 import { dbConnection } from '@databases';
 import { Routes } from '@interfaces/routes.interface';
-import routes from './routes';
 import errorMiddleware from '@middlewares/error.middleware';
 import { logger, stream } from '@utils/logger';
+import routes from '@routes/index'; // ⬅️ Your updated routes import (where you use `new IndexRoute(), new OrderRoute()`, etc.)
 
 class App {
   public app: express.Application;
@@ -27,7 +27,7 @@ class App {
 
     this.connectToDatabase();
     this.initializeMiddlewares();
-    this.initializeRoutes(routes);
+    this.initializeRoutes(routes); // <- now it accepts properly constructed route instances
     this.initializeSwagger();
     this.initializeErrorHandling();
   }
@@ -58,7 +58,6 @@ class App {
     if (this.env !== 'production') {
       set('debug', true);
     }
-
     await connect(dbConnection.url);
   }
 
@@ -72,12 +71,13 @@ class App {
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(cookieParser());
   }
-
+ 
   private initializeRoutes(routes: Routes[]) {
     routes.forEach(route => {
-      this.app.use('/api', route.router);
+      this.app.use('/api' + route.path, route.router);
     });
   }
+   
 
   private initializeSwagger() {
     const options = {
@@ -90,7 +90,6 @@ class App {
       },
       apis: ['swagger.yaml'],
     };
-
     const specs = swaggerJSDoc(options);
     this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
   }
