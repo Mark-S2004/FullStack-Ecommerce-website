@@ -19,19 +19,13 @@ import Card from "@components/Card"
 import axios from "axios"
 import { EUserRole } from "@/types/user.types"
 import { FormControl, InputLabel, MenuItem, Select } from "@mui/material"
-
-interface IFormInput {
-  name: string
-  email: string
-  password: string
-  role: EUserRole
-}
+import { IUser } from "@/types/user.types"
 
 export default function SignupPage() {
   const navigate = useNavigate()
 
   const { mutate: registerUser } = useMutation({
-    mutationFn: (user: IFormInput) => {
+    mutationFn: (user: IUser) => {
       return axios.post("/api/auth/signup", user)
     },
   })
@@ -46,10 +40,10 @@ export default function SignupPage() {
   })
 
   const formFields: {
-    label: keyof IFormInput
+    label: keyof IUser
     rules:
       | Omit<
-          RegisterOptions<IFormInput, "email" | "password" | "name" | "role">,
+          RegisterOptions<IUser, "email" | "password" | "name" | "role">,
           "setValueAs" | "disabled" | "valueAsNumber" | "valueAsDate"
         >
       | undefined
@@ -72,7 +66,7 @@ export default function SignupPage() {
     },
   ]
 
-  const onSubmit: SubmitHandler<IFormInput> = async (data) => {
+  const onSubmit: SubmitHandler<IUser> = async (data) => {
     registerUser(data, {
       onSuccess: () => {
         toast.success("Signed Up Successfully")
