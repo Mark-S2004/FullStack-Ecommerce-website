@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext,useContext, useState, useEffect } from 'react';
 
 interface CartItem {
   id: string;
@@ -92,3 +92,4 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }; 
+export const useCart = () => useContext(CartContext);

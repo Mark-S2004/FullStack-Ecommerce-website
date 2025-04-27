@@ -4,8 +4,10 @@ export class ProductService {
   static async create(data) {
     return ProductModel.create(data);
   }
-  static async list(filter = {}, paging = {}) {
-    return ProductModel.find(filter).limit(paging.limit || 20).skip(paging.skip || 0);
+  static async list(filter: any = {}, paging: { limit?: number; skip?: number } = {}) {
+    return ProductModel.find(filter)
+      .limit(paging.limit || 20)
+      .skip(paging.skip || 0);
   }
   static async getById(id) {
     return ProductModel.findById(id);
