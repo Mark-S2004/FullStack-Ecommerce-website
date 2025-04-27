@@ -14,7 +14,7 @@ import Divider from "@mui/material/Divider"
 import Link from "@mui/material/Link"
 import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
-import { ToastContainer, toast } from "react-toastify"
+import { toast } from "react-toastify"
 import Card from "@components/Card"
 import axios from "axios"
 import { EUserRole } from "@/types/user.types"
@@ -155,7 +155,6 @@ export default function SignupPage() {
         </Box>
       </Card>
 
-      <ToastContainer />
       <DevTool control={control} />
     </>
   )

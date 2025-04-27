@@ -5,7 +5,7 @@ import {
   SubmitHandler,
   useForm,
 } from "react-hook-form"
-import { toast, ToastContainer } from "react-toastify"
+import { toast } from "react-toastify"
 import { useMutation } from "@tanstack/react-query"
 import axios from "axios"
 import Box from "@mui/material/Box"
@@ -133,7 +133,6 @@ export default function LoginPage() {
           </Typography>
         </Box>
       </Card>
-      <ToastContainer />
     </>
   )
 }
