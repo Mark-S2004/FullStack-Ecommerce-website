@@ -71,13 +71,12 @@ class App {
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(cookieParser());
   }
- 
+
   private initializeRoutes(routes: Routes[]) {
     routes.forEach(route => {
-      this.app.use('/api' + route.path, route.router);
+      this.app.use('/api', route.router);
     });
   }
-   
 
   private initializeSwagger() {
     const options = {

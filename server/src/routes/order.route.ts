@@ -1,18 +1,9 @@
 import { Router } from 'express';
-import { createOrder } from '@controllers/order.controller'; // <-- your controller
-import { Routes } from '@interfaces/routes.interface'; // <-- your interface
+import * as orderController from '@controllers/order.controller';
 
-class OrderRoute implements Routes {
-  public path = '/orders';
-  public router = Router();
+const path = '/orders';
+const router = Router();
 
-  constructor() {
-    this.initializeRoutes();
-  }
+router.post('/checkout', orderController.createOrder);
 
-  private initializeRoutes() {
-    this.router.post('/checkout', createOrder);
-  }
-}
-
-export default OrderRoute;
+export default { path, router };
