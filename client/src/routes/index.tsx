@@ -17,26 +17,38 @@ const CheckoutSuccess = lazy(() => {
 
 const AllRoutes = () => {
   return (
-    <CartProvider>
-      <Routes>
-        <Route path="/">
-          <Route index element={<div>Home Page (placeholder)</div>} />
-          <Route path="auth" element={<AuthLayout />}>
-            <Route path="login" element={<LoginPage />} />
-            <Route path="register" element={<RegisterPage />} />
-          </Route>
-          {/* User must be authenticated to access these routes */}
-          <Route element={<ProtectedRoutes />}>
-            <Route path="customer">
-              <Route path="checkout" element={<CheckoutPage />} />
-              <Route path="checkout-success" element={<CheckoutSuccess />} />
-            </Route>
-
-            <Route path="admin"></Route>
-          </Route>
+    <Routes>
+      <Route path="/">
+        <Route index element={<div>Home Page (placeholder)</div>} />
+        <Route path="auth" element={<AuthLayout />}>
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
         </Route>
-      </Routes>
-    </CartProvider>
+        {/* User must be authenticated to access these routes */}
+        <Route element={<ProtectedRoutes />}>
+          <Route path="customer">
+            <Route
+              path="checkout"
+              element={
+                <CartProvider>
+                  <CheckoutPage />
+                </CartProvider>
+              }
+            />
+            <Route
+              path="checkout-success"
+              element={
+                <CartProvider>
+                  <CheckoutSuccess />
+                </CartProvider>
+              }
+            />
+          </Route>
+
+          <Route path="admin"></Route>
+        </Route>
+      </Route>
+    </Routes>
   )
 }
 
