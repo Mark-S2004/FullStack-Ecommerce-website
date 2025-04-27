@@ -8,19 +8,15 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 
   try {
     // Verify the event using the signature and Stripe webhook secret
-    const event = stripe.webhooks.constructEvent(
-      req.body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET as string
-    );
+    const event = stripe.webhooks.constructEvent(req.body, signature, process.env.STRIPE_WEBHOOK_SECRET as string);
 
     // Handle the event based on its type
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as any;
-      
+
       // Extract orderId from metadata
       const { orderId } = session.metadata;
-      
+
       if (orderId) {
         // Update order status to 'Confirmed'
         await OrderService.updateOrderStatus(orderId, 'Confirmed');
@@ -34,4 +30,4 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     console.error('Webhook error:', error);
     res.status(400).json({ error: 'Webhook error' });
   }
-} 
+}

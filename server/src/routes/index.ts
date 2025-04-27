@@ -1,6 +1,8 @@
-import IndexRoute from './index.route';
-import OrderRoute from './order.route';
+import authRoute from './auth.route';
+import usersRoute from './users.route';
+import orderRoute from './order.route';
+import webhookRoute from './webhook.route';
 
-const routes = [new IndexRoute(), new OrderRoute()];
+const routes = [authRoute, usersRoute, orderRoute, webhookRoute];
 
 export default routes;
