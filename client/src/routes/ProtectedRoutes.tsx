@@ -1,13 +1,23 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
+import axios from "axios"
 
 const ProtectedRoutes = () => {
-  const token = localStorage.getItem("token")
-  const role = localStorage.getItem("role")
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["authStatus"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/auth/me")
+      return data
+    },
+    retry: false,
+  })
   const { pathname } = useLocation()
 
-  if (!token || !role) return <Navigate to="/auth/login" replace />
-  if (!pathname.startsWith(`/${role}`))
-    return <Navigate to={`/${role}`} replace />
+  if (isLoading) return <div>Loading...</div>
+  if (isError) return <Navigate to="/auth/login" replace />
+  if (!pathname.startsWith(`/${data.role}`))
+    return <Navigate to={`/${data.role}`} replace />
+
   return <Outlet />
 }
 
