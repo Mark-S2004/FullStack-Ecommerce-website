@@ -1,5 +1,5 @@
 ## 🔐 Phase 1: Authentication & Authorization
-
+@Mark-S2004
 ### Login Flow
 - [ ] **Login Page** (`/login`)
   - [ ] Verify form validation
@@ -12,7 +12,7 @@
     - Redirects to home page
     - JWT token stored in localStorage
     - Navbar shows user menu/logout
-
+@Mark-S2004
 ### Registration Flow
 - [ ] **Register Page** (`/register`)
   - [ ] Form validation
@@ -24,7 +24,7 @@
   - [ ] Test successful registration
     - Creates user in database
     - Auto-login and redirect to home
-
+@Mark-S2004
 ### Protected Routes
 - [ ] **Access Control**
   - [ ] Verify unauthenticated access to protected routes
@@ -35,7 +35,7 @@
     - Shows "Session expired" toast
 
 ## 📦 Phase 2: Product Catalog
-
+@Monica-hany
 ### Product Listing
 - [ ] **Product List Page** (`/products`)
   - [ ] Verify product grid layout
@@ -49,7 +49,7 @@
   - [ ] Test empty states
     - "No products found" message
     - Loading spinner during fetch
-
+@Monica-hany
 ### Product Details
 - [ ] **Product Detail Page** (`/products/:id`)
   - [ ] Verify product information
@@ -63,7 +63,7 @@
     - Low stock shows warning
 
 ## 🛒 Phase 3: Shopping Cart
-
+@Patrick-ramez
 ### Cart Management
 - [ ] **Cart Page** (`/cart`)
   - [ ] Verify cart items
@@ -79,7 +79,7 @@
   - [ ] Test empty cart
     - Shows empty state message
     - "Continue Shopping" button
-
+@Patrick-ramez
 ### Cart Integration
 - [ ] **Cart Context**
   - [ ] Verify cart persistence
@@ -90,7 +90,7 @@
     - Shows error toast
 
 ## 💳 Phase 4: Checkout Process
-
+@caraxesmsc
 ### Checkout Flow
 - [ ] **Checkout Page** (`/checkout`)
   - [ ] Verify form sections
@@ -109,7 +109,7 @@
     - Insufficient funds
     - Invalid card
     - Network errors
-
+@caraxesmsc
 ### Order Confirmation
 - [ ] **Order Success Page** (`/order-success/:id`)
   - [ ] Verify order details
@@ -124,7 +124,7 @@
     - Local storage updated
 
 ## 🚚 Phase 5: Shipping & Tax
-
+@caraxesmsc
 ### Shipping Calculation
 - [ ] **Shipping Options**
   - [ ] Test different addresses
@@ -136,7 +136,7 @@
   - [ ] Test address validation
     - Invalid postal codes
     - Unsupported regions
-
+@caraxesmsc
 ### Tax Calculation
 - [ ] **Tax Rates**
   - [ ] Test different regions
@@ -150,7 +150,7 @@
     - Tax-exempt customers
 
 ## 🔎 Phase 6: Search & Filter
-
+@caraxesmsc
 ### Search Functionality
 - [ ] **Product Search**
   - [ ] Test search API (`/api/products?search=...`)
@@ -161,7 +161,7 @@
     - Debounce working (300ms)
     - Clear search button
     - Loading states
-
+@caraxesmsc
 ### Filter Integration
 - [ ] **Filter Options**
   - [ ] Test category filters
