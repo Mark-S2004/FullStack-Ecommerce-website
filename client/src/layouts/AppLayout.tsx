@@ -3,21 +3,26 @@ import { Outlet } from "react-router-dom"
 import Loader from "@/components/common/Loader"
 import { ToastContainer } from "react-toastify"
 import Box from "@mui/material/Box"
+import NavBar from "@/components/navbar/NavBar"
+import { Container } from "@mui/material"
+import "react-toastify/dist/ReactToastify.css"
 
 const AppLayout = () => {
   return (
     <Suspense fallback={<Loader />}>
       <Box
         sx={{
-          width: "100vw",
-          height: "100vh",
           display: "flex",
-          justifyContent: "center",
+          flexDirection: "column",
+          minHeight: "100vh",
         }}
       >
-        <Outlet />
+        <NavBar />
+        <Container component="main" sx={{ flex: 1, py: 4 }}>
+          <Outlet />
+        </Container>
+        <ToastContainer position="bottom-right" />
       </Box>
-      <ToastContainer position="bottom-right" />
     </Suspense>
   )
 }

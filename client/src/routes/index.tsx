@@ -9,14 +9,19 @@ const AuthLayout = lazy(() => import("@layouts/AuthLayout"))
 const LoginPage = lazy(() => import("@pages/LoginPage"))
 const RegisterPage = lazy(() => import("@pages/RegisterPage"))
 
+const ProductsPage = lazy(() => import("@pages/ProductsPage"))
+const CartPage = lazy(() => import("@pages/CartPage"))
 const CheckoutPage = lazy(() => import("@pages/CheckoutPage"))
 const CheckoutSuccess = lazy(() => import("@pages/CheckoutSuccess"))
+const OrdersPage = lazy(() => import("@pages/OrdersPage"))
+const AdminInventoryPage = lazy(() => import("@pages/AdminInventoryPage"))
+const AdminOrdersPage = lazy(() => import("@pages/AdminOrdersPage"))
 
 const AllRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
-        <Route index element={<div>Home Page (placeholder)</div>} />
+        <Route index element={<ProductsPage />} />
         <Route path="auth" element={<AuthLayout />}>
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
@@ -24,9 +29,13 @@ const AllRoutes = () => {
         {/* User must be authenticated to access these routes */}
         <Route element={<ProtectedRoutes />}>
           <Route path="customer">
-            <Route path="products" element={<div>producst</div>} />
-            <Route path="cart" element={<div>cart</div>} />
-            <Route path="orders" element={<div>orders</div>} />
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="cart" element={
+              <CartProvider>
+                <CartPage />
+              </CartProvider>
+            } />
+            <Route path="orders" element={<OrdersPage />} />
             <Route
               path="checkout"
               element={
@@ -46,8 +55,8 @@ const AllRoutes = () => {
           </Route>
 
           <Route path="admin">
-            <Route path="inventory" element={<div>inventory</div>} />
-            <Route path="orders" element={<div>orders</div>} />
+            <Route path="inventory" element={<AdminInventoryPage />} />
+            <Route path="orders" element={<AdminOrdersPage />} />
           </Route>
         </Route>
       </Route>
