@@ -10,7 +10,7 @@ const router = Router();
 router.post(`${path}/signup`, validationMiddleware(CreateUserDto, 'body'), authController.signUp);
 router.post(`${path}/login`, validationMiddleware(loginUserDto, 'body'), authController.logIn);
 router.get(`${path}/me`, authMiddleware, (req, res) => {
-  res.json({ role: req.user.role });
+  res.json(req.user);
 });
 router.post(`${path}/logout`, authMiddleware, authController.logOut);
 

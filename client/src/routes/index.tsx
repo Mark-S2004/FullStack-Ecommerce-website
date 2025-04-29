@@ -1,6 +1,7 @@
 import { lazy } from "react"
 import { Routes, Route } from "react-router-dom"
 import { CartProvider } from "@context/CartContext"
+import { Navigate } from "react-router-dom"
 
 const AppLayout = lazy(() => import("@layouts/AppLayout"))
 const ProtectedRoutes = lazy(() => import("@routes/ProtectedRoutes"))
@@ -28,7 +29,7 @@ const AllRoutes = () => {
         </Route>
         {/* User must be authenticated to access these routes */}
         <Route element={<ProtectedRoutes />}>
-          <Route path="customer">
+          <Route path="customer" element={<Navigate to="/customer/products" replace />}>
             <Route path="products" element={<ProductsPage />} />
             <Route path="cart" element={
               <CartProvider>
@@ -54,7 +55,7 @@ const AllRoutes = () => {
             />
           </Route>
 
-          <Route path="admin">
+          <Route path="admin" element={<Navigate to="/admin/inventory" replace />}>
             <Route path="inventory" element={<AdminInventoryPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
           </Route>
