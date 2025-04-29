@@ -8,7 +8,14 @@ export class ProductController {
   }
 
   static async list(req: Request, res: Response) {
-    const products = await ProductService.list();
+    const filter: any = {};
+    
+    // Add search filter if provided in query params
+    if (req.query.search) {
+      filter.search = req.query.search as string;
+    }
+    
+    const products = await ProductService.list(filter);
     res.json(products);
   }
 

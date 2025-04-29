@@ -5,6 +5,12 @@ export class ProductService {
     return ProductModel.create(data);
   }
   static async list(filter: any = {}, paging: { limit?: number; skip?: number } = {}) {
+    // If search parameter is provided, add regex filter for name
+    if (filter.search) {
+      filter.name = { $regex: filter.search, $options: 'i' };
+      delete filter.search; // Remove search from filter as it's not a field in the model
+    }
+    
     return ProductModel.find(filter)
       .limit(paging.limit || 20)
       .skip(paging.skip || 0);
