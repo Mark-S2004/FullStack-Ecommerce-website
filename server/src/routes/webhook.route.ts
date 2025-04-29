@@ -2,12 +2,10 @@ import { Router } from 'express';
 import { handleStripeWebhook } from '../controllers/webhook.controller';
 import express from 'express';
 
+const path = '/stripe';
 const router = Router();
 
 // Stripe needs the raw body to validate the event
-router.post('/stripe', 
-  express.raw({ type: 'application/json' }), 
-  handleStripeWebhook
-);
+router.post(`${path}`, express.raw({ type: 'application/json' }), handleStripeWebhook);
 
-export default router; 
+export default { path, router };

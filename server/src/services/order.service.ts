@@ -17,14 +17,14 @@ export class OrderService {
       shippingCost,
       tax,
       total,
-      status: 'Pending'
+      status: 'Pending',
     });
 
     // Create Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
-      line_items: cart.map((item) => ({
+      line_items: cart.map(item => ({
         price_data: {
           currency: 'usd',
           product_data: {
@@ -40,7 +40,6 @@ export class OrderService {
         orderId: order._id.toString(),
       },
     });
-    
 
     return { order, sessionUrl: session.url };
   }
@@ -54,10 +53,6 @@ export class OrderService {
   }
 
   static async updateOrderStatus(orderId: string, status: string) {
-    return OrderModel.findByIdAndUpdate(
-      orderId, 
-      { status }, 
-      { new: true }
-    );
+    return OrderModel.findByIdAndUpdate(orderId, { status }, { new: true });
   }
-} 
+}

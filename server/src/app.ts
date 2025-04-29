@@ -1,3 +1,4 @@
+// All imports are intact
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -58,7 +59,6 @@ class App {
     if (this.env !== 'production') {
       set('debug', true);
     }
-
     await connect(dbConnection.url);
   }
 
@@ -75,10 +75,9 @@ class App {
 
   private initializeRoutes(routes: Routes[]) {
     routes.forEach(route => {
-      this.app.use('/api' + route.path, route.router);
+      this.app.use('/api', route.router);
     });
   }
-  
 
   private initializeSwagger() {
     const options = {
