@@ -11,6 +11,7 @@ const LoginPage = lazy(() => import("@pages/LoginPage"))
 const RegisterPage = lazy(() => import("@pages/RegisterPage"))
 
 const ProductsPage = lazy(() => import("@pages/ProductsPage"))
+const ProductDetailsPage = lazy(() => import("@pages/ProductDetailsPage"))
 const CartPage = lazy(() => import("@pages/CartPage"))
 const CheckoutPage = lazy(() => import("@pages/CheckoutPage"))
 const CheckoutSuccess = lazy(() => import("@pages/CheckoutSuccess"))
@@ -22,6 +23,7 @@ const AllRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
+        <Route path="products/:id" element={<ProductDetailsPage />} />
         <Route index element={<ProductsPage />} />
         <Route path="auth" element={<AuthLayout />}>
           <Route path="login" element={<LoginPage />} />
@@ -31,6 +33,7 @@ const AllRoutes = () => {
         <Route element={<ProtectedRoutes />}>
           <Route path="customer" element={<Navigate to="/customer/products" replace />}>
             <Route path="products" element={<ProductsPage />} />
+            <Route path="products/:id" element={<ProductDetailsPage />} />
             <Route path="cart" element={
               <CartProvider>
                 <CartPage />

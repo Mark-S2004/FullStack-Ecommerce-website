@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 // Product type definition
 type Product = {
   _id: string;
@@ -10,119 +12,60 @@ type Product = {
   stock: number;
 };
 
-// Mock data
-const mockProducts: Product[] = [
-  {
-    _id: 'p1',
-    name: 'Running Shoes',
-    price: 89.99,
-    description: 'Comfortable running shoes for daily use',
-    category: 'Footwear',
-    gender: 'Unisex',
-    imageUrl: 'https://via.placeholder.com/150',
-    stock: 45
-  },
-  {
-    _id: 'p2',
-    name: 'Yoga Mat',
-    price: 39.99,
-    description: 'High-quality yoga mat with extra cushioning',
-    category: 'Accessories',
-    gender: 'Unisex',
-    imageUrl: 'https://via.placeholder.com/150',
-    stock: 30
-  },
-  {
-    _id: 'p3',
-    name: 'Denim Jacket',
-    price: 59.99,
-    description: 'Classic denim jacket for all seasons',
-    category: 'denim',
-    gender: 'male',
-    imageUrl: 'https://via.placeholder.com/150',
-    stock: 20
-  },
-  {
-    _id: 'p4',
-    name: 'Quarter-Zip Pullover',
-    price: 49.99,
-    description: 'Comfortable quarter-zip pullover for casual wear',
-    category: 'quarter-zip',
-    gender: 'female',
-    imageUrl: 'https://via.placeholder.com/150',
-    stock: 15
-  }
-];
-
 // Product creation/update type
 type ProductInput = Omit<Product, '_id'>;
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-export const fetchProducts = async (search?: string) => {
-  // Simulate API delay
-  await delay(500);
-  
-  if (search) {
-    return mockProducts.filter(product => 
-      product.name.toLowerCase().includes(search.toLowerCase()) ||
-      product.description.toLowerCase().includes(search.toLowerCase()) ||
-      product.category.toLowerCase().includes(search.toLowerCase())
-    );
+export const fetchProducts = async (search = '', category = '', gender = ''): Promise<Product[]> => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (category) params.append('category', category);
+  if (gender) params.append('gender', gender);
+  try {
+    const response = await axios.get(`/api/products?${params.toString()}`);
+    // Ensure response.data.data exists and is an array, otherwise return empty array
+    return Array.isArray(response.data.data) ? response.data.data : []; 
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    // Re-throw the error to be handled by React Query
+    throw error;
   }
-  
-  return mockProducts;
 };
 
 export const createProduct = async (data: ProductInput): Promise<Product> => {
-  // Simulate API delay
-  await delay(500);
-  
-  const newProduct = {
-    _id: `p${Math.floor(Math.random() * 10000)}`,
-    ...data
-  };
-  
-  mockProducts.push(newProduct);
-  return newProduct;
+  try {
+    const response = await axios.post('/api/products', data);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error creating product:', error);
+    throw error;
+  }
 };
 
 export const updateProduct = async (id: string, data: Partial<ProductInput>): Promise<Product> => {
-  // Simulate API delay
-  await delay(500);
-  
-  const index = mockProducts.findIndex(p => p._id === id);
-  if (index === -1) {
-    throw new Error('Product not found');
+  try {
+    const response = await axios.put(`/api/products/${id}`, data);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error updating product:', error);
+    throw error;
   }
-  
-  mockProducts[index] = { 
-    ...mockProducts[index], 
-    ...data 
-  };
-  
-  return mockProducts[index];
 };
 
 export const deleteProduct = async (id: string): Promise<void> => {
-  // Simulate API delay
-  await delay(500);
-  
-  const index = mockProducts.findIndex(p => p._id === id);
-  if (index !== -1) {
-    mockProducts.splice(index, 1);
+  try {
+    await axios.delete(`/api/products/${id}`);
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    throw error;
   }
 };
 
 export const getProductById = async (id: string): Promise<Product> => {
-  // Simulate API delay
-  await delay(500);
-  
-  const product = mockProducts.find(p => p._id === id);
-  if (!product) {
-    throw new Error('Product not found');
+  try {
+    const response = await axios.get(`/api/products/${id}`);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching product by ID:', error);
+    throw error;
   }
-  
-  return product;
 };

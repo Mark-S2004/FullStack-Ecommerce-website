@@ -2,14 +2,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-// Import mock APIs for development mode
-import './api/auth'
-import './api/products'
+import axios from 'axios'
 
-// Set a flag to show this is using mock data
-if (import.meta.env.DEV) {
-  console.log('%c🧪 Using mock data API - No server connection required', 'background: #ff9800; color: white; padding: 4px; border-radius: 4px; font-weight: bold;');
-}
+// Configure Axios defaults for all requests
+axios.defaults.withCredentials = true;
+
+// We're using Vite's proxy for API requests
+// The proxy in vite.config.ts forwards all /api requests to http://localhost:3000
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

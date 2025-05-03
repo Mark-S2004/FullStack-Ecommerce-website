@@ -15,18 +15,29 @@ export class ProductController {
       filter.search = req.query.search as string;
     }
     
+    // Pass category and gender filters
+    if (req.query.category) {
+      filter.category = req.query.category as string;
+    }
+    if (req.query.gender) {
+      filter.gender = req.query.gender as string;
+    }
+    
     const products = await ProductService.list(filter);
-    res.json(products);
+    // Wrap response in a data object as expected by frontend
+    res.json({ data: products });
   }
 
   static async getById(req: Request, res: Response) {
     const product = await ProductService.getById(req.params.id);
-    res.json(product);
+    // Wrap response in a data object
+    res.json({ data: product });
   }
 
   static async update(req: Request, res: Response) {
     const product = await ProductService.update(req.params.id, req.body);
-    res.json(product);
+    // Wrap response in a data object
+    res.json({ data: product });
   }
 
   static async remove(req: Request, res: Response) {

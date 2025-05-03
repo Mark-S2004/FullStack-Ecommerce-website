@@ -1,25 +1,29 @@
-import * as React from "react"
+import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
-import AppBar from "@mui/material/AppBar"
-import Box from "@mui/material/Box"
-import Toolbar from "@mui/material/Toolbar"
-import IconButton from "@mui/material/IconButton"
-import Typography from "@mui/material/Typography"
-import Menu from "@mui/material/Menu"
+import {
+  AppBar,
+  Box,
+  Toolbar,
+  IconButton,
+  Typography,
+  Menu,
+  Container,
+  Avatar,
+  Button,
+  Tooltip,
+  MenuItem,
+} from "@mui/material"
 import MenuIcon from "@mui/icons-material/Menu"
-import Container from "@mui/material/Container"
-import Button from "@mui/material/Button"
-import MenuItem from "@mui/material/MenuItem"
 import StoreIcon from "@mui/icons-material/Store"
-import LogoutIcon from "@mui/icons-material/Logout"
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart"
 import InventoryIcon from "@mui/icons-material/Inventory"
 import ListAltIcon from "@mui/icons-material/ListAlt"
-import Avatar from "@mui/material/Avatar"
-import axios from "axios"
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart"
 import { toast } from "react-toastify"
+import { getCurrentUser, logoutUser } from "@/api/auth"
+import { authService } from "@/services/auth.service"
 
+// User data type
 interface UserData {
   _id: string;
   name: string;
@@ -34,46 +38,43 @@ type NavItem = {
 };
 
 const NavBar: React.FC = () => {
-  const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null)
-  const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null)
+  const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null)
+  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null)
   const navigate = useNavigate()
+  const [user, setUser] = useState<UserData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch current user
-  const userQuery: UseQueryResult<UserData> = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async (): Promise<UserData> => {
+  // Check authentication status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      setIsLoading(true)
       try {
-        const response = await axios.get("/api/auth/me")
-        const userData = response.data.data || response.data
-        
-        // Validate the user data format
-        if (!userData || typeof userData !== 'object' || !userData.role) {
-          throw new Error('Invalid user data format');
-        }
-        
-        return userData as UserData
-      } catch (err) {
-        console.error("Error fetching user data:", err)
-        if (axios.isAxiosError(err) && err.response?.status === 401) {
+        await authService.checkAuth()
+        if (authService.isAuthenticated && authService.currentUser) {
+          setUser(authService.currentUser)
+        } else {
+          // Redirect to login if not authenticated
           navigate("/auth/login")
         }
-        throw err
+      } catch (error) {
+        navigate("/auth/login")
+      } finally {
+        setIsLoading(false)
       }
-    },
-    retry: false,
-  })
+    }
+    
+    checkAuth()
+  }, [navigate])
 
   const { mutate: logout } = useMutation({
-    mutationFn: () => axios.post("/api/auth/logout"),
-    onSuccess: () => navigate("/auth/login"),
+    mutationFn: () => logoutUser(),
+    onSuccess: () => {
+      authService.clearAuth()
+      navigate("/auth/login")
+    },
     onError: (err) => {
       let message = 'An error occurred'
       let status = 'unknown'
-      
-      if (axios.isAxiosError(err)) {
-        message = err.response?.data?.message || err.message
-        status = err.response?.status?.toString() || 'unknown'
-      }
       
       toast.error(`${message} [${status}]`)
     },
@@ -100,18 +101,10 @@ const NavBar: React.FC = () => {
     logout()
   }
 
-  // Handle loading or error states
-  if (userQuery.isLoading) return null
-  
-  if (userQuery.error || !userQuery.data) {
-    React.useEffect(() => {
-      navigate("/auth/login")
-    }, [navigate])
-    return null
-  }
+  // Handle loading state
+  if (isLoading || !user) return null
 
-  const currentUser = userQuery.data
-  const isAdmin = currentUser.role === "admin"
+  const isAdmin = user.role === "admin"
   const baseUrl = isAdmin ? "/admin" : "/customer"
 
   // Define navigation based on user role
@@ -240,18 +233,16 @@ const NavBar: React.FC = () => {
           {/* User menu */}
           <Box sx={{ flexGrow: 0, display: "flex", alignItems: "center" }}>
             <Typography sx={{ mr: 2, display: { xs: "none", md: "flex" } }}>
-              Hello, {currentUser.name}
+              Hello, {user.name}
             </Typography>
-            
-            <IconButton onClick={handleOpenUserMenu} sx={{ p: 0, mr: 1 }}>
-              <Avatar alt={currentUser.name} src="/static/images/avatar/default.jpg">
-                {currentUser.name.charAt(0)}
-              </Avatar>
-            </IconButton>
-            
+            <Tooltip title="Open settings">
+              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                <Avatar alt={user.name} src="/static/avatar.jpg" />
+              </IconButton>
+            </Tooltip>
             <Menu
+              id="user-menu"
               sx={{ mt: "45px" }}
-              id="menu-appbar"
               anchorEl={anchorElUser}
               anchorOrigin={{
                 vertical: "top",
@@ -266,10 +257,7 @@ const NavBar: React.FC = () => {
               onClose={handleCloseUserMenu}
             >
               <MenuItem onClick={onLogout}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <LogoutIcon />
-                  <Typography textAlign="center">Logout</Typography>
-                </Box>
+                <Typography textAlign="center">Logout</Typography>
               </MenuItem>
             </Menu>
           </Box>

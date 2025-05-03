@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import axios from 'axios';
 
 // Define the Order type
 type OrderStatus = 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -38,32 +39,8 @@ type Order = {
 
 // Mock API function - replace with actual API call
 const fetchOrders = async (): Promise<Order[]> => {
-  // Simulating API delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Mock data
-  return [
-    {
-      id: 'ORD-001',
-      date: '2023-05-15',
-      status: 'delivered' as OrderStatus,
-      total: 156.99,
-      items: [
-        { id: 'P1', name: 'Running Shoes', price: 89.99, quantity: 1 },
-        { id: 'P2', name: 'Sports T-Shirt', price: 34.99, quantity: 2 }
-      ]
-    },
-    {
-      id: 'ORD-002',
-      date: '2023-06-22',
-      status: 'processing' as OrderStatus,
-      total: 75.99,
-      items: [
-        { id: 'P3', name: 'Yoga Mat', price: 45.99, quantity: 1 },
-        { id: 'P4', name: 'Water Bottle', price: 15.00, quantity: 2 }
-      ]
-    }
-  ];
+  const response = await axios.get('/api/orders');
+  return response.data.data;
 };
 
 const statusColors: Record<OrderStatus, "warning" | "info" | "success" | "error"> = {

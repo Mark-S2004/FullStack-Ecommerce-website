@@ -5,13 +5,24 @@ export class ProductService {
     return ProductModel.create(data);
   }
   static async list(filter: any = {}, paging: { limit?: number; skip?: number } = {}) {
-    // If search parameter is provided, add regex filter for name
+    const queryFilter: any = {};
+
+    // Handle search filter
     if (filter.search) {
-      filter.name = { $regex: filter.search, $options: 'i' };
-      delete filter.search; // Remove search from filter as it's not a field in the model
+      queryFilter.name = { $regex: filter.search, $options: 'i' };
     }
     
-    return ProductModel.find(filter)
+    // Handle category filter (if not empty)
+    if (filter.category) {
+      queryFilter.category = filter.category;
+    }
+
+    // Handle gender filter (if not empty)
+    if (filter.gender) {
+      queryFilter.gender = filter.gender;
+    }
+    
+    return ProductModel.find(queryFilter) // Use the constructed queryFilter
       .limit(paging.limit || 20)
       .skip(paging.skip || 0);
   }

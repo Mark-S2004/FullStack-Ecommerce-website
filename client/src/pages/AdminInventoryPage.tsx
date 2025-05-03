@@ -25,10 +25,19 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
+  Grid,
+  Card,
+  CardMedia,
+  CardContent,
+  CardActions,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
+import ReplayIcon from '@mui/icons-material/Replay';
+import Fab from '@mui/material/Fab';
+import axios from 'axios';
+import { fetchProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
 
 // Types
 type Product = {
@@ -45,64 +54,7 @@ type Product = {
 type ProductFormData = Omit<Product, '_id'> & { _id?: string };
 
 // Mock API calls
-const fetchProducts = async (): Promise<Product[]> => {
-  // Simulating API call
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Mock data
-  return [
-    {
-      _id: 'p1',
-      name: 'Running Shoes',
-      price: 89.99,
-      description: 'Comfortable running shoes for daily use',
-      category: 'Footwear',
-      gender: 'Unisex',
-      imageUrl: 'https://via.placeholder.com/150',
-      stock: 45
-    },
-    {
-      _id: 'p2',
-      name: 'Yoga Mat',
-      price: 39.99,
-      description: 'High-quality yoga mat with extra cushioning',
-      category: 'Accessories',
-      gender: 'Unisex',
-      imageUrl: 'https://via.placeholder.com/150',
-      stock: 30
-    }
-  ];
-};
-
-const createProduct = async (product: ProductFormData): Promise<Product> => {
-  // Simulating API call
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Mocking API response
-  return {
-    _id: `p${Math.floor(Math.random() * 1000)}`,
-    ...product
-  };
-};
-
-const updateProduct = async (product: ProductFormData): Promise<Product> => {
-  // Simulating API call
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Mocking API response
-  return {
-    ...product,
-    _id: product._id || 'unknown'
-  } as Product;
-};
-
-const deleteProduct = async (id: string): Promise<void> => {
-  // Simulating API call
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // In a real app, this would actually delete from the backend
-  return;
-};
+// Removed local definitions to use imported functions from products.ts
 
 const AdminInventoryPage = () => {
   const queryClient = useQueryClient();
@@ -128,9 +80,9 @@ const AdminInventoryPage = () => {
   });
 
   // Fetch products
-  const { data: products, isLoading } = useQuery<Product[]>({
+  const { data: products = [], isLoading, isError, error, refetch } = useQuery<Product[], Error>({
     queryKey: ['admin-products'],
-    queryFn: fetchProducts,
+    queryFn: () => fetchProducts(),
   });
 
   // Create product mutation
@@ -156,7 +108,7 @@ const AdminInventoryPage = () => {
 
   // Update product mutation
   const updateProductMutation = useMutation({
-    mutationFn: updateProduct,
+    mutationFn: (product: ProductFormData) => updateProduct(product._id || '', product),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       handleCloseDialog();
@@ -237,17 +189,21 @@ const AdminInventoryPage = () => {
 
   const handleSubmit = () => {
     if (editingProduct && editingProduct._id) {
-      updateProductMutation.mutate({ ...formData, _id: editingProduct._id });
+      updateProductMutation.mutate(formData);
     } else {
       createProductMutation.mutate(formData);
     }
   };
 
   const handleDelete = (id: string) => {
+    // Add confirmation dialog
     if (window.confirm('Are you sure you want to delete this product?')) {
       deleteProductMutation.mutate(id);
     }
   };
+
+  // Add category options
+  const categories = ['Footwear', 'Accessories', 'Clothing', 'Electronics', 'Home Goods'];
 
   if (isLoading) {
     return (
@@ -257,68 +213,104 @@ const AdminInventoryPage = () => {
     );
   }
 
-  return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
-          Inventory Management
-        </Typography>
-        <Button 
-          variant="contained" 
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
+  // Handle error state
+  if (isError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>Inventory Management</Typography>
+        <Alert 
+          severity="error"
+          action={
+            <Button 
+              color="inherit" 
+              size="small" 
+              onClick={() => refetch()}
+              startIcon={<ReplayIcon />}
+            >
+              Retry
+            </Button>
+          }
         >
-          Add Product
-        </Button>
+          Failed to load products. Error: {error?.message || 'Unknown error'}
+        </Alert>
       </Box>
+    );
+  }
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Image</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Gender</TableCell>
-              <TableCell align="right">Price</TableCell>
-              <TableCell align="right">Stock</TableCell>
-              <TableCell align="center">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {products && products.map((product) => (
-              <TableRow key={product._id}>
-                <TableCell>
-                  <img 
-                    src={product.imageUrl} 
-                    alt={product.name} 
-                    style={{ width: 50, height: 50, objectFit: 'cover' }} 
-                  />
-                </TableCell>
-                <TableCell>{product.name}</TableCell>
-                <TableCell>{product.category}</TableCell>
-                <TableCell>{product.gender}</TableCell>
-                <TableCell align="right">${product.price.toFixed(2)}</TableCell>
-                <TableCell align="right">{product.stock}</TableCell>
-                <TableCell align="center">
-                  <IconButton 
-                    color="primary" 
+  return (
+    <Box sx={{ p: 3, position: 'relative', minHeight: 'calc(100vh - 64px)' /* Adjust height based on AppBar */ }}>
+      <Typography variant="h4" gutterBottom>
+        Inventory Management
+      </Typography>
+      
+      {products.length === 0 && !isLoading ? ( // Ensure loading is finished before showing empty message
+        <Typography variant="h6" align="center" sx={{ my: 4 }}>
+          No products available. Add a new product to get started.
+        </Typography>
+      ) : (
+        // Grid container for product cards
+        <Grid container spacing={3}>
+          {products.map((product) => (
+            <Grid item key={product._id} xs={12} sm={6} md={4} lg={3}>
+              <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <CardMedia
+                  component="img"
+                  height="140"
+                  image={product.imageUrl || 'https://via.placeholder.com/150?text=No+Image'} // Fallback image
+                  alt={product.name}
+                  sx={{ objectFit: 'contain' }} // Use 'contain' to avoid cropping important parts
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography gutterBottom variant="h6" component="div" noWrap>
+                    {product.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Price: ${product.price.toFixed(2)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Category: {product.category}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Gender: {product.gender}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Stock: {product.stock}
+                  </Typography>
+                </CardContent>
+                <CardActions sx={{ justifyContent: 'flex-end' }}>
+                  <IconButton
                     onClick={() => handleOpenDialog(product)}
+                    size="small"
                   >
                     <EditIcon />
                   </IconButton>
-                  <IconButton 
-                    color="error" 
+                  <IconButton
+                    color="error"
                     onClick={() => handleDelete(product._id)}
+                    size="small"
                   >
                     <DeleteIcon />
                   </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
+      {/* Floating Action Button for Add Product */} 
+      <Fab 
+        color="primary" 
+        aria-label="add product" 
+        onClick={() => handleOpenDialog()} 
+        sx={{
+          position: 'fixed',
+          bottom: 32, 
+          right: 32,
+        }}
+      >
+        <AddIcon />
+      </Fab>
 
       {/* Form Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
@@ -346,6 +338,7 @@ const AdminInventoryPage = () => {
               InputProps={{
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
               }}
+              inputProps={{ min: 0 }} // Basic validation: price >= 0
               value={formData.price}
               onChange={handleFormChange}
             />
@@ -360,16 +353,22 @@ const AdminInventoryPage = () => {
               value={formData.description}
               onChange={handleFormChange}
             />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              label="Category"
-              name="category"
-              value={formData.category}
-              onChange={handleFormChange}
-            />
-            <FormControl fullWidth margin="normal">
+            <FormControl fullWidth margin="normal" required>
+              <InputLabel>Category</InputLabel>
+              <Select
+                name="category"
+                value={formData.category}
+                label="Category"
+                onChange={handleSelectChange}
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category} value={category}>
+                    {category}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth margin="normal" required>
               <InputLabel>Gender</InputLabel>
               <Select
                 name="gender"
@@ -388,6 +387,7 @@ const AdminInventoryPage = () => {
               fullWidth
               label="Image URL"
               name="imageUrl"
+              type="url" // Use type="url" for basic URL format hint
               value={formData.imageUrl}
               onChange={handleFormChange}
             />
@@ -398,6 +398,7 @@ const AdminInventoryPage = () => {
               label="Stock"
               name="stock"
               type="number"
+              inputProps={{ min: 0 }} // Basic validation: stock >= 0
               value={formData.stock}
               onChange={handleFormChange}
             />

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchProducts } from '../api/products';
 import ProductCard from '../components/ProductCard';
 import useDebounce from '../hooks/useDebounce';
-import { Box, Container, TextField, Typography, InputAdornment, IconButton, CircularProgress, Grid } from '@mui/material';
+import { Box, Container, TextField, Typography, InputAdornment, IconButton, CircularProgress, Grid, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 
@@ -29,15 +29,16 @@ type ProductCardType = {
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [category, setCategory] = useState('');
+  const [gender, setGender] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const { data = [], isLoading, error } = useQuery<ProductModel[]>({
-    queryKey: ['products', debouncedSearchTerm],
-    queryFn: () => fetchProducts(debouncedSearchTerm),
+  const { data: products = [], isLoading, error } = useQuery<ProductModel[]>({
+    queryKey: ['products', debouncedSearchTerm, category, gender],
+    queryFn: () => fetchProducts(debouncedSearchTerm, category, gender),
   });
 
-  // Map backend model to frontend type expected by ProductCard
-  const products: ProductCardType[] = data.map(product => ({
+  const displayProducts: ProductCardType[] = products.map(product => ({
     id: product._id,
     name: product.name,
     price: product.price,
@@ -52,11 +53,19 @@ const ProductsPage = () => {
     setSearchTerm('');
   };
 
+  const handleCategoryChange = (event: any) => {
+    setCategory(event.target.value as string);
+  };
+
+  const handleGenderChange = (event: any) => {
+    setGender(event.target.value as string);
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 4, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
         <TextField
-          fullWidth
+          sx={{ flexGrow: 1 }}
           variant="outlined"
           placeholder="Search products..."
           value={searchTerm}
@@ -76,6 +85,32 @@ const ProductsPage = () => {
             ),
           }}
         />
+        <FormControl sx={{ minWidth: { xs: '100%', sm: '120px' } }}>
+          <InputLabel>Category</InputLabel>
+          <Select
+            value={category}
+            onChange={handleCategoryChange}
+            label="Category"
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="Footwear">Footwear</MenuItem>
+            <MenuItem value="Accessories">Accessories</MenuItem>
+            <MenuItem value="Clothing">Clothing</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl sx={{ minWidth: { xs: '100%', sm: '120px' } }}>
+          <InputLabel>Gender</InputLabel>
+          <Select
+            value={gender}
+            onChange={handleGenderChange}
+            label="Gender"
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="Male">Male</MenuItem>
+            <MenuItem value="Female">Female</MenuItem>
+            <MenuItem value="Unisex">Unisex</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
 
       {isLoading && (
@@ -90,19 +125,19 @@ const ProductsPage = () => {
         </Typography>
       )}
 
-      {!isLoading && products.length === 0 && (
+      {!isLoading && products.length === 0 && !error && (
         <Typography variant="h6" align="center" sx={{ my: 4 }}>
-          No products found. Try a different search term.
+          No products found matching your criteria.
         </Typography>
       )}
 
-      <Grid container spacing={3}>
-        {products.map((product) => (
-          <Grid item xs={12} sm={6} md={4} key={product.id}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3 }}>
+        {displayProducts.map((product) => (
+          <Box key={product.id}>
             <ProductCard product={product} />
-          </Grid>
+          </Box>
         ))}
-      </Grid>
+      </Box>
     </Container>
   );
 };

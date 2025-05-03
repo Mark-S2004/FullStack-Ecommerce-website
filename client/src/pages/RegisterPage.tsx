@@ -16,7 +16,7 @@ import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
 import { toast } from "react-toastify"
 import Card from "@components/Card"
-import axios from "axios"
+import axios, { AxiosError } from "axios"
 import { EUserRole } from "@/types/user.types"
 import { FormControl, InputLabel, MenuItem, Select } from "@mui/material"
 import { IUser } from "@/types/user.types"
@@ -72,16 +72,17 @@ export default function SignupPage() {
         toast.success("Signed Up Successfully")
         navigate("/auth/login")
       },
-      onError: (error) => {
+      onError: (error: unknown) => {
+        const axiosError = error as AxiosError;
         toast.error(
-          `An error occurred.\n${error.response.data.message} [${error.response.status}]`
-        )
+          `An error occurred.\n${axiosError.response?.data && typeof axiosError.response.data === 'object' && 'message' in axiosError.response.data ? axiosError.response.data.message : 'Unknown error'} [${axiosError.response?.status || 'N/A'}]`
+        );
       },
     })
   }
 
   return (
-    <>
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
       <Card variant="outlined">
         <Typography
           component="h1"
@@ -156,6 +157,6 @@ export default function SignupPage() {
       </Card>
 
       <DevTool control={control} />
-    </>
+    </Box>
   )
 }

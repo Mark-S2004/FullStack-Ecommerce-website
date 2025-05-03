@@ -7,7 +7,7 @@ import {
 } from "react-hook-form"
 import { toast } from "react-toastify"
 import { useMutation } from "@tanstack/react-query"
-import axios from "axios"
+import axios, { AxiosError } from "axios"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import Divider from "@mui/material/Divider"
@@ -43,10 +43,11 @@ export default function LoginPage() {
         const user = responseData.data
         navigate(`/${user.role}`, { replace: true })
       },
-      onError: (error) => {
+      onError: (error: unknown) => {
+        const axiosError = error as AxiosError;
         toast.error(
-          `An error occurred.\n${error.response.data.message} [${error.response.status}]`
-        )
+          `An error occurred.\n${axiosError.response?.data && typeof axiosError.response.data === 'object' && 'message' in axiosError.response.data ? axiosError.response.data.message : 'Unknown error'} [${axiosError.response?.status || 'N/A'}]`
+        );
       },
     })
   }
@@ -71,7 +72,7 @@ export default function LoginPage() {
   ]
 
   return (
-    <>
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
       <Card variant="outlined">
         <Typography
           component="h1"
@@ -133,6 +134,6 @@ export default function LoginPage() {
           </Typography>
         </Box>
       </Card>
-    </>
+    </Box>
   )
 }
