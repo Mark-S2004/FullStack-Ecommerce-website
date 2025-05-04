@@ -1,58 +1,58 @@
-import { lazy } from "react"
-import { Routes, Route } from "react-router-dom"
-import { CartProvider } from "@context/CartContext"
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import ProductsPage from '../pages/ProductsPage';
+import ProductDetailsPage from '../pages/ProductDetailsPage';
+import CartPage from '../pages/CartPage';
+import AdminInventoryPage from '../pages/AdminInventoryPage';
+import OrdersPage from '../pages/OrdersPage';
+import AdminOrdersPage from '../pages/AdminOrdersPage';
+import DiscountsPage from '../pages/DiscountsPage';
+import ReviewsPage from '../pages/ReviewsPage';
 
-const AppLayout = lazy(() => import("@layouts/AppLayout"))
-const ProtectedRoutes = lazy(() => import("@routes/ProtectedRoutes"))
+// Placeholder for ProtectedRoute component
+const ProtectedRoute: React.FC<{ children: React.ReactNode; role: string }> = ({ children, role }) => {
+  // This is a placeholder. Implement actual authentication logic here.
+  const isAuthenticated = true; // Replace with real auth check
+  const userRole = 'admin'; // Replace with real user role
 
-const AuthLayout = lazy(() => import("@layouts/AuthLayout"))
-const LoginPage = lazy(() => import("@pages/LoginPage"))
-const RegisterPage = lazy(() => import("@pages/RegisterPage"))
+  if (!isAuthenticated) {
+    return <div>Please log in to access this page.</div>;
+  }
 
-const CheckoutPage = lazy(() => import("@pages/CheckoutPage"))
-const CheckoutSuccess = lazy(() => import("@pages/CheckoutSuccess"))
+  if (role && userRole !== role) {
+    return <div>You do not have permission to access this page.</div>;
+  }
 
-const AllRoutes = () => {
+  return <>{children}</>;
+};
+
+const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<AppLayout />}>
-        <Route index element={<div>Home Page (placeholder)</div>} />
-        <Route path="auth" element={<AuthLayout />}>
-          <Route path="login" element={<LoginPage />} />
-          <Route path="register" element={<RegisterPage />} />
-        </Route>
-        {/* User must be authenticated to access these routes */}
-        <Route element={<ProtectedRoutes />}>
-          <Route path="customer">
-            <Route path="products" element={<div>producst</div>} />
-            <Route path="cart" element={<div>cart</div>} />
-            <Route path="orders" element={<div>orders</div>} />
-            <Route
-              path="checkout"
-              element={
-                <CartProvider>
-                  <CheckoutPage />
-                </CartProvider>
-              }
-            />
-            <Route
-              path="checkout-success"
-              element={
-                <CartProvider>
-                  <CheckoutSuccess />
-                </CartProvider>
-              }
-            />
-          </Route>
-
-          <Route path="admin">
-            <Route path="inventory" element={<div>inventory</div>} />
-            <Route path="orders" element={<div>orders</div>} />
-          </Route>
-        </Route>
-      </Route>
+      <Route path="/customer/products" element={<ProductsPage />} />
+      <Route path="/customer/products/:id" element={<ProductDetailsPage />} />
+      <Route path="/customer/cart" element={<CartPage />} />
+      <Route path="/customer/orders" element={<OrdersPage />} />
+      <Route path="/customer/discounts" element={<DiscountsPage />} />
+      <Route path="/customer/reviews" element={<ReviewsPage />} />
+      <Route 
+        path="/admin/inventory" 
+        element={
+          <ProtectedRoute role="admin">
+            <AdminInventoryPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/orders" 
+        element={
+          <ProtectedRoute role="admin">
+            <AdminOrdersPage />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
-  )
-}
+  );
+};
 
-export default AllRoutes
+export default AppRoutes;
