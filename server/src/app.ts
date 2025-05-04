@@ -8,12 +8,12 @@ import morgan from 'morgan';
 import { connect, set, disconnect } from 'mongoose';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from '@config';
-import { dbConnection } from '@databases';
-import { Routes } from '@interfaces/routes.interface';
-import errorMiddleware from '@middlewares/error.middleware';
-import { logger, stream } from '@utils/logger';
-import routes from '@routes/index'; // ⬅️ Your updated routes import (where you use `new IndexRoute(), new OrderRoute()`, etc.)
+import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS, DB_URI } from './config';
+import { Routes } from './interfaces/routes.interface';
+import errorMiddleware from './middlewares/error.middleware';
+import { logger, stream } from './utils/logger';
+import routes from './routes/index';
+import adminRoute from './routes/admin.route';
 
 class App {
   public app: express.Application;
@@ -27,7 +27,7 @@ class App {
 
     this.connectToDatabase();
     this.initializeMiddlewares();
-    this.initializeRoutes(routes); // <- now it accepts properly constructed route instances
+    this.initializeRoutes(routes);
     this.initializeSwagger();
     this.initializeErrorHandling();
   }
@@ -58,12 +58,15 @@ class App {
     if (this.env !== 'production') {
       set('debug', true);
     }
-    await connect(dbConnection.url);
+    if (!DB_URI) {
+        throw new Error('DB_URI environment variable is not set.');
+    }
+    await connect(DB_URI);
   }
 
   private initializeMiddlewares() {
-    this.app.use(morgan(LOG_FORMAT, { stream }));
-    this.app.use(cors({ origin: ORIGIN, credentials: CREDENTIALS }));
+    this.app.use(morgan(LOG_FORMAT || 'dev', { stream }));
+    this.app.use(cors({ origin: ORIGIN || true, credentials: CREDENTIALS }));
     this.app.use(hpp());
     this.app.use(helmet());
     this.app.use(compression());
@@ -72,25 +75,32 @@ class App {
     this.app.use(cookieParser());
   }
 
-  private initializeRoutes(routes: Routes[]) {
-    routes.forEach(route => {
-      this.app.use('/api', route.router);
+  private initializeRoutes(routeModules: Routes[]) {
+    routeModules.forEach(route => {
+        if (route.router) {
+             this.app.use('/api', route.router);
+        }
     });
+    this.app.use('/api/admin', adminRoute);
   }
 
   private initializeSwagger() {
-    const options = {
-      swaggerDefinition: {
-        info: {
-          title: 'REST API',
-          version: '1.0.0',
-          description: 'Example docs',
-        },
-      },
-      apis: ['swagger.yaml'],
-    };
-    const specs = swaggerJSDoc(options);
-    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+    try {
+        const options = {
+          swaggerDefinition: {
+            info: {
+              title: 'REST API',
+              version: '1.0.0',
+              description: 'Example docs',
+            },
+          },
+          apis: ['swagger.yaml'],
+        };
+        const specs = swaggerJSDoc(options);
+        this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+    } catch (err) {
+        logger.error('Failed to initialize Swagger: ', err);
+    }
   }
 
   private initializeErrorHandling() {
