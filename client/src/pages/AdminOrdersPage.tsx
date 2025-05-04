@@ -26,6 +26,7 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import SearchIcon from '@mui/icons-material/Search';
+import axios from 'axios';
 
 // Types
 type OrderStatus = 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -57,90 +58,13 @@ type Order = {
 
 // Mock API calls
 const fetchAdminOrders = async (search: string = ''): Promise<Order[]> => {
-  // Simulating API delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Mock data
-  const orders = [
-    {
-      id: 'ORD-001',
-      customerId: 'C001',
-      customerName: 'John Doe',
-      customerEmail: 'john@example.com',
-      date: '2023-05-15',
-      status: 'delivered' as OrderStatus,
-      total: 156.99,
-      items: [
-        { id: 'P1', name: 'Running Shoes', price: 89.99, quantity: 1 },
-        { id: 'P2', name: 'Sports T-Shirt', price: 34.99, quantity: 2 }
-      ],
-      shippingAddress: {
-        street: '123 Main St',
-        city: 'New York',
-        state: 'NY',
-        zipCode: '10001',
-        country: 'USA'
-      }
-    },
-    {
-      id: 'ORD-002',
-      customerId: 'C002',
-      customerName: 'Jane Smith',
-      customerEmail: 'jane@example.com',
-      date: '2023-06-22',
-      status: 'processing' as OrderStatus,
-      total: 75.99,
-      items: [
-        { id: 'P3', name: 'Yoga Mat', price: 45.99, quantity: 1 },
-        { id: 'P4', name: 'Water Bottle', price: 15.00, quantity: 2 }
-      ],
-      shippingAddress: {
-        street: '456 Oak Ave',
-        city: 'Los Angeles',
-        state: 'CA',
-        zipCode: '90001',
-        country: 'USA'
-      }
-    },
-    {
-      id: 'ORD-003',
-      customerId: 'C003',
-      customerName: 'Mike Johnson',
-      customerEmail: 'mike@example.com',
-      date: '2023-07-10',
-      status: 'shipped' as OrderStatus,
-      total: 129.95,
-      items: [
-        { id: 'P5', name: 'Basketball', price: 29.99, quantity: 1 },
-        { id: 'P6', name: 'Fitness Tracker', price: 99.96, quantity: 1 }
-      ],
-      shippingAddress: {
-        street: '789 Pine St',
-        city: 'Chicago',
-        state: 'IL',
-        zipCode: '60007',
-        country: 'USA'
-      }
-    }
-  ];
-  
-  if (search) {
-    return orders.filter(order => 
-      order.id.toLowerCase().includes(search.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      order.customerEmail.toLowerCase().includes(search.toLowerCase())
-    );
-  }
-  
-  return orders;
+  const response = await axios.get('/api/orders/admin', { params: { search } });
+  return response.data.data;
 };
 
 const updateOrderStatus = async (data: { orderId: string; status: OrderStatus }): Promise<{ success: boolean }> => {
-  // Simulating API delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // In a real app, this would update the status in the backend
-  return { success: true };
+  const response = await axios.put(`/api/orders/${data.orderId}/status`, { status: data.status });
+  return response.data;
 };
 
 const statusColors: Record<OrderStatus, "warning" | "info" | "success" | "error"> = {

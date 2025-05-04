@@ -1,5 +1,5 @@
 import OrderModel from '../models/order.model';
-import stripe from '../utils/stripe';
+import stripe, { createMockCheckoutSession } from '../utils/stripe';
 import { calcShipping, calcTax } from '../utils/orderCalculations';
 
 export class OrderService {
@@ -20,8 +20,8 @@ export class OrderService {
       status: 'Pending',
     });
 
-    // Create Stripe Checkout session
-    const session = await stripe.checkout.sessions.create({
+    // Create Stripe Checkout session or use mock if stripe is not initialized
+    const session = stripe ? await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       line_items: cart.map(item => ({
@@ -39,7 +39,7 @@ export class OrderService {
       metadata: {
         orderId: order._id.toString(),
       },
-    });
+    }) : createMockCheckoutSession();
 
     return { order, sessionUrl: session.url };
   }

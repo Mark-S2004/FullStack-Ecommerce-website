@@ -45,6 +45,9 @@ export const getCurrentUser = async (): Promise<User> => {
       throw new Error('Invalid user data format');
     }
     
+    // Update auth service with new user data
+    authService.updateUserData(userData as User);
+    
     return userData as User;
   } catch (error) {
     // Limit error logging to avoid console spam
@@ -65,8 +68,8 @@ export const loginUser = async (credentials: { email: string, password: string }
       throw new Error('Invalid user data format');
     }
     
-    // Update auth service after successful login
-    await authService.checkAuth();
+    // Update auth service directly with user data
+    authService.updateUserData(userData as User);
     
     // Reset error count on successful login
     errorLogCount = 0;
@@ -80,13 +83,13 @@ export const loginUser = async (credentials: { email: string, password: string }
 
 export const logoutUser = async (): Promise<void> => {
   try {
-    await axios.post('/api/auth/logout');
-    // Clear auth service state after logout
+    // Clear local auth first to ensure UI updates immediately
     authService.clearAuth();
+    
+    // Then make the API call
+    await axios.post('/api/auth/logout');
   } catch (error) {
     console.error('Error logging out:', error);
-    // Still clear auth locally even if API logout fails
-    authService.clearAuth();
     throw error;
   }
 };
@@ -100,8 +103,8 @@ export const signupUser = async (userData: { name: string, email: string, passwo
       throw new Error('Invalid user data format');
     }
     
-    // Update auth service after successful signup
-    await authService.checkAuth();
+    // Update auth service directly with user data
+    authService.updateUserData(newUser as User);
     
     return newUser as User;
   } catch (error) {

@@ -9,9 +9,11 @@ class AuthService {
   private _isLoading = false;
   private _lastCheckTime = 0;
   private _pendingCheck: Promise<boolean> | null = null;
+  private readonly LOCAL_STORAGE_KEY = 'auth_user';
 
   private constructor() {
-    // We'll initialize on-demand instead of on load
+    // Initialize with saved state if available
+    this.loadFromStorage();
   }
 
   public static getInstance(): AuthService {
@@ -19,6 +21,34 @@ class AuthService {
       AuthService.instance = new AuthService();
     }
     return AuthService.instance;
+  }
+
+  // Load auth data from localStorage
+  private loadFromStorage(): void {
+    try {
+      const storedUser = localStorage.getItem(this.LOCAL_STORAGE_KEY);
+      if (storedUser) {
+        this._currentUser = JSON.parse(storedUser) as User;
+        this._isAuthenticated = true;
+      }
+    } catch (error) {
+      console.log('Failed to load user from storage');
+      this.clearStorage();
+    }
+  }
+
+  // Save auth data to localStorage
+  private saveToStorage(): void {
+    if (this._currentUser) {
+      localStorage.setItem(this.LOCAL_STORAGE_KEY, JSON.stringify(this._currentUser));
+    } else {
+      this.clearStorage();
+    }
+  }
+
+  // Clear localStorage
+  private clearStorage(): void {
+    localStorage.removeItem(this.LOCAL_STORAGE_KEY);
   }
 
   // Check if the user is authenticated by calling the /me endpoint
@@ -48,13 +78,16 @@ class AuthService {
         if (userData && userData.role) {
           this._currentUser = userData as User;
           this._isAuthenticated = true;
+          this.saveToStorage();
         } else {
           this._currentUser = null;
           this._isAuthenticated = false;
+          this.clearStorage();
         }
       } catch (error) {
         this._currentUser = null;
         this._isAuthenticated = false;
+        this.clearStorage();
         // Quiet logging - just log once that we're not authenticated
         console.log('Not authenticated');
       } finally {
@@ -66,6 +99,14 @@ class AuthService {
     });
 
     return this._pendingCheck;
+  }
+
+  // Update user data directly (without API call) - used after login/register
+  public updateUserData(user: User): void {
+    this._currentUser = user;
+    this._isAuthenticated = true;
+    this._lastCheckTime = Date.now();
+    this.saveToStorage();
   }
 
   // Getters
@@ -86,6 +127,10 @@ class AuthService {
     this._currentUser = null;
     this._isAuthenticated = false;
     this._lastCheckTime = 0;
+    this.clearStorage();
+
+    // Also remove other auth-related items
+    localStorage.removeItem('userRole');
   }
 }
 

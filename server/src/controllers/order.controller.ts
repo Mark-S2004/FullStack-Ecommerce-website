@@ -5,7 +5,7 @@ export async function createOrder(req: Request, res: Response) {
   try {
     const { cart, address } = req.body;
 
-    const userId = '660eb1c8a0dc1f001b152db6'; // <-- hardcoded test User ID
+    const userId = req.user._id; // Use authenticated user's ID
 
     const { order, sessionUrl } = await OrderService.create(userId, cart, address);
     res.status(201).json({ orderId: order._id, sessionUrl });
@@ -17,9 +17,8 @@ export async function createOrder(req: Request, res: Response) {
 
 export async function getUserOrders(req: Request, res: Response) {
   try {
-    const userId = '660eb1c8a0dc1f001b152db6'; // <-- hardcoded test User ID
+    const userId = req.user._id; // Use authenticated user's ID
 
-    // const userId = req.user._id;
     const orders = await OrderService.findUserOrders(userId);
 
     res.status(200).json(orders);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { useMutation, useQuery, UseQueryResult } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import {
   AppBar,
   Box,
@@ -20,7 +20,7 @@ import InventoryIcon from "@mui/icons-material/Inventory"
 import ListAltIcon from "@mui/icons-material/ListAlt"
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart"
 import { toast } from "react-toastify"
-import { getCurrentUser, logoutUser } from "@/api/auth"
+import { logoutUser } from "@/api/auth"
 import { authService } from "@/services/auth.service"
 
 // User data type
@@ -43,40 +43,68 @@ const NavBar: React.FC = () => {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
 
-  // Check authentication status on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      setIsLoading(true)
-      try {
-        await authService.checkAuth()
-        if (authService.isAuthenticated && authService.currentUser) {
-          setUser(authService.currentUser)
-        } else {
-          // Redirect to login if not authenticated
-          navigate("/auth/login")
-        }
-      } catch (error) {
-        navigate("/auth/login")
-      } finally {
+  // Handle auth state changes
+  const checkUserAuth = async () => {
+    setIsLoading(true)
+    try {
+      // First check if we have user in local state
+      if (authService.isAuthenticated && authService.currentUser) {
+        setUser(authService.currentUser)
+        setAuthChecked(true)
         setIsLoading(false)
+        return
       }
-    }
-    
-    checkAuth()
-  }, [navigate])
 
-  const { mutate: logout } = useMutation({
-    mutationFn: () => logoutUser(),
+      // If not, check auth status (which will use localStorage if available)
+      const isAuthenticated = await authService.checkAuth()
+      
+      if (isAuthenticated && authService.currentUser) {
+        setUser(authService.currentUser)
+      } else {
+        setUser(null)
+        // Don't navigate away here - let protected routes handle redirects
+      }
+    } catch (error) {
+      setUser(null)
+      console.error("Auth check error:", error)
+    } finally {
+      setAuthChecked(true)
+      setIsLoading(false)
+    }
+  }
+
+  // Check authentication on mount and when auth service changes
+  useEffect(() => {
+    checkUserAuth()
+
+    // Setup a listener for localStorage changes to handle logins in other tabs
+    const handleStorageChange = () => {
+      checkUserAuth()
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Check auth status every minute to keep session fresh
+    const intervalId = setInterval(checkUserAuth, 60000)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(intervalId)
+    }
+  }, [])
+
+  const { mutate: logout, isPending: isLoggingOut } = useMutation({
+    mutationFn: logoutUser,
     onSuccess: () => {
-      authService.clearAuth()
+      // AuthService.clearAuth() is already called in the API function
+      setUser(null)
       navigate("/auth/login")
+      toast.success("Logged out successfully")
     },
     onError: (err) => {
-      let message = 'An error occurred'
-      let status = 'unknown'
-      
-      toast.error(`${message} [${status}]`)
+      toast.error("Logout failed, please try again")
     },
   })
 
@@ -98,11 +126,13 @@ const NavBar: React.FC = () => {
   }
 
   const onLogout = () => {
+    handleCloseUserMenu()
     logout()
   }
 
-  // Handle loading state
-  if (isLoading || !user) return null
+  // Don't render navbar if we're still checking auth or user is not authenticated
+  if (isLoading || !authChecked) return null
+  if (!user) return null
 
   const isAdmin = user.role === "admin"
   const baseUrl = isAdmin ? "/admin" : "/customer"
@@ -237,7 +267,9 @@ const NavBar: React.FC = () => {
             </Typography>
             <Tooltip title="Open settings">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                <Avatar alt={user.name} src="/static/avatar.jpg" />
+                <Avatar alt={user.name}>
+                  {user.name.charAt(0).toUpperCase()}
+                </Avatar>
               </IconButton>
             </Tooltip>
             <Menu
@@ -256,8 +288,10 @@ const NavBar: React.FC = () => {
               open={Boolean(anchorElUser)}
               onClose={handleCloseUserMenu}
             >
-              <MenuItem onClick={onLogout}>
-                <Typography textAlign="center">Logout</Typography>
+              <MenuItem onClick={onLogout} disabled={isLoggingOut}>
+                <Typography textAlign="center">
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </Typography>
               </MenuItem>
             </Menu>
           </Box>

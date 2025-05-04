@@ -41,6 +41,9 @@ export default function LoginPage() {
       onSuccess: (data) => {
         const { data: responseData } = data
         const user = responseData.data
+        if (responseData.token) {
+          localStorage.setItem('authToken', responseData.token)
+        }
         navigate(`/${user.role}`, { replace: true })
       },
       onError: (error: unknown) => {

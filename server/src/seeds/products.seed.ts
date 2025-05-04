@@ -1,9 +1,11 @@
 import mongoose from 'mongoose';
 import { ProductModel } from '../models/product.model';
-import { dbConnection } from '../databases'; // Import connection options instead of a connect function
 import dotenv from 'dotenv';
 
 dotenv.config(); // Load environment variables
+
+// Use a direct MongoDB URI for seeding
+const DB_URI = process.env.DB_URI || 'mongodb://localhost:27017/ecommerce';
 
 const seedProducts = [
   {
@@ -70,9 +72,8 @@ const seedProducts = [
 
 const seedDB = async () => {
   try {
-    // Connect directly using mongoose.connect with only the URL
-    // Options like useNewUrlParser and useUnifiedTopology are deprecated in Mongoose 6+
-    await mongoose.connect(dbConnection.url);
+    // Connect directly using mongoose.connect with the URI
+    await mongoose.connect(DB_URI);
     console.log('Connected to MongoDB for seeding...');
 
     // Clear existing products (optional, uncomment if needed)
