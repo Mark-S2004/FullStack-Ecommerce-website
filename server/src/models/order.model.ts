@@ -1,40 +1,17 @@
 import { model, Schema, Document } from 'mongoose';
-
-export interface OrderItem {
-  product: string;
-  qty: number;
-  price: number;
-}
-
-export interface ShippingAddress {
-  line1: string;
-  city: string;
-  country: string;
-  postalCode: string;
-}
-
-export interface Order {
-  user: string;
-  items: OrderItem[];
-  shippingAddress: ShippingAddress;
-  shippingCost: number;
-  tax: number;
-  total: number;
-  status: string;
-  createdAt: Date;
-}
+import { Order } from '@interfaces/orders.interface';
 
 const OrderItemSchema = new Schema({
   product: { type: String, required: true },
   qty: { type: Number, required: true },
-  price: { type: Number, required: true }
+  price: { type: Number, required: true },
 });
 
 const ShippingAddressSchema = new Schema({
   line1: { type: String, required: true },
   city: { type: String, required: true },
   country: { type: String, required: true },
-  postalCode: { type: String, required: true }
+  postalCode: { type: String, required: true },
 });
 
 const OrderSchema: Schema = new Schema({
@@ -45,9 +22,9 @@ const OrderSchema: Schema = new Schema({
   tax: { type: Number, required: true },
   total: { type: Number, required: true },
   status: { type: String, default: 'Pending', enum: ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'] },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 const OrderModel = model<Order & Document>('Order', OrderSchema);
 
-export default OrderModel; 
+export default OrderModel;

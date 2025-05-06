@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import stripe from '../utils/stripe';
-import { OrderService } from '../services/order.service';
+import * as orderService from '../services/order.service';
 
 export async function handleStripeWebhook(req: Request, res: Response) {
   // Get the signature from the header
@@ -19,7 +19,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 
       if (orderId) {
         // Update order status to 'Confirmed'
-        await OrderService.updateOrderStatus(orderId, 'Confirmed');
+        await orderService.updateOrderStatus(orderId, 'Confirmed');
         console.log(`Order ${orderId} status updated to Confirmed`);
       }
     }
