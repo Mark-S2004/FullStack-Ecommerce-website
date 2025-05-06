@@ -1,138 +1,105 @@
-import { useNavigate } from "react-router"
-import {
-  Controller,
-  RegisterOptions,
-  SubmitHandler,
-  useForm,
-} from "react-hook-form"
-import { toast } from "react-toastify"
-import { useMutation } from "@tanstack/react-query"
-import axios from "axios"
-import Box from "@mui/material/Box"
-import Button from "@mui/material/Button"
-import Divider from "@mui/material/Divider"
-import FormControl from "@mui/material/FormControl"
-import Link from "@mui/material/Link"
-import TextField from "@mui/material/TextField"
-import Typography from "@mui/material/Typography"
-import Card from "@components/Card"
-import { IUser } from "@/types/user.types"
+import { useState, FormEvent } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 
-type ICredentials = Pick<IUser, "email" | "password">
+const LoginPage = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const { login, loading, error, clearError } = useAuth();
+  const navigate = useNavigate();
 
-export default function LoginPage() {
-  const navigate = useNavigate()
-
-  const { mutate: loginUser } = useMutation({
-    mutationFn: (credentials: ICredentials) => {
-      return axios.post("/api/auth/login", credentials)
-    },
-  })
-
-  const { control, handleSubmit } = useForm({
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  })
-
-  const onSubmit: SubmitHandler<ICredentials> = async (credentials) => {
-    loginUser(credentials, {
-      onSuccess: (data) => {
-        const { data: responseData } = data
-        const user = responseData.data
-        navigate(`/${user.role}`, { replace: true })
-      },
-      onError: (error) => {
-        toast.error(
-          `An error occurred.\n${error.response.data.message} [${error.response.status}]`
-        )
-      },
-    })
-  }
-
-  const formFields: {
-    name: keyof ICredentials
-    rules:
-      | Omit<
-          RegisterOptions<ICredentials, "email" | "password">,
-          "setValueAs" | "disabled" | "valueAsNumber" | "valueAsDate"
-        >
-      | undefined
-  }[] = [
-    {
-      name: "email",
-      rules: { required: true, pattern: /\S+@\S+\.\S+/ },
-    },
-    {
-      name: "password",
-      rules: { required: true, minLength: 3 },
-    },
-  ]
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      return;
+    }
+    
+    await login(email, password);
+    
+    // Navigate to home page on successful login
+    if (!error) {
+      navigate('/');
+    }
+  };
 
   return (
-    <>
-      <Card variant="outlined">
-        <Typography
-          component="h1"
-          variant="h4"
-          sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}
-        >
-          Sign in
-        </Typography>
-        <Box
-          component="form"
-          onSubmit={handleSubmit(onSubmit)}
-          noValidate
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            width: "100%",
-            gap: 2,
-          }}
-        >
-          {formFields.map((formField, index) => (
-            <FormControl fullWidth key={index}>
-              <Controller
-                name={formField.name}
-                control={control}
-                rules={formField.rules}
-                render={({ field, fieldState: { error } }) => (
-                  <TextField
-                    {...field}
-                    name={formField.name}
-                    label={formField.name}
-                    type={formField.name}
-                    required
-                    fullWidth
-                    variant="outlined"
-                    error={!!error}
-                    helperText={error?.message}
-                    color={error ? "error" : "primary"}
-                  />
-                )}
-              />
-            </FormControl>
-          ))}
-
-          <Button type="submit" fullWidth variant="contained">
-            Sign in
-          </Button>
-        </Box>
-        <Divider>or</Divider>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Typography sx={{ textAlign: "center" }}>
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/auth/register"
-              variant="body2"
-              sx={{ alignSelf: "center" }}
+    <div className="flex items-center justify-center min-h-[80vh]">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Login</h2>
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 relative">
+            <strong className="font-bold">Error!</strong>
+            <span className="block sm:inline"> {error}</span>
+            <button 
+              className="absolute top-0 bottom-0 right-0 px-4 py-3"
+              onClick={clearError}
             >
-              Sign up
+              <span className="text-red-500">&times;</span>
+            </button>
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label 
+              htmlFor="email" 
+              className="block text-gray-700 text-sm font-bold mb-2"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              placeholder="Email"
+              required
+            />
+          </div>
+          
+          <div className="mb-6">
+            <label 
+              htmlFor="password" 
+              className="block text-gray-700 text-sm font-bold mb-2"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              placeholder="Password"
+              required
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <button
+              type="submit"
+              disabled={loading}
+              className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${
+                loading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
+            
+            <Link
+              to="/register"
+              className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
+            >
+              New user? Register
             </Link>
-          </Typography>
-        </Box>
-      </Card>
-    </>
-  )
-}
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default LoginPage;

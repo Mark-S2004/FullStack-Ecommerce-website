@@ -8,7 +8,7 @@ import OrdersPage from '../pages/OrdersPage';
 import AdminOrdersPage from '../pages/AdminOrdersPage';
 import DiscountsPage from '../pages/DiscountsPage';
 import ReviewsPage from '../pages/ReviewsPage';
-
+import LandingPage from '../pages/LandingPage';
 // Placeholder for ProtectedRoute component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; role: string }> = ({ children, role }) => {
   // This is a placeholder. Implement actual authentication logic here.
@@ -29,6 +29,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; role: string }> = ({
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/customer/products" element={<ProductsPage />} />
       <Route path="/customer/products/:id" element={<ProductDetailsPage />} />
       <Route path="/customer/cart" element={<CartPage />} />
