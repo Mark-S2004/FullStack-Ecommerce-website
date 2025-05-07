@@ -32,7 +32,7 @@ export const logOut = async (req: RequestWithUser, res: Response, next: NextFunc
     const userData: User = req.user;
     const logOutUserData: User = await authService.logout(userData);
 
-    res.setHeader('Set-Cookie', ['Authorization=; Max-age=0']);
+    res.setHeader('Set-Cookie', ['Authorization=; HttpOnly; Secure; SameSite=None; Path=/; Max-age=0']);
     res.status(200).json({ data: logOutUserData, message: 'logout' });
   } catch (error) {
     next(error);
