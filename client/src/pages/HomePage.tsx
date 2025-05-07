@@ -25,7 +25,7 @@ export default function HomePage() {
   const [selectedGender, setSelectedGender] = useState('');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  const { data: products, isLoading } = useQuery<Product[]>({
+  const { data: products, isLoading, error, isError } = useQuery<Product[]>({
     queryKey: ['products', searchQuery, selectedCategory, selectedGender],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -33,8 +33,19 @@ export default function HomePage() {
       if (selectedCategory) params.append('category', selectedCategory);
       if (selectedGender) params.append('gender', selectedGender);
       
-      const { data } = await api.get(`/products?${params.toString()}`);
-      return data.products || [];
+      console.log('Fetching products with params:', params.toString());
+      try {
+        const { data } = await api.get(`/products?${params.toString()}`);
+        console.log('API response:', data);
+        if (!data || !data.products) {
+          console.error('Invalid API response format:', data);
+          return [];
+        }
+        return data.products;
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+        throw error;
+      }
     },
   });
 
@@ -300,6 +311,38 @@ export default function HomePage() {
             <div className="mt-12 text-center">
               <h3 className="text-lg font-semibold text-gray-900">No products found</h3>
               <p className="mt-1 text-gray-500">Try adjusting your search or filters</p>
+            </div>
+          )}
+
+          {/* Debug info - remove in production */}
+          {!products && !isLoading && (
+            <div className="mt-12 p-4 border border-red-300 bg-red-50 rounded text-center">
+              <h3 className="text-lg font-semibold text-red-700">API Data Issue</h3>
+              <p className="mt-1 text-red-500">
+                The products data is null or undefined. Check the console for errors.
+              </p>
+              <button 
+                className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                onClick={() => window.location.reload()}
+              >
+                Reload Page
+              </button>
+            </div>
+          )}
+
+          {/* Error State */}
+          {isError && (
+            <div className="mt-12 p-4 border border-red-300 bg-red-50 rounded text-center">
+              <h3 className="text-lg font-semibold text-red-700">Error Loading Products</h3>
+              <p className="mt-1 text-red-500">
+                {error instanceof Error ? error.message : 'Failed to load products. Please try again.'}
+              </p>
+              <button 
+                className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </button>
             </div>
           )}
 

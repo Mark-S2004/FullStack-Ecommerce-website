@@ -1,15 +1,25 @@
+// products.route.ts
 import { Router } from 'express';
 import * as productsController from '@controllers/products.controller';
 import { CreateProductDto } from '@dtos/products.dto';
 import validationMiddleware from '@middlewares/validation.middleware';
+import { Routes } from '@interfaces/routes.interface';
 
-const path = '/products';
-const router = Router();
+class ProductsRoute implements Routes {
+  public path = '/products';
+  public router = Router();
 
-router.get(`${path}`, productsController.getProducts);
-router.get(`${path}/:name`, productsController.getProductByName);
-router.post(`${path}`, validationMiddleware(CreateProductDto, 'body'), productsController.createProduct);
-router.put(`${path}/:name`, validationMiddleware(CreateProductDto, 'body', true), productsController.updateProduct);
-router.delete(`${path}/:name`, productsController.deleteProduct);
+  constructor() {
+    this.initializeRoutes();
+  }
 
-export default { path, router };
+  private initializeRoutes() {
+    this.router.get(`${this.path}`, productsController.getProducts);
+    this.router.get(`${this.path}/:name`, productsController.getProductByName);
+    this.router.post(`${this.path}`, validationMiddleware(CreateProductDto, 'body'), productsController.createProduct);
+    this.router.put(`${this.path}/:name`, validationMiddleware(CreateProductDto, 'body', true), productsController.updateProduct);
+    this.router.delete(`${this.path}/:name`, productsController.deleteProduct);
+  }
+}
+
+export default ProductsRoute;

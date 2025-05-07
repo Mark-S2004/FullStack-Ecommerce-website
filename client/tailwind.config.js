@@ -7,6 +7,9 @@ module.exports = {
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
   ],
+  corePlugins: {
+    preflight: false, // prevents Tailwind from overriding MUI base styles
+  },
   theme: {
     container: {
       center: true,

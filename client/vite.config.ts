@@ -2,7 +2,7 @@ import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react-swc"
 import tsconfigPaths from "vite-tsconfig-paths"
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tsconfigPaths()],
   server: {
     proxy: {
@@ -15,18 +15,25 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    sourcemap: true,
-    chunkSizeWarningLimit: 1000,
+    sourcemap: mode === 'development',
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled']
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'mui-vendor': ['@mui/material', '@mui/icons-material'],
+          'utils-vendor': ['axios', '@tanstack/react-query']
         }
       }
     }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@mui/material']
+    include: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled']
+  },
+  css: {
+    devSourcemap: true,
+    modules: {
+      localsConvention: 'camelCase'
+    }
   }
-})
+}))
