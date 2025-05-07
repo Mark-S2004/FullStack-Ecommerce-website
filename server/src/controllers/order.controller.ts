@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import * as orderService from '@services/order.service';
+import * as cartService from '@services/cart.service';
 
 export const getOrders = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -31,11 +32,13 @@ export const getOrdersByCustomer = async (req: Request, res: Response, next: Nex
 // };
 export async function createOrder(req: Request, res: Response) {
   try {
-    const { cart, address } = req.body;
+    const { address } = req.body;
 
-    const userId = '660eb1c8a0dc1f001b152db6'; // <-- hardcoded test User ID
+    const { order, sessionUrl } = await orderService.create(req.user._id, req.user.cart, address);
 
-    const { order, sessionUrl } = await orderService.create(userId, cart, address);
+    // Clear the cart
+    await cartService.clearUserCart(req.user._id);
+
     res.status(201).json({ orderId: order._id, sessionUrl });
   } catch (error) {
     console.error('Create Order Error:', error); // 👈 log it

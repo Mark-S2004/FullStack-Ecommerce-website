@@ -49,3 +49,9 @@ export const removeFromCart = async (userId: string, productId: string) => {
   await user.save();
   return user.cart;
 };
+
+export const clearUserCart = async (userId: string) => {
+  await userModel.findByIdAndUpdate(userId, { cart: [] });
+
+  return { message: 'Cart cleared successfully' };
+};

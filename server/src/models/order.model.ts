@@ -7,17 +7,17 @@ const OrderItemSchema = new Schema({
   price: { type: Number, required: true },
 });
 
-const ShippingAddressSchema = new Schema({
-  line1: { type: String, required: true },
-  city: { type: String, required: true },
-  country: { type: String, required: true },
-  postalCode: { type: String, required: true },
-});
+// const ShippingAddressSchema = new Schema({
+//   line1: { type: String, required: true },
+//   city: { type: String, required: true },
+//   country: { type: String, required: true },
+//   postalCode: { type: String, required: true },
+// });
 
 const OrderSchema: Schema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   items: [OrderItemSchema],
-  shippingAddress: ShippingAddressSchema,
+  shippingAddress: { type: String, required: true },
   shippingCost: { type: Number, required: true },
   tax: { type: Number, required: true },
   total: { type: Number, required: true },

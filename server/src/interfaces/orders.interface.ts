@@ -4,17 +4,17 @@ export interface OrderItem {
   price: number;
 }
 
-export interface ShippingAddress {
-  line1: string;
-  city: string;
-  country: string;
-  postalCode: string;
-}
+// export interface ShippingAddress {
+//   line1: string;
+//   city: string;
+//   country: string;
+//   postalCode: string;
+// }
 
 export interface Order {
   user: string;
   items: OrderItem[];
-  shippingAddress: ShippingAddress;
+  shippingAddress: string;
   shippingCost: number;
   tax: number;
   total: number;
