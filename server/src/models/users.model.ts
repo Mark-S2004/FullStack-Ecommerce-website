@@ -26,6 +26,13 @@ const userSchema: Schema = new Schema({
     index: true,
     // default: EUserRole.STUDENT,if you add a default => gives error for all fields != default
   },
+  cart: [
+    {
+      product: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+      qty: { type: Number, required: true, default: 1 },
+      price: { type: Number, required: true, default: 0 },
+    },
+  ],
 });
 
 const userModel = model<User & Document>('User', userSchema);

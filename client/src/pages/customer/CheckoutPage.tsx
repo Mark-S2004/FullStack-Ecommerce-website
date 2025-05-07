@@ -1,66 +1,68 @@
-import React, { useContext, useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { CartContext } from '../context/CartContext';
-import axios from 'axios';
+import React, { useContext, useState } from "react"
+import { loadStripe } from "@stripe/stripe-js"
+import { CartContext } from "../../context/CartContext"
+import axios from "axios"
 
 // Initialize Stripe with your publishable key
-const stripePromise = loadStripe('pk_test_51RIDMjQg2l84CpWUvk1kmobF8mN2NRxi19lYjTwvTOMTSbGWbOyi3KgZjFjXeA4cvEU9l7ORb12v3o0UycZ09ykj00OEaxaztr');
+const stripePromise = loadStripe(
+  "pk_test_51RIDMjQg2l84CpWUvk1kmobF8mN2NRxi19lYjTwvTOMTSbGWbOyi3KgZjFjXeA4cvEU9l7ORb12v3o0UycZ09ykj00OEaxaztr"
+)
 
 const CheckoutPage: React.FC = () => {
-  const { cartItems, subtotal, clearCart } = useContext(CartContext);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  const { cartItems, subtotal, clearCart } = useContext(CartContext)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
   const [address, setAddress] = useState({
-    line1: '',
-    city: '',
-    country: '',
-    postalCode: ''
-  });
+    line1: "",
+    city: "",
+    country: "",
+    postalCode: "",
+  })
 
   // Calculate estimates (these would normally come from the backend)
-  const shippingEstimate = 5.99;
-  const taxEstimate = subtotal * 0.085; // 8.5% tax
-  const totalEstimate = subtotal + shippingEstimate + taxEstimate;
+  const shippingEstimate = 5.99
+  const taxEstimate = subtotal * 0.085 // 8.5% tax
+  const totalEstimate = subtotal + shippingEstimate + taxEstimate
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setAddress(prev => ({ ...prev, [name]: value }));
-  };
+    const { name, value } = e.target
+    setAddress((prev) => ({ ...prev, [name]: value }))
+  }
 
   const handleCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
 
     try {
       // Get the Stripe instance
-      const stripe = await stripePromise;
-      
+      const stripe = await stripePromise
+
       if (!stripe) {
-        throw new Error('Stripe failed to initialize');
+        throw new Error("Stripe failed to initialize")
       }
 
       // Make API call to create order and get Stripe session URL
-      const response = await axios.post('/api/orders/checkout', {
+      const response = await axios.post("/api/orders/checkout", {
         cart: cartItems,
-        address
-      });
+        address,
+      })
 
       // Redirect to Stripe Checkout
       if (response.data && response.data.sessionUrl) {
-        window.location.href = response.data.sessionUrl;
-        clearCart();
+        window.location.href = response.data.sessionUrl
+        clearCart()
       } else {
-        throw new Error('Invalid response from server');
+        throw new Error("Invalid response from server")
       }
     } catch (err) {
-      console.error('Checkout error:', err);
-      setError('An error occurred during checkout. Please try again.');
+      console.error("Checkout error:", err)
+      setError("An error occurred during checkout. Please try again.")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   // If cart is empty, show message
   if (cartItems.length === 0) {
@@ -69,13 +71,13 @@ const CheckoutPage: React.FC = () => {
         <h1>Checkout</h1>
         <p>Your cart is empty. Add some items before checkout.</p>
       </div>
-    );
+    )
   }
 
   return (
     <div className="checkout-page">
       <h1>Checkout</h1>
-      
+
       <div className="checkout-container">
         <div className="checkout-form">
           <h2>Shipping Information</h2>
@@ -91,7 +93,7 @@ const CheckoutPage: React.FC = () => {
                 required
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="city">City</label>
               <input
@@ -103,7 +105,7 @@ const CheckoutPage: React.FC = () => {
                 required
               />
             </div>
-            
+
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="country">Country</label>
@@ -116,7 +118,7 @@ const CheckoutPage: React.FC = () => {
                   required
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="postalCode">Postal Code</label>
                 <input
@@ -129,34 +131,36 @@ const CheckoutPage: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             {error && <div className="error-message">{error}</div>}
-            
-            <button 
-              type="submit" 
-              className="checkout-button" 
+
+            <button
+              type="submit"
+              className="checkout-button"
               disabled={loading}
             >
-              {loading ? 'Processing...' : 'Proceed to Payment'}
+              {loading ? "Processing..." : "Proceed to Payment"}
             </button>
           </form>
         </div>
-        
+
         <div className="order-summary">
           <h2>Order Summary</h2>
-          
+
           <div className="cart-items">
-            {cartItems.map(item => (
+            {cartItems.map((item) => (
               <div key={item.id} className="cart-item">
                 <div className="item-details">
                   <h3>{item.name}</h3>
                   <p>Qty: {item.qty}</p>
                 </div>
-                <div className="item-price">${(item.price * item.qty).toFixed(2)}</div>
+                <div className="item-price">
+                  ${(item.price * item.qty).toFixed(2)}
+                </div>
               </div>
             ))}
           </div>
-          
+
           <div className="summary-totals">
             <div className="summary-row">
               <span>Subtotal</span>
@@ -178,7 +182,7 @@ const CheckoutPage: React.FC = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default CheckoutPage; 
+export default CheckoutPage
