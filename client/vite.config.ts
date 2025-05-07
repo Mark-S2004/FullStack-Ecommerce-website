@@ -9,46 +9,24 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:3000", // or your backend port
         changeOrigin: true,
+        secure: false,
       },
     },
   },
   build: {
-    minify: "esbuild",
-    sourcemap: true,
     outDir: "dist",
-    emptyOutDir: true,
+    sourcemap: true,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: {
-          react: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
-          mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
-        },
-        format: 'es',
-        entryFileNames: 'assets/[name]-[hash].js',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
-      },
-    },
-    target: "esnext",
-    chunkSizeWarningLimit: 1000
-  },
-  resolve: {
-    alias: {
-      react: 'react',
-      'react-dom': 'react-dom',
-      'react/jsx-runtime': 'react/jsx-runtime',
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled']
+        }
+      }
     }
   },
-  esbuild: {
-    jsx: "automatic",
-    jsxInject: `import React from 'react'`,
-    pure: ["React.createElement"],
-    treeShaking: true,
-    keepNames: true,
-    legalComments: "none",
-  },
   optimizeDeps: {
-    include: ["react", "react-dom", "@mui/material", "@emotion/react", "@emotion/styled"],
-    exclude: []
+    include: ['react', 'react-dom', '@mui/material']
   }
 })

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../lib/axios';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Helmet } from 'react-helmet-async';
 import { Transition } from '@headlessui/react';
-import { toast } from 'react-toastify';
+import toast from 'react-hot-toast';
+import { useCart } from '../contexts/CartContext';
 
 interface Product {
   _id: string;
@@ -32,16 +33,23 @@ export default function HomePage() {
       if (selectedCategory) params.append('category', selectedCategory);
       if (selectedGender) params.append('gender', selectedGender);
       
-      const { data } = await axios.get(`/api/v1/products?${params.toString()}`);
-      return data.products;
+      const { data } = await api.get(`/products?${params.toString()}`);
+      return data.products || [];
     },
   });
 
   const categories = ['Shirts', 'Pants', 'Shoes', 'Accessories'];
   const genders = ['Men', 'Women', 'Unisex'];
 
-  const handleAddToCart = (product: Product) => {
-    toast.success(`${product.name} added to cart!`);
+  const { addItem: addToCartContext } = useCart();
+
+  const handleAddToCart = async (product: Product) => {
+    try {
+      await addToCartContext(product._id, 1, 'default');
+    } catch (error) {
+      toast.error('Could not add item to cart.');
+      console.error("Failed to add to cart from HomePage:", error);
+    }
   };
 
   return (
@@ -54,7 +62,7 @@ export default function HomePage() {
       <div className="bg-white">
         <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12 lg:max-w-7xl lg:px-8">
           {/* Hero Banner */}
-          <div className="relative overflow-hidden rounded-lg mb-8">
+          <div className="relative overflow-hidden rounded-lg mb-8 max-h-[500px]">
             <div className="absolute inset-0">
               <img 
                 src="https://images.unsplash.com/photo-1441986300917-64674bd600d8" 
@@ -63,16 +71,16 @@ export default function HomePage() {
               />
               <div className="absolute inset-0 bg-gradient-to-r from-gray-900/70 to-gray-900/30"></div>
             </div>
-            <div className="relative px-6 py-12 sm:px-12 sm:py-20">
-              <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <div className="relative px-4 py-8 sm:px-6 sm:py-12">
+              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                 Summer Collection 2023
               </h1>
-              <p className="mt-6 max-w-lg text-lg text-gray-200">
+              <p className="mt-4 max-w-lg text-base text-gray-200">
                 Discover our new arrivals and trending styles for the season
               </p>
-              <div className="mt-8">
+              <div className="mt-6">
                 <button 
-                  className="rounded-md bg-white px-6 py-3 text-base font-medium text-gray-900 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white"
+                  className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white"
                   onClick={() => window.scrollTo({ top: 500, behavior: 'smooth' })}
                 >
                   Shop Now
@@ -81,8 +89,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">Our Products</h2>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <h2 className="text-xl font-bold tracking-tight text-gray-900">Our Products</h2>
             
             {/* Mobile filter toggle */}
             <button 
@@ -242,25 +250,25 @@ export default function HomePage() {
           )}
 
           {/* Product Grid */}
-          <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 xl:gap-x-8">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products?.map((product) => (
-              <div key={product._id} className="group relative">
-                <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-md bg-gray-200 lg:aspect-none group-hover:opacity-75 lg:h-80">
+              <div key={product._id} className="group relative border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden bg-gray-200 lg:aspect-none lg:h-[180px]">
                   <img
                     src={product.images[0]}
                     alt={product.name}
-                    className="h-full w-full object-cover object-center lg:h-full lg:w-full"
+                    className="h-full w-full object-cover object-center"
                   />
                 </div>
-                <div className="mt-4 flex justify-between">
-                  <div>
-                    <h3 className="text-sm text-gray-700">
+                <div className="p-4">
+                  <div className="mb-2">
+                    <h3 className="text-sm font-medium text-gray-900">
                       <Link to={`/product/${product._id}`}>
                         <span aria-hidden="true" className="absolute inset-0" />
                         {product.name}
                       </Link>
                     </h3>
-                    <p className="mt-1 text-sm text-gray-500">{product.category}</p>
+                    <p className="mt-1 text-xs text-gray-500">{product.category}</p>
                   </div>
                   <p className="text-sm font-medium text-gray-900">${product.price}</p>
                 </div>
@@ -271,10 +279,14 @@ export default function HomePage() {
                 )}
                 {product.inStock && (
                   <button 
-                    onClick={() => handleAddToCart(product)} 
-                    className="absolute bottom-0 right-0 m-2 rounded-full bg-indigo-600 p-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleAddToCart(product);
+                    }} 
+                    className="absolute bottom-2 right-2 rounded-full bg-indigo-600 p-2 text-white shadow-sm hover:bg-indigo-500 focus:outline-none"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
                     </svg>
                   </button>

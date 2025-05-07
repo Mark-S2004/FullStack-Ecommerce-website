@@ -2,7 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Aggressive reset to control scaling */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+html {
+  overflow-x: hidden;
+}
+
 @layer base {
+  html {
+    font-size: 16px; /* Ensure base font size is reasonable */
+    -webkit-text-size-adjust: 100%; /* Prevent font scaling in landscape */
+  }
+  
+  /* Fix MUI integration with Tailwind */
+  body {
+    font-size: 1rem;
+    line-height: 1.5;
+    text-rendering: optimizeSpeed;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Scale down headings */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  h3 {
+    font-size: 1.125rem !important;
+  }
+  
+  /* Reduce padding on mobile */
+  @media (max-width: 640px) {
+    .container, .mx-auto {
+      padding-left: 0.75rem !important;
+      padding-right: 0.75rem !important;
+    }
+  }
+  
+  /* Force smaller text for specific elements */
+  button, input, select, textarea, p, a, span, div {
+    font-size: 0.875rem;
+  }
+  
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
@@ -55,5 +109,44 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Custom fixes for MUI components */
+  .MuiPaper-root {
+    font-size: 0.875rem !important;
+  }
+  
+  .MuiButton-root {
+    font-size: 0.875rem !important;
+    text-transform: none !important;
+  }
+  
+  .MuiTypography-root {
+    font-size: 0.875rem !important;
+  }
+  
+  .MuiTypography-h5, .MuiTypography-h6 {
+    font-size: 1rem !important;
+  }
+  
+  .MuiMenuItem-root {
+    font-size: 0.875rem !important;
+  }
+  
+  .MuiInputBase-input {
+    font-size: 0.875rem !important;
+  }
+  
+  /* Fix for mobile table overflow */
+  .MuiTable-root {
+    table-layout: fixed;
+    width: 100%;
+  }
+  
+  .MuiTableCell-root {
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
   }
 }

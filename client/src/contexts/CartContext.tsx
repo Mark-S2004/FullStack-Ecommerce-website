@@ -45,11 +45,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const fetchCart = async () => {
     try {
-      const { data } = await api.get('/cart');
-      setItems(data.items);
-      setTotal(data.total);
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      // Only fetch cart if user is logged in
+      if (token) {
+        const { data } = await api.get('/cart');
+        setItems(data.items || []);
+        setTotal(data.total || {
+          subtotal: 0,
+          tax: 0,
+          shipping: 0,
+          total: 0,
+        });
+      } else {
+        // Reset cart for non-authenticated users
+        setItems([]);
+        setTotal({
+          subtotal: 0,
+          tax: 0,
+          shipping: 0,
+          total: 0,
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch cart:', error);
+      // Reset cart on error
+      setItems([]);
+      setTotal({
+        subtotal: 0,
+        tax: 0,
+        shipping: 0,
+        total: 0,
+      });
     } finally {
       setIsLoading(false);
     }

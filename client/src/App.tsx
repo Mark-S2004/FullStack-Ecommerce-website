@@ -1,8 +1,8 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { HelmetProvider } from 'react-helmet-async';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 // Contexts
 import { AuthProvider } from './contexts/AuthContext';
@@ -34,9 +34,51 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
       retry: 1,
+      refetchOnWindowFocus: false, // Prevent unnecessary refetches
     },
   },
 });
+
+// Create router with future flag
+const router = createBrowserRouter(
+  [
+    {
+      path: "/",
+      element: <RootLayout />,
+      children: [
+        { index: true, element: <HomePage /> },
+        { path: "product/:id", element: <ProductDetailsPage /> },
+        { path: "cart", element: <CartPage /> },
+        { 
+          path: "checkout", 
+          element: <ProtectedRoute><CheckoutPage /></ProtectedRoute> 
+        },
+        { path: "login", element: <LoginPage /> },
+        { path: "register", element: <RegisterPage /> },
+        { 
+          path: "profile", 
+          element: <ProtectedRoute><ProfilePage /></ProtectedRoute> 
+        },
+      ],
+    },
+    {
+      path: "/admin",
+      element: <ProtectedRoute requireAdmin><AdminLayout /></ProtectedRoute>,
+      children: [
+        { index: true, element: <AdminDashboard /> },
+        { path: "products", element: <AdminProducts /> },
+        { path: "orders", element: <AdminOrders /> },
+        { path: "discounts", element: <AdminDiscounts /> },
+        { path: "reviews", element: <AdminReviews /> },
+      ],
+    },
+  ],
+  {
+    future: {
+      v7_relativeSplatPath: true,
+    },
+  }
+);
 
 function App() {
   return (
@@ -44,48 +86,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <CartProvider>
-            <Router>
-              <Routes>
-                <Route path="/" element={<RootLayout />}>
-                  <Route index element={<HomePage />} />
-                  <Route path="product/:id" element={<ProductDetailsPage />} />
-                  <Route path="cart" element={<CartPage />} />
-                  <Route
-                    path="checkout"
-                    element={
-                      <ProtectedRoute>
-                        <CheckoutPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="login" element={<LoginPage />} />
-                  <Route path="register" element={<RegisterPage />} />
-                  <Route
-                    path="profile"
-                    element={
-                      <ProtectedRoute>
-                        <ProfilePage />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Route>
-
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AdminLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<AdminDashboard />} />
-                  <Route path="products" element={<AdminProducts />} />
-                  <Route path="orders" element={<AdminOrders />} />
-                  <Route path="discounts" element={<AdminDiscounts />} />
-                  <Route path="reviews" element={<AdminReviews />} />
-                </Route>
-              </Routes>
-            </Router>
+            <RouterProvider router={router} />
             <Toaster position="top-center" />
             <ReactQueryDevtools initialIsOpen={false} />
           </CartProvider>

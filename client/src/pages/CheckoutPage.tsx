@@ -3,7 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import axios from 'axios';
+import api from '../lib/axios';
 import toast from 'react-hot-toast';
 
 const shippingSchema = z.object({
@@ -54,14 +54,14 @@ export default function CheckoutPage() {
   }>({
     queryKey: ['cart'],
     queryFn: async () => {
-      const { data } = await axios.get('/api/v1/cart');
+      const { data } = await api.get('/cart');
       return data;
     },
   });
 
   const placeOrderMutation = useMutation({
     mutationFn: async (shippingData: ShippingFormData) => {
-      const { data } = await axios.post('/api/v1/orders', {
+      const { data } = await api.post('/orders', {
         shippingAddress: shippingData,
       });
       return data;

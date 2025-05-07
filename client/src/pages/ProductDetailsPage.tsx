@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '../lib/axios';
 import { StarIcon } from '@heroicons/react/20/solid';
 import { RadioGroup, Disclosure, Transition, Tab } from '@headlessui/react';
 import clsx from 'clsx';
@@ -31,17 +31,15 @@ interface Product {
   }>;
 }
 
-const sizes = ['XS', 'S', 'M', 'L', 'XL'];
-
 function calculateAverageRating(reviews: Product['reviews']) {
-  if (!reviews.length) return 0;
+  if (!reviews || !reviews.length) return 0;
   const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
   return Math.round((sum / reviews.length) * 10) / 10;
 }
 
 export default function ProductDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedSize, setSelectedSize] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const { addItem } = useCart();
@@ -49,24 +47,30 @@ export default function ProductDetailsPage() {
   const { data: product, isLoading } = useQuery<Product>({
     queryKey: ['product', id],
     queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/products/${id}`);
+      const { data } = await api.get(`/products/${id}`);
       return data.product;
     },
   });
 
+  useEffect(() => {
+    if (product && product.sizes && product.sizes.length > 0 && !selectedSize) {
+      setSelectedSize(product.sizes[0]);
+    }
+  }, [product, selectedSize]);
+
   const handleAddToCart = async () => {
-    if (!selectedSize) {
+    if (!product) return;
+    if (!selectedSize && product.sizes && product.sizes.length > 0) {
       toast.error('Please select a size');
       return;
     }
-
     if (!id) return;
 
     try {
-      await addItem(id, quantity, selectedSize);
-      toast.success('Item added to cart!');
-    } catch (error) {
-      toast.error('Failed to add to cart');
+      const sizeToAdd = (product.sizes && product.sizes.length > 0) ? selectedSize : 'default';
+      await addItem(id, quantity, sizeToAdd);
+    } catch (err) {
+      console.error('Failed to add item from details page:', err);
     }
   };
 
@@ -244,53 +248,61 @@ export default function ProductDetailsPage() {
               <div className="mt-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium text-gray-900">Size</h3>
-                  <p className="text-sm text-gray-500">Select your size</p>
+                  {product.sizes && product.sizes.length > 0 ? (
+                    <p className="text-sm text-gray-500">Select your size</p>
+                  ) : (
+                    <p className="text-sm text-gray-500">Size not applicable</p>
+                  )}
                 </div>
 
-                <RadioGroup value={selectedSize} onChange={setSelectedSize} className="mt-2">
-                  <RadioGroup.Label className="sr-only">Choose a size</RadioGroup.Label>
-                  <div className="grid grid-cols-5 gap-3">
-                    {sizes.map((size) => (
-                      <RadioGroup.Option
-                        key={size}
-                        value={size}
-                        className={({ active, checked }) =>
-                          clsx(
-                            'cursor-pointer rounded-md py-3 text-sm font-semibold uppercase',
-                            active ? 'ring-2 ring-indigo-600 ring-offset-2' : '',
-                            checked
-                              ? 'bg-indigo-600 text-white hover:bg-indigo-500'
-                              : 'ring-1 ring-inset ring-gray-300 hover:bg-gray-50',
-                            !product.inStock && 'cursor-not-allowed opacity-50'
-                          )
-                        }
-                        disabled={!product.inStock}
-                      >
-                        <RadioGroup.Label as="span" className="flex items-center justify-center">
-                          {size}
-                        </RadioGroup.Label>
-                      </RadioGroup.Option>
-                    ))}
-                  </div>
-                </RadioGroup>
+                {product.sizes && product.sizes.length > 0 && (
+                  <RadioGroup value={selectedSize} onChange={setSelectedSize} className="mt-2">
+                    <RadioGroup.Label className="sr-only">Choose a size</RadioGroup.Label>
+                    <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
+                      {product.sizes.map((size: string) => (
+                        <RadioGroup.Option
+                          key={size}
+                          value={size}
+                          className={({ active, checked }) =>
+                            clsx(
+                              active ? 'ring-2 ring-indigo-500 ring-offset-2' : '',
+                              checked
+                                ? 'border-transparent bg-indigo-600 text-white hover:bg-indigo-700'
+                                : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50',
+                              'flex items-center justify-center rounded-md border py-3 px-3 text-sm font-medium uppercase sm:flex-1 cursor-pointer'
+                            )
+                          }
+                        >
+                          <RadioGroup.Label as="span">{size}</RadioGroup.Label>
+                        </RadioGroup.Option>
+                      ))}
+                    </div>
+                  </RadioGroup>
+                )}
               </div>
 
-              <div className="mt-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-gray-900">Quantity</h3>
+              <div className="mt-10 flex">
+                {/* Quantity Selector */}
+                <div className="mr-4">
+                  <label htmlFor="quantity" className="sr-only">Quantity</label>
+                  <select 
+                    id="quantity"
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
+                    className="rounded-md border border-gray-300 py-3 text-center text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    {[1,2,3,4,5,6,7,8,9,10].map(q => <option key={q} value={q}>{q}</option>)}
+                  </select>
                 </div>
 
-                <select
-                  value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  disabled={!product.inStock || (product.sizes && product.sizes.length > 0 && !selectedSize)}
+                  className="flex max-w-xs flex-1 items-center justify-center rounded-md border border-transparent bg-indigo-600 px-8 py-3 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <option key={num} value={num}>
-                      {num}
-                    </option>
-                  ))}
-                </select>
+                  {product.inStock ? 'Add to cart' : 'Out of stock'}
+                </button>
               </div>
 
               <Transition
@@ -309,20 +321,6 @@ export default function ProductDetailsPage() {
                 )}
               </Transition>
 
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                disabled={!product.inStock}
-                className={clsx(
-                  'mt-8 flex w-full items-center justify-center rounded-md px-8 py-3 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2',
-                  product.inStock
-                    ? 'bg-indigo-600 hover:bg-indigo-500'
-                    : 'cursor-not-allowed bg-gray-400'
-                )}
-              >
-                {product.inStock ? 'Add to cart' : 'Out of stock'}
-              </button>
-              
               {/* Product details accordions */}
               <div className="mt-8 border-t border-gray-200 pt-8">
                 <Disclosure as="div" className="border-b border-gray-200 py-2">

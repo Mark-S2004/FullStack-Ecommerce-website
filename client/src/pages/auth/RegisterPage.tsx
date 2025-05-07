@@ -1,41 +1,31 @@
 import { HTMLInputTypeAttribute } from "react"
-import { useNavigate } from "react-router"
+import { useNavigate, useLocation } from "react-router-dom"
 import {
   useForm,
   Controller,
   SubmitHandler,
   RegisterOptions,
 } from "react-hook-form"
-import { DevTool } from "@hookform/devtools"
-import { useMutation } from "@tanstack/react-query"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import Divider from "@mui/material/Divider"
 import Link from "@mui/material/Link"
 import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
-import { toast } from "react-toastify"
+import toast from 'react-hot-toast'
 import Card from "@components/Card"
-import axios, { AxiosError } from "axios"
 import { EUserRole, IUser } from "@/types/user.types"
 import { FormControl, InputLabel, MenuItem, Select } from "@mui/material"
+import { useAuth } from "../../contexts/AuthContext"
 
 type IRegisterCredentials = Pick<IUser, "email" | "password" | "name" | "role">
 
-export default function SignupPage() {
+export default function RegisterPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { register, isLoading: authIsLoading } = useAuth()
 
-  const { mutate: registerUser } = useMutation<
-    { data: { data: IUser } },
-    AxiosError<{ message: string }>,
-    IRegisterCredentials
-  >({
-    mutationFn: (credentials: IRegisterCredentials) => {
-      return axios.post("/api/auth/register", credentials)
-    },
-  })
-
-  const { control, handleSubmit } = useForm({
+  const { control, handleSubmit, setError } = useForm<IRegisterCredentials>({
     defaultValues: {
       name: "",
       email: "",
@@ -44,47 +34,62 @@ export default function SignupPage() {
     },
   })
 
+  const onSubmit: SubmitHandler<IRegisterCredentials> = async (credentials) => {
+    try {
+      await register(
+        credentials.name,
+        credentials.email,
+        credentials.password,
+        credentials.role
+      )
+      const from = location.state?.from?.pathname || "/"
+      navigate(from, { replace: true })
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'An error occurred during registration'
+      toast.error(errorMessage)
+      if (errorMessage.toLowerCase().includes('email')) {
+        setError('email', { type: 'manual', message: errorMessage })
+      } else if (errorMessage.toLowerCase().includes('name')) {
+        setError('name', { type: 'manual', message: errorMessage })
+      } else if (errorMessage.toLowerCase().includes('password')) {
+        setError('password', { type: 'manual', message: errorMessage })
+      } else {
+        setError("root.serverError", { message: errorMessage })
+      }
+    }
+  }
+
   const formFields: {
-    label: keyof IUser
-    rules:
-      | Omit<
-          RegisterOptions<IUser, "email" | "password" | "name" | "role">,
-          "setValueAs" | "disabled" | "valueAsNumber" | "valueAsDate"
-        >
-      | undefined
+    name: keyof Omit<IRegisterCredentials, 'role'>
+    label: string
+    rules: Omit<RegisterOptions<IRegisterCredentials>, "valueAsNumber" | "valueAsDate" | "setValueAs" | "disabled"> | undefined
     type: HTMLInputTypeAttribute
   }[] = [
     {
-      label: "name",
-      rules: { required: true },
+      name: "name",
+      label: "Full Name",
+      rules: { required: "Name is required" },
       type: "text",
     },
     {
-      label: "email",
-      rules: { required: true, pattern: /\S+@\S+\.\S+/ },
+      name: "email",
+      label: "Email Address",
+      rules: { 
+        required: "Email is required", 
+        pattern: { value: /\S+@\S+\.\S+/, message: "Invalid email address" }
+      },
       type: "email",
     },
     {
-      label: "password",
-      rules: { required: true, minLength: 3 },
+      name: "password",
+      label: "Password",
+      rules: { 
+        required: "Password is required", 
+        minLength: { value: 3, message: "Password minimum length is 3" }
+      },
       type: "password",
     },
   ]
-
-  const onSubmit: SubmitHandler<IRegisterCredentials> = async (credentials) => {
-    registerUser(credentials, {
-      onSuccess: (data) => {
-        const { data: responseData } = data
-        const user = responseData.data
-        navigate(`/${user.role}`, { replace: true })
-      },
-      onError: (error) => {
-        toast.error(
-          error.response?.data?.message || 'An error occurred during registration'
-        )
-      },
-    })
-  }
 
   return (
     <>
@@ -99,40 +104,43 @@ export default function SignupPage() {
         <Box
           component="form"
           onSubmit={handleSubmit(onSubmit)}
-          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+          sx={{ display: "flex", flexDirection: "column", gap: 2, width: '100%' }}
         >
-          {formFields.map((formField, index) => (
-            <FormControl fullWidth key={index}>
+          {formFields.map((formField) => (
+            <FormControl fullWidth key={formField.name}>
               <Controller
-                name={formField.label}
+                name={formField.name}
                 control={control}
                 rules={formField.rules}
                 render={({ field, fieldState: { error } }) => (
                   <TextField
                     {...field}
-                    name={formField.label}
                     label={formField.label}
                     type={formField.type}
-                    required
+                    required={!!formField.rules?.required}
                     fullWidth
                     error={!!error}
                     helperText={error?.message}
                     color={error ? "error" : "primary"}
+                    disabled={authIsLoading}
                   />
                 )}
               />
             </FormControl>
           ))}
           <FormControl fullWidth>
-            <InputLabel id="demo-simple-select-label">Age</InputLabel>
+            <InputLabel id="role-select-label">Role</InputLabel>
             <Controller
               name="role"
               control={control}
-              render={({ field }) => (
+              rules={{ required: "Role is required" }}
+              render={({ field, fieldState: { error } }) => (
                 <Select
                   {...field}
                   label="Role"
-                  labelId="demo-simple-select-label"
+                  labelId="role-select-label"
+                  error={!!error}
+                  disabled={authIsLoading}
                 >
                   <MenuItem value={EUserRole.CUSTOMER}>Customer</MenuItem>
                   <MenuItem value={EUserRole.ADMIN}>Admin</MenuItem>
@@ -140,8 +148,8 @@ export default function SignupPage() {
               )}
             />
           </FormControl>
-          <Button type="submit" fullWidth variant="contained">
-            Sign up
+          <Button type="submit" fullWidth variant="contained" disabled={authIsLoading}>
+            {authIsLoading ? 'Signing up...' : 'Sign up'}
           </Button>
         </Box>
         <Divider>
@@ -152,6 +160,7 @@ export default function SignupPage() {
             Already have an account?{" "}
             <Link
               href="/auth/login"
+              onClick={(e) => { e.preventDefault(); navigate('/login'); }}
               variant="body2"
               sx={{ alignSelf: "center" }}
             >
@@ -160,8 +169,6 @@ export default function SignupPage() {
           </Typography>
         </Box>
       </Card>
-
-      <DevTool control={control} />
     </>
   )
 }

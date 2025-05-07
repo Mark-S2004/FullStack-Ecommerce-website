@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Dialog, Transition } from '@headlessui/react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Dialog, Transition, Popover } from '@headlessui/react';
 import {
   Bars3Icon,
   XMarkIcon,
@@ -10,8 +10,11 @@ import {
   TagIcon,
   ChatBubbleLeftRightIcon,
   ArrowLeftOnRectangleIcon,
+  UserCircleIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import { useAuth } from '../contexts/AuthContext';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: HomeIcon },
@@ -24,6 +27,13 @@ const navigation = [
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout, isLoading: authLoading } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <>
@@ -76,7 +86,7 @@ export default function AdminLayout() {
                   {/* Sidebar component for mobile */}
                   <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
                     <div className="flex h-16 shrink-0 items-center">
-                      <Link to="/" className="text-xl font-bold text-indigo-600">
+                      <Link to="/admin" className="text-xl font-bold text-indigo-600">
                         Store Admin
                       </Link>
                     </div>
@@ -135,7 +145,7 @@ export default function AdminLayout() {
         <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
           <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
             <div className="flex h-16 shrink-0 items-center">
-              <Link to="/" className="text-xl font-bold text-indigo-600">
+              <Link to="/admin" className="text-xl font-bold text-indigo-600">
                 Store Admin
               </Link>
             </div>
@@ -203,7 +213,50 @@ export default function AdminLayout() {
             <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
               <div className="flex flex-1" />
               <div className="flex items-center gap-x-4 lg:gap-x-6">
-                {/* Profile dropdown can be added here */}
+                {authLoading ? (
+                  <div className="h-8 w-24 bg-gray-200 rounded animate-pulse"></div>
+                ) : user ? (
+                  <Popover className="relative">
+                    <Popover.Button className="-m-1.5 flex items-center p-1.5">
+                      <span className="sr-only">Open user menu</span>
+                      <UserCircleIcon className="h-8 w-8 rounded-full bg-gray-50 text-gray-400" />
+                      <span className="hidden lg:flex lg:items-center">
+                        <span className="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
+                          {user.name}
+                        </span>
+                        <ChevronDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </span>
+                    </Popover.Button>
+                    <Transition
+                      as={Fragment}
+                      enter="transition ease-out duration-100"
+                      enterFrom="transform opacity-0 scale-95"
+                      enterTo="transform opacity-100 scale-100"
+                      leave="transition ease-in duration-75"
+                      leaveFrom="transform opacity-100 scale-100"
+                      leaveTo="transform opacity-0 scale-95"
+                    >
+                      <Popover.Panel className="absolute right-0 z-10 mt-2.5 w-48 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none">
+                        <Link 
+                          to="/profile"
+                          className="block px-3 py-1 text-sm leading-6 text-gray-900 hover:bg-gray-50"
+                        >
+                          Your Profile
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="block w-full px-3 py-1 text-left text-sm leading-6 text-gray-900 hover:bg-gray-50"
+                        >
+                          Sign out
+                        </button>
+                      </Popover.Panel>
+                    </Transition>
+                  </Popover>
+                ) : (
+                  <Link to="/login" className="text-sm font-semibold leading-6 text-gray-900">
+                    Log in
+                  </Link>
+                )}
               </div>
             </div>
           </div>

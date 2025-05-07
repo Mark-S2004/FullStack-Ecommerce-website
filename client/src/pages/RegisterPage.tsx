@@ -36,8 +36,8 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       setIsLoading(true);
-      await registerUser(data.name, data.email, data.password);
-      toast.success('Account created successfully');
+      await registerUser(data.name, data.email, data.password, 'customer');
+      toast.success('Registration successful!');
       navigate('/');
     } catch (error: any) {
       if (error.response?.data?.message === 'Email already exists') {

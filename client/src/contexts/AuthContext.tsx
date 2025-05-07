@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../lib/axios';
+import toast from 'react-hot-toast';
 
 interface User {
   _id: string;
@@ -12,7 +13,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, role: string) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
 }
@@ -31,7 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data } = await api.get('/auth/me');
           setUser(data.user);
         } catch (error) {
+          console.error('Auth error:', error);
           localStorage.removeItem('token');
+          setUser(null);
         }
       }
       setIsLoading(false);
@@ -41,15 +44,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', data.token);
-    setUser(data.user);
+    try {
+      const { data } = await api.post('/auth/login', { email, password });
+      localStorage.setItem('token', data.token);
+      setUser(data.user);
+      return data.user;
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Login failed';
+      toast.error(message);
+      throw error;
+    }
   };
 
-  const register = async (name: string, email: string, password: string) => {
-    const { data } = await api.post('/auth/register', { name, email, password });
-    localStorage.setItem('token', data.token);
-    setUser(data.user);
+  const register = async (name: string, email: string, password: string, role: string) => {
+    try {
+      const { data } = await api.post('/auth/register', { name, email, password, role });
+      localStorage.setItem('token', data.token);
+      setUser(data.user);
+      return data.user;
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Registration failed';
+      toast.error(message);
+      throw error;
+    }
   };
 
   const logout = () => {

@@ -1,13 +1,10 @@
-import { useNavigate } from "react-router"
+import { useNavigate, useLocation } from "react-router-dom"
 import {
   Controller,
-  RegisterOptions,
   SubmitHandler,
   useForm,
 } from "react-hook-form"
-import { toast } from "react-toastify"
-import { useMutation } from "@tanstack/react-query"
-import axios, { AxiosError } from "axios"
+import toast from 'react-hot-toast'
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import Divider from "@mui/material/Divider"
@@ -17,23 +14,16 @@ import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
 import Card from "@components/Card"
 import { IUser } from "@/types/user.types"
+import { useAuth } from "../../contexts/AuthContext"
 
 type ICredentials = Pick<IUser, "email" | "password">
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login, isLoading: authIsLoading } = useAuth()
 
-  const { mutate: loginUser } = useMutation<
-    { data: { data: IUser } },
-    AxiosError<{ message: string }>,
-    ICredentials
-  >({
-    mutationFn: (credentials: ICredentials) => {
-      return axios.post("/api/auth/login", credentials)
-    },
-  })
-
-  const { control, handleSubmit } = useForm({
+  const { control, handleSubmit, setError } = useForm<ICredentials>({
     defaultValues: {
       email: "",
       password: "",
@@ -41,36 +31,46 @@ export default function LoginPage() {
   })
 
   const onSubmit: SubmitHandler<ICredentials> = async (credentials) => {
-    loginUser(credentials, {
-      onSuccess: (data) => {
-        const { data: responseData } = data
-        const user = responseData.data
-        navigate(`/${user.role}`, { replace: true })
-      },
-      onError: (error) => {
-        toast.error(
-          error.response?.data?.message || 'An error occurred during login'
-        )
-      },
-    })
+    try {
+      await login(credentials.email, credentials.password)
+      const from = location.state?.from?.pathname || "/"
+      navigate(from, { replace: true })
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'An error occurred during login'
+      toast.error(errorMessage)
+      if (errorMessage.toLowerCase().includes('email')) {
+        setError('email', { type: 'manual', message: errorMessage })
+      } else if (errorMessage.toLowerCase().includes('password')) {
+        setError('password', { type: 'manual', message: errorMessage })
+      } else {
+        setError('root.serverError', { type: 'manual', message: errorMessage })
+      }
+    }
   }
 
   const formFields: {
     name: keyof ICredentials
-    rules:
-      | Omit<
-          RegisterOptions<ICredentials, "email" | "password">,
-          "setValueAs" | "disabled" | "valueAsNumber" | "valueAsDate"
-        >
-      | undefined
+    label: string
+    type: string
+    rules: any
   }[] = [
     {
       name: "email",
-      rules: { required: true, pattern: /\S+@\S+\.\S+/ },
+      label: "Email Address",
+      type: "email",
+      rules: { 
+        required: "Email is required", 
+        pattern: { value: /\S+@\S+\.\S+/, message: "Invalid email address" }
+      },
     },
     {
       name: "password",
-      rules: { required: true, minLength: 3 },
+      label: "Password",
+      type: "password",
+      rules: { 
+        required: "Password is required", 
+        minLength: { value: 3, message: "Password must be at least 3 characters"}
+      },
     },
   ]
 
@@ -95,8 +95,8 @@ export default function LoginPage() {
             gap: 2,
           }}
         >
-          {formFields.map((formField, index) => (
-            <FormControl fullWidth key={index}>
+          {formFields.map((formField) => (
+            <FormControl fullWidth key={formField.name}>
               <Controller
                 name={formField.name}
                 control={control}
@@ -104,23 +104,23 @@ export default function LoginPage() {
                 render={({ field, fieldState: { error } }) => (
                   <TextField
                     {...field}
-                    name={formField.name}
-                    label={formField.name}
-                    type={formField.name}
+                    label={formField.label}
+                    type={formField.type}
                     required
                     fullWidth
                     variant="outlined"
                     error={!!error}
                     helperText={error?.message}
                     color={error ? "error" : "primary"}
+                    disabled={authIsLoading}
                   />
                 )}
               />
             </FormControl>
           ))}
 
-          <Button type="submit" fullWidth variant="contained">
-            Sign in
+          <Button type="submit" fullWidth variant="contained" disabled={authIsLoading}>
+            {authIsLoading ? 'Signing in...' : 'Sign in'}
           </Button>
         </Box>
         <Divider>or</Divider>
@@ -129,6 +129,7 @@ export default function LoginPage() {
             Don&apos;t have an account?{" "}
             <Link
               href="/auth/register"
+              onClick={(e) => { e.preventDefault(); navigate('/register'); }}
               variant="body2"
               sx={{ alignSelf: "center" }}
             >
