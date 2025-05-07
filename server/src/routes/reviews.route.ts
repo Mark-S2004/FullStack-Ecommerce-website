@@ -4,12 +4,11 @@ import { Router } from 'express';
 import * as reviewsController from '@controllers/reviews.controller';
 import validationMiddleware from '@middlewares/validation.middleware';
 import { CreateReviewDto } from '@dtos/reviews.dto';
-import authMiddleware from '@/middlewares/auth.middleware';
 
 const path = '/products/:productId/reviews';
 const router = Router();
 
-router.post(path, authMiddleware, validationMiddleware(CreateReviewDto, 'body'), reviewsController.addReview);
+router.post(path, validationMiddleware(CreateReviewDto, 'body'), reviewsController.addReview);
 router.put(`${path}/:reviewId`, validationMiddleware(CreateReviewDto, 'body', true), reviewsController.updateReview);
 router.delete(`${path}/:reviewId`, reviewsController.deleteReview);
 
