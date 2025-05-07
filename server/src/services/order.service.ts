@@ -10,7 +10,7 @@ export const findAllOrders = async () => {
 };
 
 export const findOrdersByCustomer = async (customerId: string) => {
-  return await orderModel.find({ customerId });
+  return await orderModel.find({ user: customerId });
 };
 
 export const createOrder = async orderData => {

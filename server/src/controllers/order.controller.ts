@@ -13,8 +13,7 @@ export const getOrders = async (req: Request, res: Response, next: NextFunction)
 
 export const getOrdersByCustomer = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const customerId = req.params.customerId;
-    const orders = await orderService.findOrdersByCustomer(customerId);
+    const orders = await orderService.findOrdersByCustomer(req.user._id);
     res.status(200).json({ data: orders, message: 'findByCustomer' });
   } catch (error) {
     next(error);

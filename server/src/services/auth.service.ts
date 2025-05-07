@@ -67,5 +67,5 @@ export const createToken = (user: User): TokenData => {
 };
 
 export const createCookie = (tokenData: TokenData): string => {
-  return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn};`;
+  return `Authorization=${tokenData.token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${tokenData.expiresIn};`;
 };

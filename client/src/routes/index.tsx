@@ -9,6 +9,9 @@ const AuthLayout = lazy(() => import("@layouts/AuthLayout"))
 const LoginPage = lazy(() => import("@pages/LoginPage"))
 const RegisterPage = lazy(() => import("@pages/RegisterPage"))
 
+const ProductsPage = lazy(() => import("@pages/ProductsPage"))
+const CartPage = lazy(() => import("@pages/CartPage"))
+const OrdersPage = lazy(() => import("@pages/OrdersPage"))
 const CheckoutPage = lazy(() => import("@pages/CheckoutPage"))
 const CheckoutSuccess = lazy(() => import("@pages/CheckoutSuccess"))
 
@@ -24,9 +27,9 @@ const AllRoutes = () => {
         {/* User must be authenticated to access these routes */}
         <Route element={<ProtectedRoutes />}>
           <Route path="customer">
-            <Route path="products" element={<div>producst</div>} />
-            <Route path="cart" element={<div>cart</div>} />
-            <Route path="orders" element={<div>orders</div>} />
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="cart" element={<CartPage />} />
+            <Route path="orders" element={<OrdersPage />} />
             <Route
               path="checkout"
               element={

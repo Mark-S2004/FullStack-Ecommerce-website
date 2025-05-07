@@ -8,7 +8,7 @@ const path = '/orders';
 const router = Router();
 
 router.get(`${path}`, orderController.getOrders);
-router.get(`${path}/customer/:customerId`, orderController.getOrdersByCustomer);
+router.get(`${path}/customer/`, authMiddleware, orderController.getOrdersByCustomer);
 router.post(`${path}`, authMiddleware, validationMiddleware(CreateOrderDto, 'body'), orderController.createOrder);
 router.put(`${path}/:id/status`, orderController.updateOrderStatus);
 
