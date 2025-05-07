@@ -16,17 +16,22 @@ import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
 import { toast } from "react-toastify"
 import Card from "@components/Card"
-import axios from "axios"
-import { EUserRole } from "@/types/user.types"
+import axios, { AxiosError } from "axios"
+import { EUserRole, IUser } from "@/types/user.types"
 import { FormControl, InputLabel, MenuItem, Select } from "@mui/material"
-import { IUser } from "@/types/user.types"
+
+type IRegisterCredentials = Pick<IUser, "email" | "password" | "name" | "role">
 
 export default function SignupPage() {
   const navigate = useNavigate()
 
-  const { mutate: registerUser } = useMutation({
-    mutationFn: (user: IUser) => {
-      return axios.post("/api/auth/signup", user)
+  const { mutate: registerUser } = useMutation<
+    { data: { data: IUser } },
+    AxiosError<{ message: string }>,
+    IRegisterCredentials
+  >({
+    mutationFn: (credentials: IRegisterCredentials) => {
+      return axios.post("/api/auth/register", credentials)
     },
   })
 
@@ -66,15 +71,16 @@ export default function SignupPage() {
     },
   ]
 
-  const onSubmit: SubmitHandler<IUser> = async (data) => {
-    registerUser(data, {
-      onSuccess: () => {
-        toast.success("Signed Up Successfully")
-        navigate("/auth/login")
+  const onSubmit: SubmitHandler<IRegisterCredentials> = async (credentials) => {
+    registerUser(credentials, {
+      onSuccess: (data) => {
+        const { data: responseData } = data
+        const user = responseData.data
+        navigate(`/${user.role}`, { replace: true })
       },
       onError: (error) => {
         toast.error(
-          `An error occurred.\n${error.response.data.message} [${error.response.status}]`
+          error.response?.data?.message || 'An error occurred during registration'
         )
       },
     })

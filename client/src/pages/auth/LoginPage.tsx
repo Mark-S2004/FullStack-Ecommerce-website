@@ -7,7 +7,7 @@ import {
 } from "react-hook-form"
 import { toast } from "react-toastify"
 import { useMutation } from "@tanstack/react-query"
-import axios from "axios"
+import axios, { AxiosError } from "axios"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import Divider from "@mui/material/Divider"
@@ -23,7 +23,11 @@ type ICredentials = Pick<IUser, "email" | "password">
 export default function LoginPage() {
   const navigate = useNavigate()
 
-  const { mutate: loginUser } = useMutation({
+  const { mutate: loginUser } = useMutation<
+    { data: { data: IUser } },
+    AxiosError<{ message: string }>,
+    ICredentials
+  >({
     mutationFn: (credentials: ICredentials) => {
       return axios.post("/api/auth/login", credentials)
     },
@@ -45,7 +49,7 @@ export default function LoginPage() {
       },
       onError: (error) => {
         toast.error(
-          `An error occurred.\n${error.response.data.message} [${error.response.status}]`
+          error.response?.data?.message || 'An error occurred during login'
         )
       },
     })

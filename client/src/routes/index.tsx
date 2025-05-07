@@ -18,11 +18,14 @@ const CheckoutSuccess = lazy(() => import("@/pages/customer/CheckoutSuccess"))
 const InventoryPage = lazy(() => import("@pages/admin/InventoryPage"))
 const AdminOrdersPage = lazy(() => import("@pages/admin/OrdersPage"))
 
+
+const LandingPage = lazy(() => import("@/pages/LandingPage"));
+
 const AllRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
-        <Route index element={<div>Home Page (placeholder)</div>} />
+      <Route index element={<LandingPage />} /> 
         <Route path="auth" element={<AuthLayout />}>
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />

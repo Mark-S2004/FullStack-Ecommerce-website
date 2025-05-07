@@ -1,173 +1,166 @@
-import * as React from "react"
-import { Link, useNavigate, useLocation } from "react-router-dom"
-import { useMutation } from "@tanstack/react-query"
-import AppBar from "@mui/material/AppBar"
-import Box from "@mui/material/Box"
-import Toolbar from "@mui/material/Toolbar"
-import IconButton from "@mui/material/IconButton"
-import Typography from "@mui/material/Typography"
-import Menu from "@mui/material/Menu"
-import MenuIcon from "@mui/icons-material/Menu"
-import Container from "@mui/material/Container"
-import Button from "@mui/material/Button"
-import MenuItem from "@mui/material/MenuItem"
-import StoreIcon from "@mui/icons-material/Store"
-import LogoutIcon from "@mui/icons-material/Logout"
-import axios from "axios"
-import { toast } from "react-toastify"
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Bars3Icon,
+  ShoppingBagIcon,
+  UserIcon,
+  ArrowRightOnRectangleIcon,
+} from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
 
-const NavBar = () => {
-  const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null)
-  const navigate = useNavigate()
+export default function NavBar() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, logout, isAdmin } = useAuth();
+  const { items } = useCart();
 
-  const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElNav(event.currentTarget)
-  }
-
-  const handleCloseNavMenu = () => {
-    setAnchorElNav(null)
-  }
-
-  const { mutate: logout } = useMutation({
-    mutationFn: () => {
-      return axios.post("/api/auth/logout")
-    },
-    onSuccess: () => {
-      navigate("/auth/login")
-    },
-    onError: (error) => {
-      toast.error(
-        `An error occurred.\n${error.response.data.message} [${error.response.status}]`
-      )
-    },
-  })
-  const onLogout = () => {
-    logout()
-  }
-
-  const { pathname } = useLocation()
-  const isCustomer = pathname.includes("customer")
-  let pages
-  if (isCustomer) {
-    pages = ["Products", "Cart", "Orders"]
-  } else {
-    pages = ["Inventory", "Orders"]
-  }
+  const handleLogout = async () => {
+    try {
+      logout();
+      toast.success('Logged out successfully');
+      navigate('/login');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to logout');
+    }
+  };
 
   return (
-    <AppBar position="static" sx={{ width: "100vw" }}>
-      <Container>
-        <Toolbar disableGutters>
-          <StoreIcon sx={{ display: { xs: "none", md: "flex" }, mr: 1 }} />
-          <Typography
-            variant="h6"
-            noWrap
-            onClick={() => {
-              navigate(`/${isCustomer ? "customer" : "admin"}`)
-            }}
-            sx={{
-              mr: 2,
-              display: { xs: "none", md: "flex" },
-              fontFamily: "monospace",
-              fontWeight: 700,
-              letterSpacing: ".3rem",
-              color: "inherit",
-              textDecoration: "none",
-              cursor: "pointer",
-            }}
-          >
-            ECOMMERCE
-          </Typography>
-
-          <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
-            <IconButton
-              size="large"
-              aria-label="account of current user"
-              aria-controls="menu-appbar"
-              aria-haspopup="true"
-              onClick={handleOpenNavMenu}
-              color="inherit"
-            >
-              <MenuIcon />
-            </IconButton>
-            <Menu
-              id="menu-appbar"
-              anchorEl={anchorElNav}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "left",
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "left",
-              }}
-              open={Boolean(anchorElNav)}
-              onClose={handleCloseNavMenu}
-              sx={{
-                display: { xs: "block", md: "none" },
-              }}
-            >
-              {pages.map((page) => (
-                <MenuItem
-                  key={page}
-                  onClick={() => {
-                    handleCloseNavMenu()
-                    navigate(
-                      `${isCustomer ? "customer" : "admin"}/${page
-                        .toLowerCase()
-                        .replace(/ /g, "-")}`
-                    )
-                  }}
-                >
-                  <Typography textAlign="center">{page}</Typography>
-                </MenuItem>
-              ))}
-            </Menu>
-          </Box>
-          <StoreIcon sx={{ display: { xs: "flex", md: "none" }, mr: 1 }} />
-          <Typography
-            variant="h5"
-            noWrap
-            component="a"
-            href=""
-            sx={{
-              mr: 2,
-              display: { xs: "flex", md: "none" },
-              flexGrow: 1,
-              fontFamily: "monospace",
-              fontWeight: 700,
-              letterSpacing: ".3rem",
-              color: "inherit",
-              textDecoration: "none",
-            }}
-          >
-            EDU-CUBBY
-          </Typography>
-          <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
-            {pages.map((page) => (
-              <Link
-                key={page}
-                to={`${isCustomer ? "customer" : "admin"}/${page
-                  .toLowerCase()
-                  .replace(/ /g, "-")}`}
-              >
-                <Button
-                  onClick={handleCloseNavMenu}
-                  sx={{ my: 2, color: "white", display: "block" }}
-                >
-                  {page}
-                </Button>
+    <nav className="bg-white shadow">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 justify-between">
+          <div className="flex">
+            <div className="flex flex-shrink-0 items-center">
+              <Link to="/" className="text-xl font-bold text-indigo-600">
+                Store
               </Link>
-            ))}
-          </Box>
+            </div>
+          </div>
 
-          <Button sx={{ color: "white" }} onClick={onLogout}>
-            <LogoutIcon />
-          </Button>
-        </Toolbar>
-      </Container>
-    </AppBar>
-  )
+          {/* Desktop navigation */}
+          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-8">
+            <Link
+              to="/"
+              className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+            >
+              Home
+            </Link>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+              >
+                Admin
+              </Link>
+            )}
+            <Link
+              to="/cart"
+              className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium relative"
+            >
+              <ShoppingBagIcon className="h-6 w-6" />
+              {items.length > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-xs text-white">
+                  {items.length}
+                </span>
+              )}
+            </Link>
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+                >
+                  <UserIcon className="h-6 w-6" />
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+                >
+                  <ArrowRightOnRectangleIcon className="h-6 w-6" />
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+              >
+                Login
+              </Link>
+            )}
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="flex items-center sm:hidden">
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-gray-500 hover:text-gray-700 px-2"
+            >
+              <Bars3Icon className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {isMenuOpen && (
+        <div className="sm:hidden">
+          <div className="space-y-1 pb-3 pt-2">
+            <Link
+              to="/"
+              className="block px-3 py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Home
+            </Link>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="block px-3 py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Admin
+              </Link>
+            )}
+            <Link
+              to="/cart"
+              className="block px-3 py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Cart ({items.length})
+            </Link>
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className="block px-3 py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full px-3 py-2 text-left text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="block px-3 py-2 text-base font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Login
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </nav>
+  );
 }
-export default NavBar
