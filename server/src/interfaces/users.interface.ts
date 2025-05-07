@@ -1,3 +1,5 @@
+import { OrderItem } from './orders.interface';
+
 export enum EUserRole {
   ADMIN = 'admin',
   CUSTOMER = 'customer',
@@ -8,4 +10,5 @@ export interface User {
   email: string;
   password: string;
   role: EUserRole;
+  cart: OrderItem[];
 }
