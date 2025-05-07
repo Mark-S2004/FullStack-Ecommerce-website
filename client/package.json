@@ -33,10 +33,12 @@
     "react-toastify": "^11.0.5",
     "styled-components": "^6.1.17",
     "tailwind-merge": "^2.2.1",
+    "tailwindcss-animate": "^1.0.7",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@hookform/devtools": "^4.3.1",
+    "@tailwindcss/forms": "^0.5.10",
     "@tanstack/eslint-plugin-query": "^5.17.20",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
