@@ -26,7 +26,29 @@ const productSchema: Schema = new Schema({
   },
   stock: {
     type: Number,
-    required: false,
+    required: true,
+    default: 0
+  },
+  category: {
+    type: String,
+    required: true,
+  },
+  gender: {
+    type: String,
+    enum: ['Men', 'Women', 'Unisex'],
+    required: true,
+  },
+  sizes: {
+    type: [String],
+    default: [],
+  },
+  colors: {
+    type: [String],
+    default: [],
+  },
+  images: {
+    type: [String],
+    default: [],
   },
   reviews: [reviewSchema],
   totalRating: { type: Number, default: 0 },

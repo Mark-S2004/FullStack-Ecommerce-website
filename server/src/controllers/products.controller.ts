@@ -1,28 +1,33 @@
 import { NextFunction, Request, Response } from 'express';
 import { CreateProductDto } from '@dtos/products.dto';
 import { Product } from '@interfaces/products.interface';
-import * as productService from '@services/products.service';
+import * as productService from '@services/products.service'; // Assuming product service is now an object
 
+// Renamed to reflect fetching by ID
+export const getProductById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const productId: string = req.params.id; // Get ID from params
+    const findOneProductData: Product = await productService.findProductById(productId); // Call service by ID
+
+    res.status(200).json({ product: findOneProductData, message: 'findOne' }); // Return product wrapped in 'product' key
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Keep getProducts as is (fetches all or filtered)
 export const getProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const findAllProductsData: Product[] = await productService.findAllProduct();
+    // Assuming filter params (search, category, gender) are passed as query params
+    const queryParams = req.query;
+    const findAllProductsData: Product[] = await productService.findAllProducts(queryParams);
 
-    res.status(200).json({ data: findAllProductsData, message: 'findAll' });
+    res.status(200).json({ products: findAllProductsData, message: 'findAll' }); // Return products wrapped in 'products' key
   } catch (error) {
     next(error);
   }
 };
 
-export const getProductByName = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const ProductName: string = req.params.name;
-    const findOneProductData: Product = await productService.findProductByName(ProductName);
-
-    res.status(200).json({ data: findOneProductData, message: 'findOne' });
-  } catch (error) {
-    next(error);
-  }
-};
 
 export const createProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -37,9 +42,9 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
 
 export const updateProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ProductName: string = req.params.name;
+    const productId: string = req.params.id; // Changed to get ID
     const ProductData: CreateProductDto = req.body;
-    const updateProductData: Product = await productService.updateProduct(ProductName, ProductData);
+    const updateProductData: Product = await productService.updateProduct(productId, ProductData); // Pass ID
 
     res.status(200).json({ data: updateProductData, message: 'updated' });
   } catch (error) {
@@ -49,8 +54,8 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
 
 export const deleteProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ProductName: string = req.params.name;
-    const deleteProductData: Product = await productService.deleteProduct(ProductName);
+    const productId: string = req.params.id; // Changed to get ID
+    const deleteProductData: Product = await productService.deleteProduct(productId); // Pass ID
 
     res.status(200).json({ data: deleteProductData, message: 'deleted' });
   } catch (error) {

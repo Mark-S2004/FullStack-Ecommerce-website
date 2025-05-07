@@ -5,21 +5,16 @@ import { CreateProductDto } from '@dtos/products.dto';
 import validationMiddleware from '@middlewares/validation.middleware';
 import { Routes } from '@interfaces/routes.interface';
 
-class ProductsRoute implements Routes {
-  public path = '/products';
-  public router = Router();
+// Removed the class structure to align with other route files exporting objects
+const path = '/products';
+const router = Router();
 
-  constructor() {
-    this.initializeRoutes();
-  }
+// Change routes to use ID parameter instead of name
+router.get(`${path}`, productsController.getProducts);
+router.get(`${path}/:id`, productsController.getProductById); // Changed from :name
+router.post(`${path}`, validationMiddleware(CreateProductDto, 'body'), productsController.createProduct);
+router.put(`${path}/:id`, validationMiddleware(CreateProductDto, 'body', true), productsController.updateProduct); // Changed from :name
+router.delete(`${path}/:id`, productsController.deleteProduct); // Changed from :name
 
-  private initializeRoutes() {
-    this.router.get(`${this.path}`, productsController.getProducts);
-    this.router.get(`${this.path}/:name`, productsController.getProductByName);
-    this.router.post(`${this.path}`, validationMiddleware(CreateProductDto, 'body'), productsController.createProduct);
-    this.router.put(`${this.path}/:name`, validationMiddleware(CreateProductDto, 'body', true), productsController.updateProduct);
-    this.router.delete(`${this.path}/:name`, productsController.deleteProduct);
-  }
-}
-
-export default ProductsRoute;
+// Export as a simple object
+export default { path, router };

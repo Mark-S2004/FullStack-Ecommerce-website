@@ -1,60 +1,89 @@
 import { CreateProductDto } from '@dtos/products.dto';
 import { HttpException } from '@exceptions/HttpException';
+import { ProductNotFoundException } from '@exceptions/ProductNotFoundException';
 import { Product } from '@interfaces/products.interface';
 import productModel from '@models/products.model';
 import { isEmpty } from '@utils/util';
+import { logger } from '@utils/logger';
 
-export const findAllProduct = async (): Promise<Product[]> => {
-  const Products: Product[] = await productModel.find();
-  return Products;
-};
-
-export const findProductByName = async (productName: string): Promise<Product> => {
-  if (isEmpty(productName)) {
-    throw new HttpException(400, 'productName is empty');
+class ProductsService {
+  public async findAllProducts(): Promise<Product[]> {
+    try {
+      const products: Product[] = await productModel.find();
+      return products;
+    } catch (error) {
+      logger.error('Error finding products:', error);
+      throw error;
+    }
   }
 
-  const findProduct: Product = await productModel.findOne({ name: productName });
-  if (!findProduct) {
-    throw new HttpException(409, "Product doesn't exist");
+  public async findProductByName(productName: string): Promise<Product> {
+    try {
+      if (isEmpty(productName)) {
+        throw new HttpException(400, 'ProductName is empty');
+      }
+
+      const product: Product = await productModel.findOne({ name: productName });
+      if (!product) throw new ProductNotFoundException(productName);
+      
+      return product;
+    } catch (error) {
+      logger.error(`Error finding product by name ${productName}:`, error);
+      throw error;
+    }
   }
 
-  return findProduct;
-};
+  public async createProduct(productData: CreateProductDto): Promise<Product> {
+    try {
+      if (isEmpty(productData)) {
+        throw new HttpException(400, 'ProductData is empty');
+      }
 
-export const createProduct = async (productData: CreateProductDto): Promise<Product> => {
-  if (isEmpty(productData)) {
-    throw new HttpException(400, 'productData is empty');
+      const existingProduct: Product = await productModel.findOne({ name: productData.name });
+      if (existingProduct) {
+        throw new HttpException(409, `Product with name ${productData.name} already exists`);
+      }
+
+      const createProductData: Product = await productModel.create(productData);
+      return createProductData;
+    } catch (error) {
+      logger.error('Error creating product:', error);
+      throw error;
+    }
   }
 
-  const findProduct: Product = await productModel.findOne({ name: productData.name });
-  if (findProduct) {
-    throw new HttpException(409, `This name ${productData.name} already exists`);
+  public async updateProduct(productName: string, productData: CreateProductDto): Promise<Product> {
+    try {
+      if (isEmpty(productData)) {
+        throw new HttpException(400, 'ProductData is empty');
+      }
+
+      const updateProductData: Product = await productModel.findOneAndUpdate(
+        { name: productName },
+        { ...productData },
+        { new: true }
+      );
+      
+      if (!updateProductData) throw new ProductNotFoundException(productName);
+      
+      return updateProductData;
+    } catch (error) {
+      logger.error(`Error updating product ${productName}:`, error);
+      throw error;
+    }
   }
 
-  const createProductData: Product = await productModel.create(productData);
-
-  return createProductData;
-};
-
-export const updateProduct = async (productName: string, productData: CreateProductDto): Promise<Product> => {
-  if (isEmpty(productData)) {
-    throw new HttpException(400, 'productData is empty');
+  public async deleteProduct(productName: string): Promise<Product> {
+    try {
+      const deleteProductData: Product = await productModel.findOneAndDelete({ name: productName });
+      if (!deleteProductData) throw new ProductNotFoundException(productName);
+      
+      return deleteProductData;
+    } catch (error) {
+      logger.error(`Error deleting product ${productName}:`, error);
+      throw error;
+    }
   }
+}
 
-  const updateProductById: Product = await productModel.findOneAndUpdate({ name: productName }, productData);
-  if (!updateProductById) {
-    throw new HttpException(409, "Product doesn't exist");
-  }
-
-  return updateProductById;
-};
-
-export const deleteProduct = async (productName: string): Promise<Product> => {
-  const deleteProductById: Product = await productModel.findOneAndDelete({ name: productName });
-  if (!deleteProductById) {
-    throw new HttpException(409, "Product doesn't exist");
-  }
-
-  return deleteProductById;
-};
+export default ProductsService;

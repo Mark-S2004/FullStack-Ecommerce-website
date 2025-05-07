@@ -60,7 +60,12 @@ class App {
     if (this.env !== 'production') {
       set('debug', true);
     }
-    await connect(dbConnection.url);
+    try {
+      await connect(dbConnection.url);
+      logger.info('Connected to MongoDB');
+    } catch (error) {
+      logger.error(`Failed to connect to MongoDB: ${error}`);
+    }
   }
 
   private initializeMiddlewares() {
