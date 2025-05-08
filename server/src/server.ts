@@ -1,5 +1,6 @@
 // C:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server\src\server.ts
-import App from '@/app';
+import 'dotenv/config';
+import App from './app'; // Use relative path instead of alias
 import validateEnv from '@utils/validateEnv'; // Assuming validateEnv is in utils
 validateEnv(); // Call validateEnv first to load .env into process.env
 
