@@ -106,15 +106,10 @@ logoutLink.addEventListener('click', async (e) => {
 
 // Function to render different pages based on the URL hash
 async function renderPage() {
-    // Get the current hash from the URL, default to home ('#/')
     const hash = window.location.hash || '#/';
-    // Clear the main app content area
     appDiv.innerHTML = '';
-
-    // Update the authentication UI (navbar) on every page render
     await updateAuthUI();
 
-    // Determine which page to render based on the hash
     if (hash === '#/') {
         renderHomePage();
     } else if (hash === '#/login') {
@@ -124,52 +119,45 @@ async function renderPage() {
     } else if (hash === '#/products') {
         renderProductsPage();
     } else if (hash.startsWith('#/products/')) {
-        // Extract product name from the hash (e.g., #/products/MyProduct -> MyProduct)
         const parts = hash.split('/');
-        const productName = parts[parts.length - 1]; // Get the last part
-         // Simple check to ensure product name is not empty after split
+        const productName = decodeURIComponent(parts[parts.length - 1]); // Decode product name
          if (productName) {
             renderProductDetailPage(productName);
          } else {
-             renderNotFound(); // Handle case like #/products/
+             renderNotFound();
          }
     } else if (hash === '#/cart') {
         renderCartPage();
     } else if (hash === '#/checkout') {
         renderCheckoutPage();
     } else if (hash === '#/orders') {
-         // Check if user is authenticated to view orders
          const user = await checkAuth();
          if (user) {
-             renderOrderHistoryPage(user._id); // Pass user ID if needed by service
+             renderOrderHistoryPage(user._id);
          } else {
-             // If not authenticated, show a login message
              renderLoginMessage('Please log in to view your orders.');
          }
     } else if (hash.startsWith('#/admin')) {
-         // Check if user is authenticated and has admin role for admin pages
          const user = await checkAuth();
          if (user && user.role === 'admin') {
-             // Extract the specific admin path (e.g., /users, /products)
              const adminPath = hash.substring('#/admin'.length);
-             renderAdminPage(adminPath);
+             // Decode product names if they appear in edit paths
+             const editMatch = adminPath.match(/^\/products\/edit\/(.+)$/);
+             const editProductName = editMatch ? decodeURIComponent(editMatch[1]) : null;
+
+             renderAdminPage(adminPath, editProductName);
          } else {
-             // If not admin, show access denied message
              renderAccessDenied();
          }
     }
-    // Add more hash routes here for other pages if needed
      else {
-        // If no matching hash is found, render the 404 page
         renderNotFound();
     }
 }
 
-// Listen for changes to the URL hash and re-render the page
 window.addEventListener('hashchange', renderPage);
-
-// Render the initial page when the script loads
-renderPage();
+// Initial render is now handled by the Stripe Redirect check at the bottom
+// renderPage(); // Remove initial call here
 
 
 // --- Helper functions for rendering specific page content ---
@@ -273,15 +261,17 @@ async function renderProductsPage() {
             products.forEach(product => {
                  // Use a working placeholder image URL or remove img if not needed
                 productsListDiv.innerHTML += `
-                    <div class="col-md-4 mb-4">
-                        <div class="card">
+                    <div class="col-md-4 col-sm-6 mb-4">
+                        <div class="card h-100">
                              <img src="https://via.placeholder.com/250x150" class="card-img-top" alt="Product Image Placeholder"> <!-- Using a reliable placeholder -->
-                            <div class="card-body">
+                            <div class="card-body d-flex flex-column">
                                 <h5 class="card-title">${product.name}</h5>
-                                <p class="card-text">${product.description.substring(0, 100)}...</p>
+                                <p class="card-text flex-grow-1">${product.description.substring(0, 100)}...</p>
                                 <p class="card-text"><strong>$${product.price.toFixed(2)}</strong></p>
-                                <a href="#/products/${product.name}" class="btn btn-secondary">View Details</a>
-                                 <button class="btn btn-primary add-to-cart-btn" data-product-id="${product._id}" data-product-price="${product.price}">Add to Cart</button>
+                                <div class="mt-auto">
+                                    <a href="#/products/${product.name}" class="btn btn-secondary me-1">View Details</a>
+                                     <button class="btn btn-primary add-to-cart-btn" data-product-id="${product._id}" data-product-price="${product.price}">Add to Cart</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -714,304 +704,58 @@ async function renderOrderHistoryPage(userId) {
     }
 }
 
-// Renders the admin dashboard and specific admin sections
-async function renderAdminPage(adminPath) {
-    // Check if user is authenticated and is an admin (already done in renderPage, but defensive)
-    const user = await checkAuth();
-    if (!user || user.role !== 'admin') {
-        renderAccessDenied();
-        return;
-    }
-
-    // Base admin dashboard structure
+// Renders the main admin dashboard structure and delegates content rendering
+async function renderAdminPage(adminPath, editProductName = null) {
+    // Basic structure
     appDiv.innerHTML = `
        <h2>Admin Dashboard</h2>
-       <p>Select an action:</p>
-       <ul class="nav nav-tabs">
-           <li class="nav-item"><a class="nav-link ${adminPath === '/users' ? 'active' : ''}" href="#/admin/users">Manage Users</a></li>
-           <li class="nav-item"><a class="nav-link ${adminPath.startsWith('/products') ? 'active' : ''}" href="#/admin/products">Manage Products</a></li> <!-- Check for products path prefix -->
-           <li class="nav-item"><a class="nav-link ${adminPath === '/orders' ? 'active' : ''}" href="#/admin/orders">Manage Orders</a></li>
-           <!-- Add more tabs for other admin sections -->
+       <ul class="nav nav-tabs mb-3">
+           <li class="nav-item"><a class="nav-link ${adminPath === '/users' ? 'active' : ''} nav-link" href="#/admin/users">Manage Users</a></li>
+           <li class="nav-item"><a class="nav-link ${adminPath.startsWith('/products') ? 'active' : ''} nav-link" href="#/admin/products">Manage Products</a></li>
+           <li class="nav-item"><a class="nav-link ${adminPath === '/orders' ? 'active' : ''} nav-link" href="#/admin/orders">Manage Orders</a></li>
        </ul>
-       <div id="adminContent" class="mt-3">
-           <!-- Specific admin content will load here -->
+       <div id="adminContent">
+           <!-- Admin content loads here -->
        </div>
     `;
 
     const adminContentDiv = document.getElementById('adminContent');
-
-    // Render specific admin section based on the path
-    switch (adminPath) {
-        case '/users':
-            renderAdminUsers(adminContentDiv); // Implement this function
-            break;
-        case '/products': // Fall through for /products/ to render the list
-        case '/products/':
-            renderAdminProducts(adminContentDiv); // Implement this function
-            break;
-        case '/products/new':
-            renderAdminAddProductForm(adminContentDiv); // Implement this function
-            break;
-        // You would add cases here for '/products/edit/:name' etc.
-        case '/orders':
-            renderAdminOrders(adminContentDiv); // Implement this function
-            break;
-        // Add cases for other admin views (e.g., '/discounts')
-        default:
-            // Default view for admin dashboard if the specific path is not matched
-            adminContentDiv.innerHTML = '<p>Welcome to the Admin Dashboard. Use the links above to manage the store.</p>';
-            break;
+    if (!adminContentDiv) {
+        console.error('Could not find adminContent div');
+        return;
     }
-}
 
-// Renders the user management section for admin
-async function renderAdminUsers(container) {
-    container.innerHTML = '<h3>Manage Users</h3><p>Loading users...</p>';
+    // Delegate rendering to namespaced functions
+    // Ensure the namespaces (AdminUsers, etc.) are available (check browser console if errors)
     try {
-        // Fetch all users from the backend API (requires admin authentication)
-        const response = await fetch(`${API_BASE_URL}/users`, { credentials: 'include' });
-         if (!response.ok) {
-             // Handle access denied for non-admin
-             if (response.status === 401 || response.status === 403) {
-                 renderAccessDenied(); // Redirect or show message
-                 return; // Stop processing
-             }
-              throw new Error(`Failed to fetch users: ${response.statusText}`);
-          }
-        const data = await response.json();
-        const users = data.data;
-
-        let usersHtml = ''; // HTML string for the table
-        if (users && users.length > 0) {
-             usersHtml += `
-                <table class="table table-striped table-bordered">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            // Iterate through users and create table rows
-            usersHtml += users.map(user => `
-                <tr>
-                    <td>${user._id}</td>
-                    <td>${user.name}</td>
-                    <td>${user.email}</td>
-                    <td>${user.role}</td>
-                    <td>
-                        <!-- Placeholder buttons for Edit and Delete actions -->
-                        <!-- These would need event listeners and functions to call backend PUT/DELETE endpoints -->
-                        <button class="btn btn-sm btn-warning" disabled>Edit</button>
-                        <button class="btn btn-sm btn-danger" disabled>Delete</button>
-                    </td>
-                </tr>
-            `).join('');
-            usersHtml += '</tbody></table>';
+        if (adminPath === '/users') {
+            AdminUsers.renderList(adminContentDiv);
+        } else if (adminPath === '/products') {
+            AdminProducts.renderList(adminContentDiv);
+        } else if (adminPath === '/products/new') {
+            AdminProducts.renderAddForm(adminContentDiv);
+        } else if (adminPath.startsWith('/products/edit/') && editProductName) {
+            AdminProducts.renderEditForm(adminContentDiv, editProductName);
+        } else if (adminPath === '/orders') {
+            AdminOrders.renderList(adminContentDiv);
         } else {
-            usersHtml = '<p>No users found.</p>';
+            adminContentDiv.innerHTML = '<p>Welcome to the Admin Dashboard.</p>';
         }
-        container.innerHTML = usersHtml;
-
     } catch (error) {
-        console.error('Error fetching users for admin:', error);
-        container.innerHTML = '<p class="text-danger">Failed to load users.</p>';
+        console.error('Error rendering admin section:', error);
+        adminContentDiv.innerHTML = `<p class="text-danger">Error loading admin section: ${error.message}. Make sure admin JS files are loaded correctly.</p>`;
     }
 }
 
-// Renders the product management section for admin (list view)
-async function renderAdminProducts(container) {
-   // Show add new product link and loading message
-   container.innerHTML = '<h3>Manage Products</h3><p><a href="#/admin/products/new" class="btn btn-success mb-3">Add New Product</a></p><div id="adminProductsList">Loading products...</div>';
-
-   try {
-       // Fetch all products from the backend API (requires admin authentication implicitly via needsAuth)
-       const response = await fetch(`${API_BASE_URL}/products`, { credentials: 'include' });
-        if (!response.ok) {
-            // Handle access denied for non-admin
-             if (response.status === 401 || response.status === 403) {
-                 renderAccessDenied();
-                 return;
-             }
-             throw new Error(`Failed to fetch products: ${response.statusText}`);
-         }
-       const data = await response.json();
-       const products = data.data;
-
-       const productsListDiv = document.getElementById('adminProductsList');
-       productsListDiv.innerHTML = '';
-
-       if (products && products.length > 0) {
-            let productsHtml = `
-               <table class="table table-striped table-bordered">
-                   <thead>
-                       <tr>
-                           <th>Name</th>
-                           <th>Price</th>
-                           <th>Stock</th>
-                            <th>Reviews</th>
-                           <th>Actions</th>
-                       </tr>
-                   </thead>
-                   <tbody>
-           `;
-            productsHtml += products.map(product => `
-                <tr>
-                    <td>${product.name}</td>
-                    <td>$${product.price.toFixed(2)}</td>
-                    <td>${product.stock}</td>
-                     <td>${product.reviewCount} (${product.reviewCount > 0 ? (product.totalRating / product.reviewCount).toFixed(1) : 'N/A'})</td> <!-- Display review info -->
-                    <td>
-                        <!-- Edit and Delete buttons with data attributes -->
-                        <button class="btn btn-sm btn-primary edit-product-btn" data-product-name="${product.name}">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-product-btn" data-product-name="${product.name}">Delete</button>
-                    </td>
-                </tr>
-            `).join('');
-            productsHtml += '</tbody></table>';
-            productsListDiv.innerHTML = productsHtml;
-
-            // Add event listeners for delete buttons
-           document.querySelectorAll('.delete-product-btn').forEach(button => {
-                button.addEventListener('click', handleDeleteProduct);
-            });
-            // Add event listeners for edit buttons (implementation needed for edit page/modal)
-           document.querySelectorAll('.edit-product-btn').forEach(button => {
-                button.addEventListener('click', handleEditProduct);
-            });
-
-       } else {
-           productsListDiv.innerHTML = '<p>No products found.</p>';
-       }
-
-   } catch (error) {
-        console.error('Error fetching products for admin:', error);
-       container.innerHTML = '<p class="text-danger">Failed to load products.</p>';
-   }
-}
-
-// Renders the form to add a new product for admin
-function renderAdminAddProductForm(container) {
-    // We already checked admin role in renderAdminPage, no need to re-check here
-   container.innerHTML = `
-       <h3>Add New Product</h3>
-        <form id="newProductForm">
-            <div class="mb-3">
-                <label for="productName" class="form-label">Product Name</label>
-                <input type="text" class="form-control" id="productName" required>
-            </div>
-            <div class="mb-3">
-                <label for="productDescription" class="form-label">Description</label>
-                <textarea class="form-control" id="productDescription" rows="3" required></textarea>
-            </div>
-            <div class="mb-3">
-                <label for="productPrice" class="form-label">Price</label>
-                <input type="number" class="form-control" id="productPrice" step="0.01" required>
-            </div>
-            <div class="mb-3">
-                <label for="productStock" class="form-label">Stock (Optional)</label>
-                <input type="number" class="form-control" id="productStock">
-            </div>
-            <button type="submit" class="btn btn-success">Add Product</button>
-            <div id="addProductError" class="text-danger mt-2"></div>
-        </form>
-         <p class="mt-3"><a href="#/admin/products">Back to Product List</a></p>
-   `;
-    document.getElementById('newProductForm').addEventListener('submit', handleAddProduct);
-}
-
-
-// Renders the order management section for admin
-async function renderAdminOrders(container) {
-   container.innerHTML = '<h3>Manage Orders</h3><div id="adminOrderList">Loading orders...</div>';
-    try {
-        // Fetch all orders from the backend API (requires admin authentication)
-        const response = await fetch(`${API_BASE_URL}/orders`, { credentials: 'include' });
-         if (!response.ok) {
-              // Handle access denied for non-admin
-             if (response.status === 401 || response.status === 403) {
-                 renderAccessDenied();
-                 return;
-             }
-              throw new Error(`Failed to fetch orders: ${response.statusText}`);
-          }
-        const data = await response.json();
-        const orders = data.data;
-
-        const orderListDiv = document.getElementById('adminOrderList');
-        orderListDiv.innerHTML = ''; // Clear loading message
-
-        if (orders && orders.length > 0) {
-            let ordersHtml = `
-                <table class="table table-striped table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Customer ID</th> <!-- Enhance later to show customer name -->
-                            <th>Total</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-             ordersHtml += orders.map(order => `
-                  <tr>
-                      <td>${order._id}</td>
-                       <td>${order.user}</td> <!-- Display User ID - Enhance later -->
-                       <td>$${order.total.toFixed(2)}</td>
-                      <td>
-                            <!-- Dropdown to update order status -->
-                            <select class="form-select order-status-select" data-order-id="${order._id}">
-                                <option value="Pending" ${order.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                                <option value="Confirmed" ${order.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
-                                <option value="Shipped" ${order.status === 'Shipped' ? 'selected' : ''}>Shipped</option>
-                                <option value="Delivered" ${order.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
-                                <option value="Cancelled" ${order.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
-                            </select>
-                        </td>
-                        <td>
-                             <!-- Optional: Button to view detailed order information -->
-                             <button class="btn btn-sm btn-info view-order-details" data-order-id="${order._id}">Details</button>
-                        </td>
-                   </tr>
-              `).join('');
-            ordersHtml += '</tbody></table>';
-            orderListDiv.innerHTML = ordersHtml;
-
-            document.querySelectorAll('.order-status-select').forEach(select => {
-                select.addEventListener('change', handleUpdateOrderStatus);
-            });
-
-            document.querySelectorAll('.view-order-details').forEach(button => {
-                button.addEventListener('click', handleViewOrderDetails);
-            });
-
-        } else {
-            orderListDiv.innerHTML = '<p>No orders found.</p>';
-        }
-
-    } catch (error) {
-        console.error('Error fetching orders for admin:', error);
-        container.innerHTML = '<p class="text-danger">Failed to load orders.</p>';
-    }
-}
-
-// Renders a generic "Not Found" message
+// --- Keep generic helpers ---
 function renderNotFound() {
    appDiv.innerHTML = '<h2>404 Not Found</h2><p>The page you are looking for does not exist.</p>';
 }
 
-// Renders an "Access Denied" message
 function renderAccessDenied() {
    appDiv.innerHTML = '<h2>Access Denied</h2><p>You do not have permission to view this page.</p>';
 }
 
-// Renders a message prompting the user to log in
 function renderLoginMessage(message) {
     appDiv.innerHTML = `<h2>Login Required</h2><p>${message}</p><p><a href="#/login">Click here to login</a></p>`;
 }
@@ -1349,191 +1093,10 @@ async function handleAddReview(event, productId) {
     }
 }
 
-// --- Placeholder Admin Action Handlers ---
-// These functions are called when admin buttons are clicked but need full implementation
-
-async function handleAddProduct(event) {
-    event.preventDefault();
-    // Get product data from the form fields (assuming you added them in renderAdminAddProductForm)
-    const name = document.getElementById('productName').value;
-    const description = document.getElementById('productDescription').value;
-    const priceInput = document.getElementById('productPrice');
-    const stockInput = document.getElementById('productStock');
-    const errorDiv = document.getElementById('addProductError');
-    errorDiv.textContent = '';
-
-    const price = parseFloat(priceInput.value);
-    const stock = parseInt(stockInput.value, 10); // Use parseInt
-
-     // Basic frontend validation (you have stricter validation on backend too)
-    if (name.trim() === '' || description.trim() === '' || isNaN(price) || price <= 0 || isNaN(stock) || stock < 0) {
-        errorDiv.textContent = 'Please fill in all required fields with valid data.';
-        return;
-    }
-
-    try {
-        // Send POST request to create a new product (requires admin authentication)
-         const response = await fetch(`${API_BASE_URL}/products`, {
-             method: 'POST',
-             headers: {
-                 'Content-Type': 'application/json',
-             },
-             body: JSON.stringify({ name, description, price, stock }),
-              credentials: 'include' // Requires admin auth
-         });
-
-         const data = await response.json();
-
-         if (response.ok) {
-             console.log('Product added successfully:', data.data);
-             alert('Product added successfully!');
-              // Redirect back to the products list after adding
-              window.location.hash = '#/admin/products';
-         } else {
-              console.error('Add product failed:', data.message);
-             errorDiv.textContent = data.message || 'Failed to add product.';
-             // If access denied, redirect
-             if (response.status === 401 || response.status === 403) {
-                 renderAccessDenied();
-             }
-         }
-     } catch (error) {
-          console.error('Add product error:', error);
-          errorDiv.textContent = 'An error occurred while adding the product.';
-     }
-}
-
-async function handleDeleteProduct(event) {
-    // Get the product name from the button's data attribute
-    const productName = event.target.dataset.productName;
-
-    // Confirm deletion with the user
-    if (!confirm(`Are you sure you want to delete product "${productName}"?`)) {
-        return; // If cancelled, do nothing
-    }
-
-    try {
-        // Send DELETE request to the backend API (requires admin authentication)
-         const response = await fetch(`${API_BASE_URL}/products/${productName}`, {
-             method: 'DELETE',
-             credentials: 'include' // Requires admin auth
-         });
-
-         if (response.ok) {
-             console.log(`Product "${productName}" deleted`);
-             alert('Product deleted successfully!');
-             // Re-render the admin products list to show the item is removed
-             renderAdminPage('/products'); // Call renderAdminPage with the correct path
-         } else {
-              // Handle deletion failure - display error
-              const errorData = await response.json();
-              alert('Failed to delete product: ' + (errorData.message || 'Unknown error'));
-              // If access denied, redirect
-              if (response.status === 401 || response.status === 403) {
-                  renderAccessDenied();
-              }
-         }
-     } catch (error) {
-          console.error('Delete product error:', error);
-          alert('An error occurred while deleting the product.');
-     }
-}
-
-async function handleEditProduct(event) {
-    // Get the product name from the button's data attribute
-    const productName = event.target.dataset.productName;
-    // This would typically navigate to an edit page or show a modal with a form
-    // populated with the current product data.
-     alert(`Editing product "${productName}" - functionality not fully implemented yet.`); // Placeholder
-
-    // To implement:
-    // 1. Navigate to a new hash like #/admin/products/edit/:name
-    // 2. Create a new rendering function (e.g., renderAdminEditProductForm)
-    // 3. This function fetches the product data by name (requires admin auth), renders a form pre-filled with data
-    // 4. Add an event listener to the form to send a PUT request to /api/products/:name (requires admin auth)
-    // 5. On success, redirect back to #/admin/products
-}
-
-async function handleUpdateOrderStatus(event) {
-    const orderId = event.target.dataset.orderId;
-    const newStatus = event.target.value;
-    const selectElement = event.target; // Get the select element to revert value on failure
-
-    // Ask for confirmation before changing status
-    if (!confirm(`Change status for Order #${orderId} to "${newStatus}"?`)) {
-         // If cancelled, reset the select element's value to the original status
-         // Note: This requires storing the original value, or re-rendering the page
-          renderAdminPage('/orders'); // Simplest way to revert state
-         return;
-     }
-
-    try {
-         // Send PUT request to update the order status (requires admin authentication)
-         const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
-             method: 'PUT',
-             headers: {
-                 'Content-Type': 'application/json',
-             },
-             body: JSON.stringify({ status: newStatus }),
-              credentials: 'include' // Requires admin auth
-         });
-
-         if (response.ok) {
-             console.log(`Order ${orderId} status updated to ${newStatus}`);
-             alert('Order status updated successfully!');
-              // Re-render the admin orders list to confirm the change visually
-              renderAdminPage('/orders');
-         } else {
-              // Handle update failure - display error and re-render to revert UI
-              const errorData = await response.json();
-              alert('Failed to update order status: ' + (errorData.message || 'Unknown error'));
-              renderAdminPage('/orders'); // Revert changes on failure
-              // If access denied, redirect
-              if (response.status === 401 || response.status === 403) {
-                  renderAccessDenied();
-              }
-         }
-     } catch (error) {
-         console.error('Update order status error:', error);
-         alert('An error occurred while updating order status.');
-         renderAdminPage('/orders'); // Revert changes on error
-     }
-}
-
-async function handleViewOrderDetails(event) {
-    const orderId = event.target.dataset.orderId;
-     alert(`Viewing details for Order #${orderId} - functionality not fully implemented yet.`); // Placeholder
-
-     // To implement:
-     // 1. Fetch the specific order details from the backend (/api/orders/:id - you have this endpoint, might need admin check)
-     // 2. Display the full order details (items, costs, addresses etc.) in a modal or a new page section.
-     // This would require a GET request like:
-     // try {
-     //     const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, { credentials: 'include' }); // Requires admin auth
-     //     if (response.ok) {
-     //          const orderDetails = await response.json();
-     //          console.log('Order details:', orderDetails.data);
-     //          // Render the order details in a modal or a specific div
-     //     } else {
-     //          console.error('Failed to fetch order details:', response.statusText);
-     //          alert('Failed to load order details.');
-     //           if (response.status === 401 || response.status === 403) renderAccessDenied();
-     //     }
-     // } catch (error) {
-     //      console.error('View order details error:', error);
-     //      alert('An error occurred while loading order details.');
-     // }
-}
-
-
-// --- Stripe Redirect Handling (for after checkout) ---
-// This code runs when the browser is redirected back from Stripe after payment
-
-// Check if the current URL has query parameters from Stripe redirect
+// --- Stripe Redirect Handling ---
 const urlParams = new URLSearchParams(window.location.search);
-const orderIdFromUrl = urlParams.get('orderId'); // Get the orderId from the success URL
+const orderIdFromUrl = urlParams.get('orderId');
 
-// Function to handle displaying the success/cancel message
 async function handleCheckoutRedirect(orderId, isSuccess) {
    if (isSuccess) {
        appDiv.innerHTML = `
@@ -1568,14 +1131,12 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
    // window.location.hash = '#/'; // Optional: Redirect to home after a delay
 }
 
-// Check for Stripe redirect parameters when the script loads
-if (orderIdFromUrl) {
-   // If orderId is present, it's a success redirect
+const currentPath = window.location.pathname;
+if (currentPath.includes('/checkout-success') && orderIdFromUrl) {
     handleCheckoutRedirect(orderIdFromUrl, true);
-} else if (window.location.pathname.includes('/checkout-cancel')) {
-   // If '/checkout-cancel' is in the path, it's a cancel redirect
-    handleCheckoutRedirect(null, false); // No orderId for cancel, pass null
+} else if (currentPath.includes('/checkout-cancel')) {
+    handleCheckoutRedirect(null, false);
 } else {
-   // If no specific redirect parameters, render the normal page based on hash
-    renderPage();
+    // If no specific redirect parameters, render the normal page based on hash
+    renderPage(); // Initial page render happens here now
 }

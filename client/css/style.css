@@ -14,3 +14,32 @@
 #logoutLink {
     /* Display will be handled by JS */
 }
+
+body {
+    padding-top: 56px; /* Adjust if navbar height changes */
+    background-color: #f8f9fa; /* Light grey background */
+}
+
+#app {
+    padding-bottom: 3rem; /* Add some space at the bottom */
+}
+
+.card {
+    border: none; /* Remove default card border for a cleaner look */
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); /* Subtle shadow */
+}
+
+.navbar {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); /* Add shadow to navbar */
+}
+
+/* Adjust admin table button spacing if needed */
+.admin-link.nav-item a.nav-link {
+    font-weight: bold;
+    color: #dc3545; /* Example: Make admin link red */
+}
+
+/* Style the user info in navbar */
+#userInfo .navbar-text {
+    font-size: 0.9rem;
+}
