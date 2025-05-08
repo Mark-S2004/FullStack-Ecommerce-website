@@ -9,18 +9,18 @@ import morgan from 'morgan';
 import { connect, set, disconnect } from 'mongoose';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import { HttpException } from '@exceptions/HttpException';
-import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from '@config';
-import { dbConnection } from '@databases';
-import { Routes } from '@interfaces/routes.interface';
-import errorMiddleware from '@middlewares/error.middleware';
+import { HttpException } from './exceptions/HttpException';
+import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from './config';
+import { dbConnection } from './databases';
+import { Routes } from './interfaces/routes.interface';
+import errorMiddleware from './middlewares/error.middleware';
 // Non-blocking auth (parses token but does not enforce)
-import authMiddleware from '@middlewares/auth.middleware';
+import authMiddleware from './middlewares/auth.middleware';
 // Blocking auth (requires valid user)
-import authRequiredMiddleware from '@middlewares/authRequired.middleware';
-import { logger, stream } from '@utils/logger';
-import routesArray from '@routes/index'; // Default export (array of routes, excluding webhook)
-import { webhookRoute } from '@routes/index'; // Named export (webhook route object)
+import authRequiredMiddleware from './middlewares/authRequired.middleware';
+import { logger, stream } from './utils/logger';
+import routesArray from './routes/index'; // Default export (array of routes, excluding webhook)
+import { webhookRoute } from './routes/index'; // Named export (webhook route object)
 
 class App {
   public app: express.Application;
