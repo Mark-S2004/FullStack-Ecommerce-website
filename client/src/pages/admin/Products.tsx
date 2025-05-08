@@ -7,6 +7,10 @@ import { useState, Fragment } from 'react'; // Import Fragment
 import { TrashIcon, PencilSquareIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react'; // Import Dialog and Transition
 
+// Define Product interface (or import from shared types)
+// Assuming Product is defined in client/src/types/product.types.ts
+// import { Product } from '@/types/product.types'; // Uncomment if Product is defined centrally
+
 interface Product {
   _id: string;
   name: string;
@@ -14,9 +18,11 @@ interface Product {
   category: string;
   inStock: boolean; // Derived from stock > 0 on backend, but useful flag
   stock: number;
+   // Add other fields you might display here
 }
 
-// Basic Modal Component
+
+// Basic Modal Component - Moved outside the main component
 function ConfirmationModal({
   isOpen,
   onClose,
@@ -32,8 +38,7 @@ function ConfirmationModal({
   message: string;
    isDeleting: boolean; // Indicate if deletion is in progress
 }) {
-  if (!isOpen) return null;
-
+  // Modal JSX remains the same
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -98,28 +103,31 @@ function ConfirmationModal({
 }
 
 
-export default function AdminProducts() {
+export default function AdminProducts(): JSX.Element { // Added return type annotation for the component
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Fetch Products
-  const { data: productsResponse, isLoading, isError, error } = useQuery<{ products: Product[] }>({ // Expecting { products: [...] }
+  // Assuming the backend structure is { data: { products: [...] } } for the GET /admin/products route
+  const { data: productsResponse, isLoading, isError, error } = useQuery<{ data: { products: Product[] } }>({ // Expecting { data: { products: [...] } }
     queryKey: ['admin-products'],
     queryFn: async () => {
-       const { data } = await api.get('/admin/products'); // Assuming admin product listing route is /admin/products
+       // Corrected type annotation for axios response
+       const { data } = await api.get<{ data: { products: Product[] } }>('/admin/products'); // Assuming admin product listing route is /admin/products
        console.log('Admin Products API response:', data);
-        if (!data || !data.data || !data.data.products) {
+        if (!data || !data.data || !Array.isArray(data.data.products)) { // Check if data, data.data, and products is an array
            console.error('Invalid Admin Products API response format:', data);
            throw new Error("Invalid data format from API");
        }
-       return data.data; // Return data.data which contains { products: [...] }
+       return data; // Return the full data object, including the 'data' key
     },
      retry: false,
   });
 
    // Access the products array from the response data
-   const products = productsResponse?.products;
+   const products = productsResponse?.data?.products; // Access the nested 'data.products' property
+
 
   // Delete Mutation
   const deleteMutation = useMutation({
@@ -130,11 +138,13 @@ export default function AdminProducts() {
       toast.success('Product deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-products'] }); // Refetch product list
        setProductToDelete(null); // Clear the product after deletion
+       setIsModalOpen(false); // Close the modal
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Failed to delete product');
        console.error("Delete product error:", error);
        setProductToDelete(null); // Clear the product on error
+       setIsModalOpen(false); // Close the modal
     },
   });
 
@@ -181,7 +191,7 @@ export default function AdminProducts() {
                 </div>
               ) : isError || !products ? ( // Handle error state
                  <div className="text-center py-12 text-red-600">
-                     Error loading products. {isError ? (error instanceof Error ? error.message : '') : ''}
+                     Error loading products. {isError ? (error instanceof Error ? error.message : '') : 'Products data not available.'}
                  </div>
               ) : products.length > 0 ? ( // Check if products array is not empty
                 <table className="min-w-full divide-y divide-gray-300">

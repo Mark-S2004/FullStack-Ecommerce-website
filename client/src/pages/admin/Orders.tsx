@@ -4,14 +4,15 @@ import { Helmet } from 'react-helmet-async';
 import clsx from 'clsx'; // Import clsx
 
 // Define interfaces matching backend Order structure (populated for admin view)
+// Assuming the backend structure is { data: { orders: [...] } } for the GET /admin/orders route
 interface Order {
   _id: string;
   orderNumber?: string; // Order number might be optional initially or not generated for old orders
    user: { _id: string; name: string }; // Populated user details
-  items: Array<{
+  items: Array<{ // Array of order items
     _id?: string; // Item ID (optional as it might not always be selected explicitly)
-     product: { _id: string; name: string; price: number }; // Populated product details
-    qty: number;
+     product: { _id: string; name: string; price: number; images?: string[] }; // Populated product details, added images
+    quantity: number; // Changed from qty to quantity
     price: number; // Price at time of order
      size?: string; // Added size
   }>;
@@ -21,24 +22,27 @@ interface Order {
   shippingCost: number;
   tax: number;
   total: number;
-  status: 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled'; // Use union type for status
+  // Use the updated enum that includes Processing
+  status: 'Pending' | 'Processing' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled'; // Use union type for status
   createdAt: string;
 }
 
 
 export default function AdminOrders(): JSX.Element { // Added return type annotation for the component
    // Fetch Orders from backend admin route
+  // Assuming the backend structure is { data: { orders: [...] } } for the GET /admin/orders route
   const { data: ordersResponse, isLoading, isError, error } = useQuery<{ data: { orders: Order[] } }>({ // Expecting { data: { orders: [...] } }
     queryKey: ['admin-orders'],
     queryFn: async () => {
       try {
-         const { data } = await api.get('/admin/orders'); // Assuming the admin orders route is /admin/orders
+         // Corrected type annotation for axios response
+         const { data } = await api.get<{ data: { orders: Order[] } }>('/admin/orders'); // Assuming the admin orders route is /admin/orders
          console.log('Admin Orders API response:', data);
-         if (!data || !data.data || !Array.isArray(data.data.orders)) { // Check if orders is an array
+         if (!data || !data.data || !Array.isArray(data.data.orders)) { // Check if data, data.data, and orders is an array
             console.error('Invalid Admin Orders API response format:', data);
             throw new Error("Invalid data format from API");
          }
-         return data; // Return the full data object
+         return data; // Return the full data object, including the 'data' key
       } catch (error) {
          console.error("Failed to fetch orders:", error);
          throw error;
@@ -48,7 +52,7 @@ export default function AdminOrders(): JSX.Element { // Added return type annota
   });
 
    // Access the orders array from the response data
-   const orders = ordersResponse?.data?.orders;
+   const orders = ordersResponse?.data?.orders; // Access the nested 'data.orders' property
 
    // Optional: Define mutation for deleting a review
   // const deleteMutation = useMutation({
@@ -91,7 +95,7 @@ export default function AdminOrders(): JSX.Element { // Added return type annota
                  </div>
                ) : isError || !orders ? ( // Handle error state, check if orders is null/undefined after loading
                   <div className="text-center py-12 text-red-600">
-                      Error loading orders. {isError ? (error instanceof Error ? error.message : '') : ''}
+                      Error loading orders. {isError ? (error instanceof Error ? error.message : '') : 'Orders data not available.'}
                   </div>
                ) : orders.length > 0 ? ( // Check if orders array is not empty
                  <table className="min-w-full divide-y divide-gray-300">
@@ -161,9 +165,9 @@ export default function AdminOrders(): JSX.Element { // Added return type annota
                                {
                                  'bg-green-100 text-green-800': order.status === 'Delivered',
                                  'bg-blue-100 text-blue-800': order.status === 'Shipped',
-                                 'bg-yellow-100 text-yellow-800': order.status === 'Pending', // Pending
+                                 // Corrected comparison to include 'Processing'
+                                 'bg-yellow-100 text-yellow-800': order.status === 'Pending' || order.status === 'Confirmed' || order.status === 'Processing',
                                  'bg-red-100 text-red-800': order.status === 'Cancelled',
-                                 'bg-purple-100 text-purple-800': order.status === 'Confirmed', // Confirmed
                                }
                              )}
                            >
@@ -172,22 +176,17 @@ export default function AdminOrders(): JSX.Element { // Added return type annota
                          </td>
                          <td className="px-3 py-4 text-sm text-gray-500">
                            <ul className="list-disc list-inside">
-                              {order.items.map((item) => ( // Added type annotation for item
-                                // Use item._id or product._id as key
-                                <li key={item._id || item.product?._id} className="whitespace-nowrap">
-                                  {item.product?.name} x {item.qty} {item.size ? `(${item.size})` : ''} {/* Display item details */}
-                                </li>
+                              {/* Access items via optional chaining, add type annotation */}
+                              {order.items?.slice(0, 2).map((item, idx: number) => ( // Show max 2 items, add idx type
+                                 // Add key for list items
+                                 <li key={item.product?._id || idx} className="whitespace-nowrap"> {/* Use product _id or index as key */}
+                                    {/* Access product name via optional chaining, access quantity */}
+                                    {item.product?.name} ({item.quantity})
+                                 </li>
                               ))}
+                            {/* Indicate more items only if there are more than 2 */}
+                            {order.items && order.items.length > 2 && (<span>...</span>)}
                            </ul>
-                         </td>
-                         <td className="px-3 py-4 text-sm text-gray-500">
-                            {order.shippingAddress ? (
-                                <div>
-                                    <p>{order.shippingAddress.address}</p>
-                                    <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}</p>
-                                    <p>{order.shippingAddress.country}</p>
-                                </div>
-                            ) : 'N/A'}
                          </td>
                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                            {new Date(order.createdAt).toLocaleDateString()}

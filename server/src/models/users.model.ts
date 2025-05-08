@@ -1,8 +1,12 @@
-import { model, Schema, Document } from 'mongoose';
+import { model, Schema, Document, Types } from 'mongoose'; // Import Types
 import { User } from '@interfaces/users.interface';
 import { EUserRole } from '@interfaces/users.interface';
+// Import OrderItem interface
+import { OrderItem } from '@interfaces/orders.interface';
 
-const userSchema: Schema = new Schema({
+
+// Add type parameter for Schema
+const userSchema: Schema<User> = new Schema({
   name: {
     type: String,
     trim: true,
@@ -26,15 +30,17 @@ const userSchema: Schema = new Schema({
     index: true,
     // default: EUserRole.STUDENT,if you add a default => gives error for all fields != default
   },
+  // Use OrderItem schema structure for cart items, ensure 'quantity' field
   cart: [
     {
       product: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
-      qty: { type: Number, required: true, default: 1 },
+      quantity: { type: Number, required: true, default: 1 }, // Changed from qty to quantity
       price: { type: Number, required: true, default: 0 },
+      size: { type: String } // Added size field
     },
   ],
 });
 
-const userModel = model<User & Document>('User', userSchema);
+const userModel = model<User & Document>('User', userSchema); // Add type parameter
 
 export default userModel;

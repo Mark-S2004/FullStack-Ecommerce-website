@@ -1,30 +1,14 @@
-import { Types } from 'mongoose'; // Import Types from mongoose
-
-// Define Product interface here if it's not already in a shared file
-// Otherwise, remove this definition and ensure it's imported correctly
-export interface Product {
-  _id?: string;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  category: string;
-  gender: 'Men' | 'Women' | 'Unisex';
-  sizes?: string[]; // Optional sizes array
-  colors?: string[]; // Optional colors array
-  images?: string[]; // Optional images array
-  reviews?: any[]; // Simplified, could use a more specific Review interface
-  totalRating?: number;
-  reviewCount?: number;
-}
+import { Types, Document } from 'mongoose'; // Import Types and Document
+// Correct import for Product interface
+import { Product } from './products.interface'; // Import Product from its new location
 
 
 export interface OrderItem {
-  _id?: string; // Add optional _id for subdocuments
-  product: Types.ObjectId | Product; // Can be ObjectId (stored) or populated Product (fetched)
-  qty: number;
-  price: number; // Store price at time of order for consistency
-  size?: string; // Added size field if it exists in cart/product
+  _id?: Types.ObjectId; // Add optional _id for subdocuments
+  product: Types.ObjectId; // Store product as ObjectId reference
+  quantity: number; // Changed from qty to quantity for consistency
+  price: number; // Store price at time of order
+  size?: string; // Added size field
 }
 
 export interface ShippingAddress {
@@ -40,15 +24,20 @@ export interface ShippingAddress {
 }
 
 
+// Order interface for data fetched from DB (potentially populated)
 export interface Order {
-  _id?: string; // Add _id for fetched orders
-  user: Types.ObjectId | { _id: string; name: string }; // User reference is ObjectId, can be populated User
-  items: OrderItem[];
+  _id: Types.ObjectId; // Order _id
+  user: Types.ObjectId | { _id: string; name: string }; // User reference is ObjectId, can be populated User object
+  items: Array<OrderItem & { product: Product & Document }>; // When fetching orders, items.product is populated
   shippingAddress: ShippingAddress; // Use the ShippingAddress interface
   shippingCost: number;
   tax: number;
   total: number;
-  status: 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled'; // Use union type for status
+  // Added 'Processing' to the enum
+  status: 'Pending' | 'Processing' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled'; // Use union type for status
   createdAt: Date;
   orderNumber?: string; // Add optional order number field
 }
+
+// Define the Order Document type for use with Mongoose models
+export type OrderDocument = Order & Document;

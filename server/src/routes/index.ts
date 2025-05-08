@@ -1,15 +1,16 @@
 //server/src/routes/index.ts
 // Import route modules (assuming they export objects with { path, router })
+// Ensure correct import style (default import)
 import authRoute from './auth.route';
 import usersRoute from './users.route';
 import orderRoute from './order.route';
 import webhookRoute from './webhook.route';
-import productsRoute from './products.route'; // Changed import style from class
+import productsRoute from './products.route'; // Import as default
 import cartRoute from './cart.route';
 import reviewsRoute from './reviews.route';
 
 // Admin routes - assuming you create these files with similar object exports
-// Example placeholder imports:
+// Ensure correct import style (default import)
 import adminDashboardRoute from './admin/dashboard.route';
 import adminProductsRoute from './admin/products.route';
 import adminOrdersRoute from './admin/orders.route';

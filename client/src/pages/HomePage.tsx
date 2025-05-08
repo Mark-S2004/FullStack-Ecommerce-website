@@ -1,62 +1,35 @@
-import { useState, useEffect } from 'react';
-// Import useSearchParams from react-router-dom to read/write URL params
+// client/src/pages/HomePage.tsx
+import { useState, Fragment } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-// Correct useQuery import for v4/v5
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/axios';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { Helmet } from 'react-helmet-async';
-import { Transition } from '@headlessui/react';
+import { Transition } from '@headlessui/react'; // Kept only Transition
+import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { useCart } from '../contexts/CartContext';
-import clsx from 'clsx'; // Import clsx
+import { Helmet } from 'react-helmet-async';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Imported MagnifyingGlassIcon
+import { StarIcon as StarIconSolid } from '@heroicons/react/20/solid';
 
 
-export interface Product { // Export the interface
-  _id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  gender: string;
-  images: string[];
-  inStock: boolean; // Derived from stock > 0 on backend, but useful flag
-   stock: number; // Assuming stock count is available
-  sizes: string[]; // Assuming sizes are available
-  colors: string[]; // Added colors based on backend model
-  reviews: Array<{
-    _id: string;
-    rating: number;
-    comment: string;
-    user: {
-      name: string;
-    };
-    createdAt: string;
-  }>;
-}
+import { Product } from '@/types/product.types'
+import { calculateAverageRating } from '@/utils/productUtils';
 
-// Kept calculateAverageRating function as it's useful here
-function calculateAverageRating(reviews: Product['reviews']): number { // Added return type annotation
-  if (!reviews || reviews.length === 0) return 0; // Handle empty reviews
-  const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
-  // Calculate average and round to 1 decimal place
-  return Math.round((sum / reviews.length) * 10) / 10;
-}
 
-export default function HomePage(): JSX.Element { // Added return type annotation for the component
-  // Use URL search params for filters and search
+const productCategories = ['Shirts', 'Pants', 'Shoes', 'Accessories', 'Dresses'];
+const productGenders = ['Men', 'Women', 'Unisex'];
+
+
+export default function HomePage(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // State derived from URL search params
   const searchQuery = searchParams.get('search') || '';
   const selectedCategory = searchParams.get('category') || '';
   const selectedGender = searchParams.get('gender') || '';
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-   // Fetch products based on search params
-   // Correct the type parameter to match the expected data structure { data: { products: [...] } }
-  const { data: productsResponse, isLoading, error, isError } = useQuery<{ data: { products: Product[] } }>({ // Expecting { data: { products: [...] } }
+  const { data: productsResponse, isLoading, error, isError } = useQuery<{ data: { products: Product[] }, message?: string }>({
     queryKey: ['products', searchQuery, selectedCategory, selectedGender],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -66,125 +39,109 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
 
       console.log('Fetching products with params:', params.toString());
       try {
-        const { data } = await api.get(`/products?${params.toString()}`);
+        const { data } = await api.get<{ data: { products: Product[] }, message?: string }>(`/products?${params.toString()}`);
         console.log('API response:', data);
-        // Backend returns { data: { products: [...] }, message: '...' }
-        if (!data || !data.data || !Array.isArray(data.data.products)) { // Check if products is an array
+        if (!data || !data.data || !Array.isArray(data.data.products)) {
           console.error('Invalid API response format:', data);
-          // Return an empty array or throw a specific error
           throw new Error("Invalid data format from API: Expected an array of products under data.data.products");
         }
-        return data; // Return the full response data object
+        return data;
       } catch (error) {
         console.error('Failed to fetch products:', error);
-        throw error; // Re-throw the error for React Query to handle
+        throw error;
       }
     },
-     // `keepPreviousData` is replaced by `placeholderData` or other strategies in v4/v5
-     // Removing it for simplicity.
   });
 
-   // Access the products array from the response data
-   // Use optional chaining to safely access nested properties
-   const products = productsResponse?.data?.products;
+  const products = productsResponse?.data?.products;
 
-  // Define categories and genders arrays here so they are in scope for handlers and JSX
-  const categories = ['Shirts', 'Pants', 'Shoes', 'Accessories'];
-  const genders = ['Men', 'Women', 'Unisex'];
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    if (e.target.value) {
+      newSearchParams.set('search', e.target.value);
+    } else {
+      newSearchParams.delete('search');
+    }
+    setSearchParams(newSearchParams, { replace: true });
+  };
 
-   // Update URL search params when filters/search change
-   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-      if (e.target.value) {
-         newSearchParams.set('search', e.target.value);
-      } else {
-         newSearchParams.delete('search');
-      }
-      setSearchParams(newSearchParams, { replace: true }); // Use replace to avoid cluttering history
-   };
+  const handleCategoryChange = (value: string) => {
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    if (value && value.toLowerCase() !== 'all categories') {
+      newSearchParams.set('category', value.toLowerCase());
+    } else {
+      newSearchParams.delete('category');
+    }
+    setSearchParams(newSearchParams, { replace: true });
+  };
 
-   // Added type annotation for the value parameter
-   const handleCategoryChange = (value: string) => { // Expect string value directly
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-      if (value && value.toLowerCase() !== 'all categories') { // Normalize value
-         newSearchParams.set('category', value.toLowerCase());
-      } else {
-         newSearchParams.delete('category');
-      }
-      setSearchParams(newSearchParams, { replace: true }); // Use replace
-   };
-
-   // Added type annotation for the value parameter
-   const handleGenderChange = (value: string) => { // Expect string value directly
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-       if (value && value.toLowerCase() !== 'all genders') { // Normalize value
-         newSearchParams.set('gender', value.toLowerCase());
-      } else {
-         newSearchParams.delete('gender');
-      }
-      setSearchParams(newSearchParams, { replace: true }); // Use replace
-   };
+  const handleGenderChange = (value: string) => {
+    const newSearchParams = new URLSearchParams(searchParams.toString());
+    if (value && value.toLowerCase() !== 'all genders') {
+      newSearchParams.set('gender', value.toLowerCase());
+    } else {
+      newSearchParams.delete('gender');
+    }
+    setSearchParams(newSearchParams, { replace: true });
+  };
 
 
   const { addItem: addToCartContext } = useCart();
 
-  // Added type annotation for product parameter
-  const handleAddToCart = async (product: Product) => {
-    try {
-       // For the home page, we'll default to quantity 1 and the first available size (if any)
-       // Or you might disable the button and require user to go to product details to pick size
-      const sizeToAdd = (product.sizes && product.sizes.length > 0) ? product.sizes[0] : 'default';
+  const handleAddToCart = async (product: Product): Promise<void> => {
+    if (!product) {
+       toast.error('Product data is not available.');
+       return;
+    }
 
-     // Check stock before adding (backend also checks, but a client-side check provides faster feedback)
-     if (!product.inStock || product.stock <= 0) {
-        toast.error(`"${product.name}" is out of stock.`);
-        return;
-     }
-     // Using quantity state from component scope (defaulting to 1 for this page)
-     // Access the quantity state variable defined at the top of the component scope
-     const selectedQuantity = 1; // Default quantity on homepage is 1
-     if (product.stock < selectedQuantity) { // Check stock against selected quantity
+    const sizeToAdd = (product.sizes && product.sizes.length > 0) ? product.sizes[0] : 'default';
+    const selectedQuantity = 1;
+
+
+    if (product.stock <= 0) {
+       toast.error(`"${product.name}" is out of stock.`);
+       return;
+    }
+     if (product.stock < selectedQuantity) {
         toast.error(`Not enough stock available for "${product.name}". Only ${product.stock} left.`);
         return;
      }
 
 
     if (!product._id) {
-        toast.error('Product ID is missing.');
-        return;
+       toast.error('Product ID is missing.');
+       return;
     }
 
 
     try {
-       // Call addItem with product ID, quantity (default to 1), and selected size
-      await addToCartContext(product._id, selectedQuantity, sizeToAdd); // Pass size, use quantity 1
-       // The addItem context function already shows a success toast and refetches the cart
-    } catch (err: any) { // Added type annotation for err
+      await addToCartContext(product._id.toString(), selectedQuantity, sizeToAdd);
+    } catch (err: any) {
       console.error('Failed to add item from HomePage:', err);
-       // Toast error is handled in the context function
     }
   };
 
-  return ( // Ensure the component returns JSX
+
+  return (
     <>
       <Helmet>
-        <title>Home | Fashion Store</title>
+        <title>{productsResponse?.data?.products?.[0]?.name || 'Home'} | Fashion Store</title>
         <meta name="description" content="Browse our latest fashion products" />
       </Helmet>
 
-      <div className="bg-white">
+      <div className="bg-white max-w-[100vw] overflow-x-hidden">
         <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12 lg:max-w-7xl lg:px-8">
           {/* Hero Banner */}
           <div className="relative overflow-hidden rounded-lg mb-8 max-h-[500px]">
             <div className="absolute inset-0">
               <img
-                src="https://images.unsplash.com/photo-1441986300917-64674bd600d8"
+                src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1974&q=80"
                 alt="Fashion collection"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-gray-900/70 to-gray-900/30"></div>
             </div>
-            <div className="relative z-[1] px-4 py-8 sm:px-6 sm:py-12"> {/* Added relative z-index */}
+            <div className="relative z-[1] px-4 py-8 sm:px-6 sm:py-12">
               <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                 Summer Collection 2023
               </h1>
@@ -193,7 +150,7 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
               </p>
               <div className="mt-6">
                 <button
-                   type="button" // Specify type for button
+                   type="button"
                   className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white"
                   onClick={() => window.scrollTo({ top: 500, behavior: 'smooth' })}
                 >
@@ -235,11 +192,11 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
               {/* Category Filter */}
               <select
                 value={selectedCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)} // Pass value to handler
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="block w-full rounded-md border-0 py-2 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
               >
                 <option value="">All Categories</option>
-                {categories.map((category) => ( // Corrected 'categories' scope issue
+                {productCategories.map((category) => (
                   <option key={category} value={category.toLowerCase()}>
                     {category}
                   </option>
@@ -249,11 +206,11 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
               {/* Gender Filter */}
               <select
                 value={selectedGender}
-                onChange={(e) => handleGenderChange(e.target.value)} // Pass value to handler
+                onChange={(e) => handleGenderChange(e.target.value)}
                 className="block w-full rounded-md border-0 py-2 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
               >
                 <option value="">All Genders</option>
-                {genders.map((gender) => ( // Corrected 'genders' scope issue
+                {productGenders.map((gender) => (
                   <option key={gender} value={gender.toLowerCase()}>
                     {gender}
                   </option>
@@ -265,15 +222,16 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
           {/* Mobile filters */}
           <Transition
             show={isFiltersOpen}
+            as={Fragment}
             enter="transition-all duration-300 ease-out"
             enterFrom="transform scale-95 opacity-0 max-h-0"
             enterTo="transform scale-100 opacity-100 max-h-screen"
             leave="transition-all duration-200 ease-out"
             leaveFrom="transform scale-100 opacity-100 max-h-screen"
             leaveTo="transform scale-95 opacity-0 max-h-0"
-             className="md:hidden overflow-hidden" // Added overflow-hidden
           >
-            <div className="mt-4 space-y-4 border-t border-b border-gray-200 py-4">
+             {/* Added className here */}
+            <div className="md:hidden overflow-hidden mt-4 space-y-4 border-t border-b border-gray-200 py-4">
               {/* Search */}
               <div className="relative">
                 <input
@@ -296,14 +254,14 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
                       name="category-mobile"
                       type="radio"
                       checked={selectedCategory === ''}
-                      onChange={() => handleCategoryChange('')} // Pass empty string to handler
+                      onChange={() => handleCategoryChange('')}
                       className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
                     />
                     <label htmlFor="category-all-mobile" className="ml-3 text-sm text-gray-600">
                       All Categories
                     </label>
                   </div>
-                  {categories.map((category) => ( // Corrected 'categories' scope issue
+                  {productCategories.map((category) => (
                     <div key={`mobile-${category}`} className="flex items-center">
                       <input
                         id={`category-mobile-${category}`}
@@ -331,14 +289,14 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
                        name="gender-mobile"
                        type="radio"
                        checked={selectedGender === ''}
-                       onChange={() => handleGenderChange('')} // Pass empty string to handler
+                       onChange={() => handleGenderChange('')}
                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
                      />
                      <label htmlFor="gender-all-mobile" className="ml-3 text-sm text-gray-600">
                        All Genders
                      </label>
                    </div>
-                  {genders.map((gender) => ( // Corrected 'genders' scope issue
+                  {productGenders.map((gender) => (
                     <div key={`mobile-${gender}`} className="flex items-center">
                       <input
                         id={`gender-mobile-${gender}`}
@@ -368,13 +326,16 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
 
           {/* Product Grid */}
           {/* Only render grid if products array exists and is not loading */}
-          {!isLoading && products && products.length > 0 && (
+          {!isLoading && products && products.length > 0 ? (
              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-               {products.map((product: Product) => ( // Added type annotation for product
-                 <div key={product._id} className="group relative border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+               {products.map((product: Product) => {
+                  const averageRating = calculateAverageRating(product.reviews || []);
+                  const reviewCount = product.reviews?.length || 0;
+                 return (
+                 <div key={product._id?.toString()} className="group relative border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
                    <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden bg-gray-200 lg:aspect-none lg:h-[180px]">
                      <img
-                       src={product.images?.[0]} // Use optional chaining
+                       src={product.images?.[0]}
                        alt={product.name}
                        className="h-full w-full object-cover object-center"
                      />
@@ -382,17 +343,35 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
                    <div className="p-4">
                      <div className="mb-2">
                        <h3 className="text-sm font-medium text-gray-900">
-                         {/* Link to product page using product._id */}
-                         <Link to={`/product/${product._id}`}>
+                         <Link to={`/product/${product._id?.toString()}`}>
                            <span aria-hidden="true" className="absolute inset-0" />
                            {product.name}
                          </Link>
                        </h3>
                        <p className="mt-1 text-xs text-gray-500">{product.category}</p>
+                         {/* Reviews summary */}
+                        {reviewCount > 0 && (
+                            <div className="flex items-center mt-1">
+                                {/* Render stars based on average rating */}
+                                {[0, 1, 2, 3, 4].map((star) => (
+                                <StarIconSolid
+                                    key={star}
+                                    className={clsx(
+                                    averageRating > star ? 'text-yellow-400' : 'text-gray-300',
+                                    'h-4 w-4 flex-shrink-0'
+                                    )}
+                                    aria-hidden="true"
+                                />
+                                ))}
+                                <span className="ml-1 text-xs text-gray-500">
+                                ({reviewCount})
+                                </span>
+                            </div>
+                        )}
                      </div>
-                     <p className="text-sm font-medium text-gray-900">${product.price.toFixed(2)}</p> {/* Use toFixed */}
+                     <p className="text-sm font-medium text-gray-900">${product.price.toFixed(2)}</p>
                    </div>
-                   {!product.inStock || product.stock <= 0 ? ( // Check stock count
+                   {product.stock <= 0 ? (
                      <span className="absolute right-2 top-2 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
                        Out of stock
                      </span>
@@ -412,36 +391,34 @@ export default function HomePage(): JSX.Element { // Added return type annotatio
                      </button>
                    )}
                  </div>
-               ))}
+                );
+               })}
              </div>
-           )}
+           ) : !isLoading && isError ? (
+              /* Error State */
+              <div className="mt-12 p-4 border border-red-300 bg-red-50 rounded text-center">
+                <h3 className="text-lg font-semibold text-red-700">Error Loading Products</h3>
+                <p className="mt-1 text-red-500">
+                  {error instanceof Error ? error.message : 'Failed to load products. Please try again.'}
+                </p>
+                <button
+                  className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                  onClick={() => window.location.reload()}
+                >
+                  Retry
+                </button>
+              </div>
+           ) : !isLoading && products?.length === 0 ? (
+             /* Empty State */
+             <div className="mt-12 text-center">
+               <h3 className="text-lg font-semibold text-gray-900">No products found</h3>
+               <p className="mt-1 text-gray-500">Try adjusting your search or filters</p>
+             </div>
+           ) : null
+           }
 
 
-          {/* Empty State */}
-          {!isLoading && products?.length === 0 && (
-            <div className="mt-12 text-center">
-              <h3 className="text-lg font-semibold text-gray-900">No products found</h3>
-              <p className="mt-1 text-gray-500">Try adjusting your search or filters</p>
-            </div>
-          )}
-
-          {/* Error State */}
-          {isError && (
-            <div className="mt-12 p-4 border border-red-300 bg-red-50 rounded text-center">
-              <h3 className="text-lg font-semibold text-red-700">Error Loading Products</h3>
-              <p className="mt-1 text-red-500">
-                {error instanceof Error ? error.message : 'Failed to load products. Please try again.'}
-              </p>
-              <button
-                className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                onClick={() => window.location.reload()}
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Features Section (Keep as is) */}
+          {/* Features Section */}
           <div className="mt-16 grid grid-cols-1 gap-y-10 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
             <div className="text-center">
               <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-md bg-indigo-100 text-indigo-600">

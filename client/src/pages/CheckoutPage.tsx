@@ -1,12 +1,24 @@
+// client/src/pages/CheckoutPage.tsx
 import { useNavigate } from 'react-router-dom';
 // Correct useQuery import for v4/v5
-import { useQuery, useMutation, UseQueryResult, UseMutationResult, QueryClient, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // Removed unused UseQueryResult, UseMutationResult, QueryClient
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import api from '../lib/axios';
 import toast from 'react-hot-toast';
 import clsx from 'clsx'; // Import clsx
+
+// Import the correct types from CartContext
+import { PopulatedCartItem, CartTotals } from '../contexts/CartContext'; // Import from CartContext
+
+
+// Define Interfaces matching backend response for Cart
+// These interfaces should match the structure returned by the /api/cart endpoint
+interface CartResponseData { // Renamed from CartResponse to match backend { data: CartResponseData }
+    items: PopulatedCartItem[]; // Use PopulatedCartItem
+    total: CartTotals;
+}
 
 const shippingSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -22,30 +34,6 @@ const shippingSchema = z.object({
 
 type ShippingFormData = z.infer<typeof shippingSchema>;
 
-// Define interfaces matching backend response for Cart
-interface CartItem {
-  _id: string; // Item ID
-  product: {
-    _id: string; // Product ID
-    name: string;
-    price: number;
-    images: string[];
-  };
-  quantity: number; // Qty is now 'quantity' in client context
-  size?: string; // Optional size
-}
-
-interface CartTotal {
-  subtotal: number;
-  tax: number;
-  shipping: number;
-  total: number;
-}
-
-interface CartResponse {
-    items: CartItem[];
-    total: CartTotal;
-}
 
 export default function CheckoutPage(): JSX.Element { // Added return type annotation
   const navigate = useNavigate();
@@ -55,19 +43,18 @@ export default function CheckoutPage(): JSX.Element { // Added return type annot
     register,
     handleSubmit,
     formState: { errors },
-     setError // Import setError to set specific errors - Keeping this import even if not used directly, might be intended
+     // Removed setError as it's not used in the provided code
   } = useForm<ShippingFormData>({
     resolver: zodResolver(shippingSchema),
   });
 
    // Fetch cart data using React Query
-   // Correct the type parameter to match the expected data structure { data: { items: [], total: {} } }
-   // Remove invalid options `cacheTime` and `keepPreviousData`
-   // Access data correctly from response -> response.data.data
-  const { data: cartResponse, isLoading: isLoadingCart, isError: isCartError, error: cartError } = useQuery<{ data: CartResponse }>({ // Expecting { data: { items: [], total: {} } }
+   // Correct the type parameter to match the expected data structure { data: CartResponseData }
+  const { data: cartResponse, isLoading: isLoadingCart, isError: isCartError, error: cartError } = useQuery<{ data: CartResponseData }>({ // Expecting { data: CartResponseData }
     queryKey: ['cart'],
     queryFn: async () => {
-      const { data } = await api.get('/cart');
+      // Corrected type annotation for axios response
+      const { data } = await api.get<{ data: CartResponseData }>('/cart'); // Correct type for data response
        // Access data.data as per backend structure
         if (!data || !data.data) {
              throw new Error("Invalid data format for cart from API");
@@ -78,13 +65,14 @@ export default function CheckoutPage(): JSX.Element { // Added return type annot
   });
 
    // Access cart data safely
+   // Use optional chaining to safely access nested properties
    const cart = cartResponse?.data;
 
 
   const placeOrderMutation = useMutation({
     mutationFn: async (shippingData: ShippingFormData) => {
        // Backend expects shippingAddress object in the request body
-      const { data } = await api.post('/orders', {
+      const { data } = await api.post<{ orderId: string; sessionUrl: string | null; message: string }>('/orders', { // Added type annotation for response
         shippingAddress: shippingData,
       });
       return data; // Backend returns { orderId, sessionUrl, message }
@@ -112,16 +100,17 @@ export default function CheckoutPage(): JSX.Element { // Added return type annot
       // Invalidate cart state on error in case of stock issues etc.
       queryClient.invalidateQueries({ queryKey: ['cart'] });
        // Optionally set form error if the error is related to validation/data
-       // setError('root.serverError', { message: errorMessage });
+       // setError('root.serverError', { message: errorMessage }); // Example of using setError
     },
   });
 
   const onSubmit = (data: ShippingFormData) => {
      // Check if cart is empty before attempting to place order
+     // Use optional chaining for safety
      if (!cart || !cart.items || cart.items.length === 0) { // Added safety check for cart.items
          toast.error('Your cart is empty.');
          navigate('/cart', { replace: true }); // Redirect back to cart and replace history entry
-         return;
+         return; // Explicitly return here
      }
      // Trigger the mutation
     placeOrderMutation.mutate(data);
@@ -136,11 +125,13 @@ export default function CheckoutPage(): JSX.Element { // Added return type annot
   }
 
   // Redirect if cart is empty after loading or if there was an error loading cart
+  // Use optional chaining for safety
   if (!cart || !cart.items || cart.items.length === 0) { // Added safety check for cart.items
     // Only redirect if there wasn't a specific cart loading error that we want to display
     if (!isCartError) {
        // Use navigate replace to avoid loop if user hits back
        navigate('/cart', { replace: true });
+       return <></>; // Explicitly return empty fragment after navigation
     } else {
       // Handle cart error case - maybe show an error message instead of just redirecting
       return (
@@ -157,7 +148,6 @@ export default function CheckoutPage(): JSX.Element { // Added return type annot
          </div>
       );
     }
-    return null; // Don't render anything while redirecting or showing error
   }
 
   return (
@@ -342,9 +332,10 @@ export default function CheckoutPage(): JSX.Element { // Added return type annot
             <div className="mt-4 rounded-lg border border-gray-200 bg-white shadow-sm">
               <h3 className="sr-only">Items in your cart</h3>
               <ul role="list" className="divide-y divide-gray-200">
-                {cart.items.map((item: CartItem) => ( // Added type annotation for item
+                {/* Ensure cart and cart.items exist before mapping */}
+                {cart?.items?.map((item: PopulatedCartItem) => ( // Added type annotation for item
                    // Use item._id as the key for consistency with cart page and potential future updates
-                  <li key={item._id} className="flex px-4 py-6 sm:px-6">
+                  <li key={item._id?.toString()} className="flex px-4 py-6 sm:px-6"> {/* Added toString() for key safety */}
                     <div className="flex-shrink-0">
                       <img
                         src={item.product?.images?.[0]} // Use optional chaining
@@ -387,30 +378,36 @@ export default function CheckoutPage(): JSX.Element { // Added return type annot
               <dl className="space-y-6 border-t border-gray-200 px-4 py-6 sm:px-6">
                 <div className="flex items-center justify-between">
                   <dt className="text-sm">Subtotal</dt>
-                  <dd className="text-sm font-medium text-gray-900">${cart.total?.subtotal?.toFixed(2) || '0.00'}</dd>
+                   {/* Use optional chaining and toFixed */}
+                  <dd className="text-sm font-medium text-gray-900">${cart?.total?.subtotal?.toFixed(2) || '0.00'}</dd>
                 </div>
                 <div className="flex items-center justify-between">
                   <dt className="text-sm">Shipping</dt>
-                  <dd className="text-sm font-medium text-gray-900">${cart.total?.shipping?.toFixed(2) || '0.00'}</dd>
+                   {/* Use optional chaining and toFixed */}
+                  <dd className="text-sm font-medium text-gray-900">${cart?.total?.shipping?.toFixed(2) || '0.00'}</dd>
                 </div>
                 <div className="flex items-center justify-between">
                   <dt className="text-sm">Taxes</dt>
-                  <dd className="text-sm font-medium text-gray-900">${cart.total?.tax?.toFixed(2) || '0.00'}</dd>
+                   {/* Use optional chaining and toFixed */}
+                  <dd className="text-sm font-medium text-gray-900">${cart?.total?.tax?.toFixed(2) || '0.00'}</dd>
                 </div>
                 <div className="flex items-center justify-between border-t border-gray-200 pt-6">
                   <dt className="text-base font-medium">Total</dt>
-                  <dd className="text-base font-medium text-gray-900">${cart.total?.total?.toFixed(2) || '0.00'}</dd>
+                   {/* Use optional chaining and toFixed */}
+                  <dd className="text-base font-medium text-gray-900">${cart?.total?.total?.toFixed(2) || '0.00'}</dd>
                 </div>
               </dl>
 
               <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
                 <button
                   type="submit"
-                  disabled={placeOrderMutation.isPending || !cart || !cart.items || cart.items.length === 0} // Disable if mutation is pending or cart is empty
+                  // Disable if mutation is pending or cart is empty
+                  disabled={placeOrderMutation.isPending || !cart?.items || cart.items.length === 0} // Use optional chaining
                   className={clsx(
                     "w-full rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
                     {
-                        "opacity-50 cursor-not-allowed": placeOrderMutation.isPending || !cart || !cart.items || cart.items.length === 0,
+                        // Use optional chaining
+                        "opacity-50 cursor-not-allowed": placeOrderMutation.isPending || !cart?.items || cart.items.length === 0,
                     }
                    )}
                 >

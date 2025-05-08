@@ -17,19 +17,21 @@ interface Discount {
    expiryDate?: string; // Assuming ISO string or similar
 }
 
-export default function AdminDiscounts() {
+export default function AdminDiscounts(): JSX.Element { // Added return type annotation for the component
   // Fetch Discounts from backend admin route
-  const { data: discountsResponse, isLoading, isError, error } = useQuery<{ discounts: Discount[] }>({ // Expecting { discounts: [...] }
+  // Assuming the backend structure is { data: { discounts: [...] } } for the GET /admin/discounts route
+  const { data: discountsResponse, isLoading, isError, error } = useQuery<{ data: { discounts: Discount[] } }>({ // Expecting { data: { discounts: [...] } }
     queryKey: ['admin-discounts'],
     queryFn: async () => {
       try {
-        const { data } = await api.get('/admin/discounts'); // Assuming the admin discounts route is /admin/discounts
+        // Corrected type annotation for axios response
+        const { data } = await api.get<{ data: { discounts: Discount[] } }>('/admin/discounts'); // Assuming the admin discounts route is /admin/discounts
         console.log('Admin Discounts API response:', data);
-         if (!data || !data.data || !data.data.discounts) {
+         if (!data || !data.data || !Array.isArray(data.data.discounts)) { // Check if data, data.data, and discounts is an array
             console.error('Invalid Admin Discounts API response format:', data);
             throw new Error("Invalid data format from API");
          }
-         return data.data; // Return data.data which contains { discounts: [...] }
+         return data; // Return the full data object, including the 'data' key
       } catch (error) {
         console.error("Failed to fetch discounts:", error);
          throw error;
@@ -39,7 +41,8 @@ export default function AdminDiscounts() {
   });
 
    // Access the discounts array from the response data
-   const discounts = discountsResponse?.discounts;
+   const discounts = discountsResponse?.data?.discounts; // Access the nested 'data.discounts' property
+
 
   return (
     <>
@@ -71,9 +74,9 @@ export default function AdminDiscounts() {
                 <div className="grid place-items-center py-10">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
                 </div>
-              ) : isError || !discounts ? ( // Handle error state
+              ) : isError || !discounts ? ( // Handle error state, check if discounts is null/undefined after loading
                  <div className="text-center py-12 text-red-600">
-                     Error loading discounts. {isError ? (error instanceof Error ? error.message : '') : ''}
+                     Error loading discounts. {isError ? (error instanceof Error ? error.message : '') : 'Discounts data not available.'}
                  </div>
               ) : discounts.length > 0 ? ( // Check if discounts array is not empty
                 <table className="min-w-full divide-y divide-gray-300">
@@ -97,8 +100,8 @@ export default function AdminDiscounts() {
                         <td className="px-3 py-4 text-sm text-gray-500">{discount.description || 'N/A'}</td> {/* Display description */}
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{discount.percentage}%</td>
                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {discount.expiryDate ? new Date(discount.expiryDate).toLocaleDateString() : 'N/A'}
-                         </td> {/* Display expiry date */}
+                            {discount.expiryDate ? new Date(discount.expiryDate).toLocaleDateString() : 'N/A'} {/* Display expiry date */}
+                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           <span className={clsx(
                             'inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset',

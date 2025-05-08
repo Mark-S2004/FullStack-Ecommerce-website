@@ -1,23 +1,29 @@
+// client/src/pages/CartPage.tsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { useCart } from '../contexts/CartContext';
-import toast from 'react-hot-toast'; // Ensure toast is imported and used
+// Import the correct types from CartContext
+import { useCart, PopulatedCartItem, CartTotals } from '../contexts/CartContext'; // Corrected import name
+// Removed direct toast import as it's handled by context
+// import toast from 'react-hot-toast';
 import clsx from 'clsx'; // Import clsx
 
-export default function CartPage(): JSX.Element { // Added return type annotation
+// Added return type annotation for the component
+export default function CartPage(): JSX.Element {
   // Destructure total from useCart context
   const { items, total, isLoading, updateQuantity, removeItem } = useCart();
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Added type annotation for the parameter
   const handleQuantityChange = async (itemId: string, newQuantity: number) => {
     setIsUpdating(true);
     // Ensure quantity is a positive integer
     const quantity = Math.max(1, parseInt(newQuantity as any, 10)); // Use item ID
-    await updateQuantity(itemId, quantity);
+    await updateQuantity(itemId, quantity); // Use item ID and validated quantity
     setIsUpdating(false);
   };
 
+  // Added type annotation for the parameter
   const handleRemoveItem = async (itemId: string) => {
     if (window.confirm('Are you sure you want to remove this item?')) {
       await removeItem(itemId); // Use item ID
@@ -26,13 +32,14 @@ export default function CartPage(): JSX.Element { // Added return type annotatio
 
   if (isLoading) {
     return (
-      <div className="grid min-h-screen place-items-center">
+      <div className="grid min-h-[calc(100vh-12rem)] place-items-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
       </div>
     );
   }
 
   // Check if items array is empty or undefined
+  // Use optional chaining for safety, although isLoading check should handle the initial state
   if (!items || items.length === 0) {
     return (
       <div className="grid min-h-[calc(100vh-12rem)] place-items-center px-4 py-16">
@@ -57,16 +64,18 @@ export default function CartPage(): JSX.Element { // Added return type annotatio
           Shopping Cart
         </h1>
 
-        <form className="mt-12 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 xl:gap-x-16">
+        {/* No form tag needed here if submission is handled via individual item buttons */}
+        <div className="mt-12 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 xl:gap-x-16"> {/* Changed from <form> to <div> */}
           <section aria-labelledby="cart-heading" className="lg:col-span-7">
             <h2 id="cart-heading" className="sr-only">
               Items in your shopping cart
             </h2>
 
             <ul role="list" className="divide-y divide-gray-200 border-b border-t border-gray-200">
-              {items.map((item) => (
+              {/* Added type annotation for item */}
+              {items.map((item: PopulatedCartItem) => (
                 // Use item._id as key as it's unique per item instance in the cart
-                <li key={item._id} className="flex py-6 sm:py-10">
+                <li key={item._id?.toString()} className="flex py-6 sm:py-10"> {/* Added toString() for key safety */}
                   <div className="flex-shrink-0">
                     <img
                       src={item.product?.images?.[0]} // Use optional chaining
@@ -106,13 +115,15 @@ export default function CartPage(): JSX.Element { // Added return type annotatio
                           name={`quantity-${item._id}`}
                           value={item.quantity}
                           onChange={(e) =>
-                            handleQuantityChange(item._id, parseInt(e.target.value, 10))
+                            handleQuantityChange(item._id?.toString() || '', parseInt(e.target.value, 10)) // Added toString() for itemId, handle undefined
                           }
                            // Disable select while updating
                           className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm disabled:opacity-50"
                            disabled={isUpdating}
                         >
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => ( // Offer more quantity options
+                           {/* Generate options up to 10 or available product stock if product.stock is available */}
+                           {/* Assuming product.stock is available on the populated item */}
+                           {Array.from({ length: Math.min(item.product?.stock || 10, 10) }, (_, i) => i + 1).map((num) => ( // Limit to 10 or product stock
                             <option key={num} value={num}>
                               {num}
                             </option>
@@ -122,7 +133,7 @@ export default function CartPage(): JSX.Element { // Added return type annotatio
                         <div className="absolute right-0 top-0">
                           <button
                             type="button"
-                            onClick={() => handleRemoveItem(item._id)} // Use item ID
+                            onClick={() => handleRemoveItem(item._id?.toString() || '')} // Added toString() for itemId, handle undefined
                             className="-m-2 inline-flex p-2 text-gray-400 hover:text-gray-500"
                             disabled={isUpdating} // Disable remove button while updating
                           >
@@ -139,6 +150,7 @@ export default function CartPage(): JSX.Element { // Added return type annotatio
           </section>
 
           {/* Order summary */}
+          {/* Wrap summary section inside a div if it's no longer part of the form */}
           <section
             aria-labelledby="summary-heading"
             className="mt-16 rounded-lg bg-gray-50 px-4 py-6 sm:p-6 lg:col-span-5 lg:mt-0 lg:p-8"
@@ -189,8 +201,8 @@ export default function CartPage(): JSX.Element { // Added return type annotatio
               </Link>
             </div>
           </section>
-        </form>
+        </div> {/* Closing div for the grid layout */} {/* Added closing div */}
       </div>
     </div>
   );
-}
+} 

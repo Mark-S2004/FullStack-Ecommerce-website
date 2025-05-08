@@ -1,174 +1,160 @@
+// server/src/services/cart.service.ts
 import { HttpException } from '@exceptions/HttpException';
 import userModel from '@models/users.model';
 import productModel from '@models/products.model';
-import { calcShipping, calcTax } from '../utils/orderCalculations'; // Import calculations
-// Correct import for User interface
+import { calcShipping, calcTax } from '../utils/orderCalculations';
+// Correct imports for User interface
 import { User } from '@interfaces/users.interface';
-// Correct imports for OrderItem and Product interfaces from interfaces
-import { OrderItem, Product } from '@interfaces/orders.interface'; // Import OrderItem, Product
-import { Types, Document, DocumentArray } from 'mongoose'; // Import Types, Document, and DocumentArray
+// Correct imports for OrderItem from interfaces
+import { OrderItem } from '@interfaces/orders.interface';
+// Import Product interface (server side definition)
+import { Product, ProductDocument } from '../../../server/src/interfaces/products.interface';
 
-// Extend the User interface to provide better type hints for the cart field
-// This helps TypeScript understand that user.cart is a Mongoose DocumentArray with item _id and populated product
-interface UserWithPopulatedCart extends User {
-    cart: DocumentArray<OrderItem & Document & { product: Product & Document }> ;
+// Import Types, Document from mongoose as values/types, and CastError as a value
+import { Types, Document, CastError } from 'mongoose';
+
+
+// Define the structure of cart items *after* population and serialization (as returned by this service)
+interface ReturnedCartItem {
+    _id: string; // Subdocument ID as string
+    product: Product; // Populated Product object (plain)
+    quantity: number;
+    price: number; // Price stored in the cart item (price at time of add)
+    size?: string;
 }
 
-
-interface CartTotals {
+export interface CartTotals {
   subtotal: number;
   tax: number;
   shipping: number;
   total: number;
 }
 
-// Updated to return items with populated product details and calculated totals
-export const getCart = async (userId: string): Promise<{ items: OrderItem[], total: CartTotals }> => {
+export const getCart = async (userId: string): Promise<{ items: ReturnedCartItem[], total: CartTotals }> => {
    if (!Types.ObjectId.isValid(userId)) {
        throw new HttpException(400, 'Invalid user ID format');
     }
   // Populate cart items with full product details
-  const user = await userModel.findById(userId).populate('cart.product') as UserWithPopulatedCart | null; // Cast to the extended interface
+  // Explicitly type the populated fields within the DocumentArray
+  const user = await userModel.findById(userId).populate('cart.product') as (User & Document & { cart: Types.DocumentArray<OrderItem & Document & { product: Product & Document }> }) | null;
   if (!user) throw new HttpException(404, 'User not found');
 
-  // Use the mapped plain object structure for the response
-  const mappedCartItems: OrderItem[] = user.cart.map(item => {
-    // The populated product will be an object, check if it's populated
-    const populatedProduct = item.product as Product & Document; // Cast to Product & Document
+  // Explicitly assert the type of the entire cart DocumentArray before mapping
+  const populatedCart: Types.DocumentArray<OrderItem & Document & { product: Product & Document }> = user.cart;
+
+
+  // Map the Mongoose DocumentArray items to plain JavaScript objects
+  const returnedCartItems: ReturnedCartItem[] = populatedCart.map(item => {
+    // item.product is now expected to have the Product & Document type within this map callback due to the previous assertion
+
+    const populatedProduct = item.product;
 
     // Ensure product is actually populated and has required fields
-    if (!populatedProduct || !populatedProduct._id || !populatedProduct.name || populatedProduct.price === undefined) {
-         console.error(`Failed to populate product for item ID ${item._id || 'unknown'}:`, item);
-         // Optionally skip this item or throw an error
-         // For now, returning a basic structure or skipping might be options
-         return { // Return a minimal structure if product is missing/invalid
-             _id: item._id ? item._id.toString() : 'unknown',
-             product: { _id: 'unknown', name: 'Unknown Product', price: 0, images: [] },
-             quantity: item.qty || 0, // Use qty from backend
-             size: item.size
-         };
+    if (!populatedProduct || !populatedProduct._id || !populatedProduct.name || populatedProduct.price === undefined || populatedProduct.stock === undefined) {
+         console.error(`Failed to process cart item ID ${item._id?.toString() || 'unknown'}: Product not found or incomplete data.`, item); // Improved log message
+         return null;
     }
 
-
     return {
-      _id: item._id ? item._id.toString() : 'unknown', // Convert subdocument ObjectId to string (handle potential missing ID)
-      product: { // Include necessary product details
-          _id: populatedProduct._id.toString(), // Convert product ObjectId to string
-          name: populatedProduct.name,
-          price: populatedProduct.price,
-          images: populatedProduct.images
-      },
-      quantity: item.qty, // Use qty from backend
-      size: item.size
-    };
-  });
+      _id: item._id.toString(),
+      product: populatedProduct.toObject({ getters: true }), // Convert populated product Document to plain object
+      quantity: item.quantity,
+      price: item.price,
+      size: item.size,
+    } as ReturnedCartItem;
+  }).filter((item): item is ReturnedCartItem => item !== null);
 
 
-  const subtotal = mappedCartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0); // Use item.quantity here
-  // Assuming country is hardcoded or fetched from user profile/env
-  const country = 'US'; // Replace with actual logic to get user's country
-  // Pass the mapped plain objects to shipping calc if it needs populated data
-  const shipping = calcShipping(country, mappedCartItems as any[]); // Pass mapped items (adjusting types if needed by calcShipping)
+  const subtotal = returnedCartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const country = 'US';
+  const shipping = calcShipping(country, returnedCartItems);
   const tax = calcTax(subtotal);
   const total = subtotal + shipping + tax;
 
   return {
-    items: mappedCartItems, // Return the mapped plain objects
+    items: returnedCartItems,
     total: { subtotal, tax, shipping, total },
   };
 };
 
-export const addToCart = async (userId: string, productId: string, qty: number, size: string) => {
+export const addToCart = async (userId: string, productId: string, quantity: number, size: string) => {
    if (!Types.ObjectId.isValid(userId)) {
        throw new HttpException(400, 'Invalid user ID format');
     }
     if (!Types.ObjectId.isValid(productId)) {
        throw new HttpException(400, 'Invalid product ID format');
     }
+    if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1) {
+       throw new HttpException(400, 'Invalid quantity provided');
+    }
+
   const user = await userModel.findById(userId);
   if (!user) throw new HttpException(404, 'User not found');
 
   const product = await productModel.findById(productId);
   if (!product) throw new HttpException(404, 'Product not found');
 
-   if (product.stock < qty) { // Check stock before adding
-     throw new HttpException(400, `Not enough stock for ${product.name}. Available: ${product.stock}`);
+   if (product.stock < quantity) {
+     throw new HttpException(400, `Not enough stock for ${product.name}. Available: ${product.stock}. Requested: ${quantity}`);
    }
 
-  // Find if an item with the same product ID *and* size exists
-  const existingItem = (user.cart as Types.DocumentArray<any>).find(item => item.product.toString() === productId && item.size === size); // Use type assertion for find if needed
+  const existingItem = (user.cart as Types.DocumentArray<OrderItem & Document>).find(item => item.product.toString() === productId && item.size === size);
 
   if (existingItem) {
-    existingItem.qty += qty;
+    existingItem.quantity += quantity;
   } else {
-    // Ensure item structure matches schema
-    user.cart.push({ product: new Types.ObjectId(productId), qty, price: product.price, size }); // Store price at time of add
+    user.cart.push({ product: new Types.ObjectId(productId), quantity, price: product.price, size });
   }
 
   await user.save();
-  // Fetch and return the updated cart with totals and populated product details
   return getCart(userId);
 };
 
-// Updated updateCart to use itemId (Mongoose subdocument ID)
 export const updateCart = async (userId: string, itemId: string, quantity: number) => {
    if (!Types.ObjectId.isValid(userId)) {
        throw new HttpException(400, 'Invalid user ID format');
     }
-    // Mongoose subdocument IDs are often plain strings, but checking ObjectId format is safer if they are ObjectId-like strings
-     // if (!Types.ObjectId.isValid(itemId)) {
-     //    throw new HttpException(400, 'Invalid cart item ID format');
-     // }
+    if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1) {
+       throw new HttpException(400, 'Invalid quantity provided');
+    }
+     if (!Types.ObjectId.isValid(itemId)) {
+        throw new HttpException(400, 'Invalid cart item ID format');
+     }
 
   const user = await userModel.findById(userId);
   if (!user) throw new HttpException(404, 'User not found');
 
-  // Find the specific item by its _id within the cart array
-  // Use Mongoose's .id() method for subdocument IDs. This requires the cart property to be a Mongoose DocumentArray.
-  // user.cart should be typed as Types.DocumentArray<OrderItem & Document> on the User model interface for this to be fully type-safe.
-   const item = (user.cart as Types.DocumentArray<any>).id(itemId); // Use type assertion for .id()
-
+   const item = (user.cart as Types.DocumentArray<OrderItem & Document>).id(itemId);
 
   if (!item) throw new HttpException(404, 'Item not in cart');
 
-  // Get the product details to check stock
   const product = await productModel.findById(item.product);
-   if (!product) throw new HttpException(404, 'Product for item not found'); // Should not happen if item exists but good check
+   if (!product) throw new HttpException(404, 'Product for item not found');
 
-   if (product.stock < quantity) { // Check stock against requested total quantity
-     throw new HttpException(400, `Not enough stock for ${product.name}. Available: ${product.stock}`);
+   if (product.stock < quantity) {
+     throw new HttpException(400, `Not enough stock for ${product.name}. Available: ${product.stock}. Requested: ${quantity}`);
    }
 
-  item.qty = quantity;
+  item.quantity = quantity;
 
   await user.save();
-   // Fetch and return the updated cart with totals and populated product details
   return getCart(userId);
 };
 
-// Updated removeItem to use itemId (Mongoose subdocument ID)
 export const removeFromCart = async (userId: string, itemId: string) => {
    if (!Types.ObjectId.isValid(userId)) {
        throw new HttpException(400, 'Invalid user ID format');
     }
-    // Mongoose subdocument IDs are often plain strings, but checking ObjectId format is safer if they are ObjectId-like strings
-     // if (!Types.ObjectId.isValid(itemId)) {
-     //    throw new HttpException(400, 'Invalid cart item ID format');
-     // }
+     if (!Types.ObjectId.isValid(itemId)) {
+        throw new HttpException(400, 'Invalid cart item ID format');
+     }
   const user = await userModel.findById(userId);
   if (!user) throw new HttpException(404, 'User not found');
 
-  // Find the specific item by its _id within the cart array
-  const item = (user.cart as Types.DocumentArray<any>).id(itemId); // Use type assertion for .id()
-
-
-  if (!item) throw new HttpException(404, 'Item not in cart');
-
-  // Remove the item using Mongoose's .remove() method on the subdocument
-  item.remove();
+  (user.cart as Types.DocumentArray<OrderItem & Document>).pull({ _id: new Types.ObjectId(itemId) });
 
   await user.save();
-  // Fetch and return the updated cart with totals and populated product details
   return getCart(userId);
 };
 
@@ -176,11 +162,9 @@ export const clearUserCart = async (userId: string) => {
    if (!Types.ObjectId.isValid(userId)) {
        throw new HttpException(400, 'Invalid user ID format');
     }
-  // Find the user and set cart to an empty array
   const user = await userModel.findByIdAndUpdate(userId, { cart: [] }, { new: true });
   if (!user) throw new HttpException(404, 'User not found');
 
-  // Return the cleared cart state
    return {
      items: [],
      total: { subtotal: 0, tax: 0, shipping: 0, total: 0 },

@@ -1,72 +1,71 @@
 // Assuming Product model is imported as 'productModel'
 import { CreateProductDto } from '@dtos/products.dto';
 import { HttpException } from '@exceptions/HttpException';
-// Removed unused ProductNotFoundException as HttpException is used directly
-// import { ProductNotFoundException } from '@exceptions/ProductNotFoundException';
-// Correct imports for Product interface
-import { Product } from '@interfaces/orders.interface'; // Correct import path for Product
+import { Product, ProductDocument } from '@interfaces/products.interface';
 import productModel from '@models/products.model';
 import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';
-// Correct import for Types and CastError as values from mongoose
-import { Types, CastError } from 'mongoose'; // Import Types and CastError as values
+import { Types, Document } from 'mongoose'; // Import Types and Document, removed CastError import
+
+// Function to check if an error is a Mongoose CastError by name (workaround for TS2693)
+function isCastError(error: any): error is Error {
+    // Check if it's an Error instance and if its name matches 'CastError'
+    return error instanceof Error && (error as any).name === 'CastError';
+}
 
 
-// Changed to accept query parameters for filtering
 export const findAllProducts = async (queryParams: any = {}): Promise<Product[]> => {
   try {
     const filter: any = {};
     if (queryParams.search) {
-      filter.name = { $regex: queryParams.search, $options: 'i' }; // Case-insensitive search by name
+      filter.name = { $regex: queryParams.search, $options: 'i' };
     }
-    if (queryParams.category && queryParams.category !== 'all categories') { // Case-insensitive category filter
+    if (queryParams.category && queryParams.category !== 'all categories') {
        filter.category = { $regex: queryParams.category, $options: 'i' };
     }
-    if (queryParams.gender && queryParams.gender !== 'all genders') { // Case-insensitive gender filter
+    if (queryParams.gender && queryParams.gender !== 'all genders') {
        filter.gender = { $regex: queryParams.gender, $options: 'i' };
     }
 
-    // Find products matching the filter
-    const products: Product[] = await productModel.find(filter);
-    return products;
+    const products: ProductDocument[] = await productModel.find(filter);
+    return products.map(product => product.toObject({ getters: true }));
   } catch (error) {
     logger.error('Error finding products:', error);
-    throw error; // Re-throw the error
+     if (error instanceof HttpException) {
+        throw error;
+     }
+     else {
+       throw new HttpException(500, 'Failed to find products');
+     }
   }
 }
 
-// Changed to find by ID
 export const findProductById = async (productId: string): Promise<Product> => {
   try {
     if (isEmpty(productId)) {
       throw new HttpException(400, 'productId is empty');
     }
 
-    // Validate productId format if it's a string expected to be an ObjectId
-    if (!Types.ObjectId.isValid(productId)) { // Use imported Types
+    if (!Types.ObjectId.isValid(productId)) {
        throw new HttpException(400, 'Invalid product ID format');
     }
 
-    // Find by _id and potentially populate reviews if needed
-    const product: Product | null = await productModel.findById(productId).populate('reviews.user', 'name'); // Find by _id, Populate user name in reviews, result can be null
-    if (!product) throw new HttpException(404, `Product with ID ${productId} not found`); // Use ID in message
+    const product = await productModel.findById(productId).populate('reviews.user', 'name') as (Product & Document) | null;
+    if (!product) throw new HttpException(404, `Product with ID ${productId} not found`);
 
-    return product;
+    return product.toObject({ getters: true });
   } catch (error) {
-    // Log specific message for CastError if needed, but generic HttpException handling is often sufficient
-     if (error instanceof CastError) { // Use imported CastError as a value in instanceof
-         logger.error(`CastError finding product by ID ${productId}: ${error.message}`); // Log the error message
+     if (isCastError(error)) { // Use the helper function
+         logger.error(`CastError finding product by ID ${productId}: ${error.message}`);
+          throw new HttpException(400, `Invalid product ID format: ${productId}`);
      } else {
-        logger.error(`Error finding product by ID ${productId}:`, error); // Log the full error object
-     }
-    // Re-throw the error, wrapped in HttpException if it wasn't already
-     if (error instanceof HttpException) {
-        throw error;
-     } else if (error instanceof CastError) { // Specific handling for CastError
-         throw new HttpException(400, `Invalid product ID: ${productId}`);
-     }
-     else {
-       throw new HttpException(500, 'Failed to find product');
+        logger.error(`Error finding product by ID ${productId}:`, error);
+         if (error instanceof HttpException) {
+            throw error;
+         }
+         else {
+           throw new HttpException(500, 'Failed to find product');
+         }
      }
   }
 };
@@ -77,84 +76,94 @@ export const createProduct = async (productData: CreateProductDto): Promise<Prod
       throw new HttpException(400, 'ProductData is empty');
     }
 
-    const existingProduct: Product | null = await productModel.findOne({ name: productData.name }); // Result can be null
+    const existingProduct = await productModel.findOne({ name: productData.name });
     if (existingProduct) {
       throw new HttpException(409, `Product with name ${productData.name} already exists`);
     }
 
-    const createProductData: Product = await productModel.create(productData);
-    return createProductData;
+    const createProductData = await productModel.create(productData);
+    return createProductData.toObject({ getters: true });
   } catch (error) {
     logger.error('Error creating product:', error);
-    throw error;
+     if (error instanceof HttpException) {
+        throw error;
+     }
+     else {
+       throw new HttpException(500, 'Failed to create product');
+     }
   }
 };
 
-// Changed to update by ID
 export const updateProduct = async (productId: string, productData: CreateProductDto): Promise<Product> => {
   try {
     if (isEmpty(productData)) {
       throw new HttpException(400, 'ProductData is empty');
     }
 
-    // Validate productId format
-     if (!Types.ObjectId.isValid(productId)) { // Use imported Types
+     if (!Types.ObjectId.isValid(productId)) {
        throw new HttpException(400, 'Invalid product ID format');
     }
 
-    // Check if email change conflicts with existing user (if email is part of productData, which it shouldn't be)
-    // Removed user-specific email check from here, as this is a product service.
+    // Check if name change conflicts with existing product (if name is being updated)
+    if (productData.name) {
+      const existingProduct = await productModel.findOne({ name: productData.name });
+      if (existingProduct && existingProduct._id.toString() !== productId) {
+        throw new HttpException(409, `Product with name ${productData.name} already exists`);
+      }
+    }
 
-    // Hash password if provided (shouldn't be for products, but defensive check based on original code)
-    // Removed password hashing logic - this is product service
+    // The productData DTO contains the fields to update.
+    // No need for manual data copying and password hashing logic here.
+    // Mongoose $set and `runValidators: true` handle applying DTO fields
+    // and running validators from the schema.
 
-    const updateProductData: Product | null = await productModel.findByIdAndUpdate( // Find and update by ID, result can be null
+    const updateProductData = await productModel.findByIdAndUpdate(
       productId,
-      { $set: productData }, // Use $set to update specific fields
-      { new: true, runValidators: true } // Return the updated document and run schema validators
-    );
+      { $set: productData }, // Directly use the DTO data with $set
+      { new: true, runValidators: true }
+    ) as (Product & Document) | null;
 
-    if (!updateProductData) throw new HttpException(404, `Product with ID ${productId} not found`); // Use ID in message
+    if (!updateProductData) throw new HttpException(404, `Product with ID ${productId} not found`);
 
-    return updateProductData;
+    return updateProductData.toObject({ getters: true });
   } catch (error) {
-     if (error instanceof CastError) { // Use imported CastError as a value in instanceof
+     if (isCastError(error)) { // Use the helper function
          logger.error(`CastError updating product by ID ${productId}: ${error.message}`);
+          throw new HttpException(400, `Invalid product ID format: ${productId}`);
      } else {
         logger.error(`Error updating product ${productId}:`, error);
-     }
-     if (error instanceof HttpException) {
-        throw error;
-     }
-     else {
-       throw new HttpException(500, 'Failed to update product');
+         if (error instanceof HttpException) {
+            throw error;
+         }
+         else {
+           throw new HttpException(500, 'Failed to update product');
+         }
      }
   }
 };
 
-// Changed to delete by ID
 export const deleteProduct = async (productId: string): Promise<Product> => {
   try {
-     // Validate productId format
-     if (!Types.ObjectId.isValid(productId)) { // Use imported Types
+     if (!Types.ObjectId.isValid(productId)) {
        throw new HttpException(400, 'Invalid product ID format');
     }
 
-    const deleteProductData: Product | null = await productModel.findByIdAndDelete(productId); // Find and delete by ID, result can be null
-    if (!deleteProductData) throw new HttpException(404, `Product with ID ${productId} not found`); // Use ID in message
+    const deleteProductData = await productModel.findByIdAndDelete(productId) as (Product & Document) | null;
+    if (!deleteProductData) throw new HttpException(404, `Product with ID ${productId} not found`);
 
-    return deleteProductData;
+    return deleteProductData.toObject({ getters: true });
   } catch (error) {
-     if (error instanceof CastError) { // Use imported CastError as a value in instanceof
+     if (isCastError(error)) { // Use the helper function
          logger.error(`CastError deleting product by ID ${productId}: ${error.message}`);
+          throw new HttpException(400, `Invalid product ID format: ${productId}`);
      } else {
         logger.error(`Error deleting product ${productId}:`, error);
-     }
-     if (error instanceof HttpException) {
-        throw error;
-     }
-     else {
-       throw new HttpException(500, 'Failed to delete product');
+         if (error instanceof HttpException) {
+            throw error;
+         }
+         else {
+           throw new HttpException(500, 'Failed to delete product');
+         }
      }
   }
 };
