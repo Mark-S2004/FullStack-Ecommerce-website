@@ -1,145 +1,116 @@
-before we proceed we have those 2 erorrs and
+
+Okay, let's create manual test flows for both customer and admin roles to verify the frontend aligns with the backend API and database interactions. Then, I'll review the relevant frontend files (`script.js`, `admin/*.js`) based on these flows.
+
+**Assumptions:**
+
+*   Backend API is running at `http://localhost:3000/api` (`API_BASE_URL` in `script.js`).
+*   Backend routes and database models match what we've discussed (e.g., `/api/auth/login`, `/api/products`, `/api/cart`, `/api/orders`, `/api/users`, `userModel`, `productModel`, `orderModel`, `cartModel`).
+*   Stripe keys and webhook secret (`STRIPE_WEBHOOK_SECRET`) are correctly configured on the backend.
+*   The Stripe webhook endpoint is configured in your Stripe Dashboard to point to your backend webhook handler (e.g., `http://your-backend-url/api/webhooks/stripe`) and listens for `checkout.session.completed`.
+*   You have **manually added** the `<script>` tags for `admin/productAdmin.js`, `admin/orderAdmin.js`, and `admin/userAdmin.js` to `client/index.html` *before* `client/js/script.js`.
+
+---
+
+### Customer Test Flow Checklist
+
+| #   | Action                                  | Frontend Behavior                                    | Backend API Call(s)             | Expected DB Interaction(s)                                      | Subsequent Frontend Behavior                |
+| :-- | :-------------------------------------- | :--------------------------------------------------- | :------------------------------ | :-------------------------------------------------------------- | :------------------------------------------ |
+| 1   | Navigate to `#/register`                | Shows registration form.                             | -                               | -                                                               | -                                           |
+| 2   | Fill & Submit Register Form             | Sends registration data.                             | `POST /api/auth/signup`         | New user document created in `users`.                           | Shows alert, redirects to `#/login`.        |
+| 3   | Navigate to `#/login`                   | Shows login form.                                    | -                               | -                                                               | -                                           |
+| 4   | Fill & Submit Login Form (Customer)     | Sends login credentials.                             | `POST /api/auth/login`          | Session created / Cookie set.                                   | Shows alert, updates navbar, redirects to `#/products`. |
+| 5   | Navigate `#/products`                   | Shows "Loading...", then product grid.              | `GET /api/products`             | Reads `products` collection.                                    | Product cards displayed.                      |
+| 6   | Click "View Details" on a Product       | Navigates to `#/products/:name`, shows loading...     | `GET /api/products/:name`       | Reads specific product document, populates reviews.             | Product details and reviews displayed.      |
+| 7   | Click "Add to Cart" (from list/detail)  | Sends product ID and quantity (1).                   | `POST /api/cart`                | Finds/Creates cart for user, adds/updates item.                 | Shows alert ("Item added").                 |
+| 8   | Navigate `#/cart`                       | Shows "Loading...", then cart items/summary.         | `GET /api/cart`                 | Reads user's cart document, populates product info (basic). | Cart items displayed with totals.           |
+| 9   | Change Quantity in Cart Input/Buttons   | Sends product ID and new quantity.                   | `PUT /api/cart`                 | Updates item quantity in user's cart document.                  | Refreshes cart view (`renderCartPage`).     |
+| 10  | Click "Remove" button in Cart           | Asks confirmation, sends product ID.                 | `DELETE /api/cart/:productId`   | Removes item from user's cart document.                         | Refreshes cart view (`renderCartPage`).     |
+| 11  | Navigate `#/checkout`                   | Shows address form and order summary.                | `GET /api/cart` (to verify)     | Reads user's cart document.                                     | Checkout form displayed.                    |
+| 12  | Fill Address & Click "Place Order & Pay" | Sends address.                                       | `POST /api/orders`              | Creates new order (status: Pending), decrements product stock, clears user cart. | Shows alert, redirects to Stripe `sessionUrl`. |
+| 13  | **Complete Stripe Payment**             | (Stripe UI)                                          | (Stripe Internal)               | (Stripe Internal)                                               | Stripe redirects to `/checkout-success?orderId=...` |
+| 14  | Land on `/checkout-success?orderId=...` | Detects URL parameters, shows success message.       | -                               | -                                                               | Success message replaces page content.      |
+| 15  | *Webhook (Simultaneous)*                | *(Backend Only)*                                     | `POST /api/webhooks/stripe`     | Finds order by ID, updates status to 'Confirmed'.               | *(Backend log message)*                     |
+| 16  | Navigate `#/orders`                     | Shows "Loading...", then order list.                | `GET /api/orders/customer`      | Reads orders for the logged-in user.                            | Orders displayed with 'Confirmed' status.   |
+| 17  | Click "Logout" in Navbar                | Sends logout request.                                | `POST /api/auth/logout`         | Destroys session / Clears cookie.                               | Shows alert, updates navbar, redirects to `#/login`. |
+
+---
+
+### Admin Test Flow Checklist
+
+| #   | Action                               | Frontend Behavior                                                     | Backend API Call(s)                   | Expected DB Interaction(s)                         | Subsequent Frontend Behavior                     |
+| :-- | :----------------------------------- | :-------------------------------------------------------------------- | :------------------------------------ | :------------------------------------------------- | :----------------------------------------------- |
+| 1   | Navigate `#/login`                   | Shows login form.                                                     | -                                     | -                                                  | -                                                |
+| 2   | Fill & Submit Login Form (Admin)     | Sends admin credentials.                                              | `POST /api/auth/login`                | Session created / Cookie set.                      | Shows alert, updates navbar (shows Admin link), redirects to `#/products`. |
+| 3   | Click "Admin" link in Navbar         | Navigates to `#/admin/users` (or first admin tab).                   | -                                     | -                                                  | Shows admin dashboard structure.                 |
+| 4   | Navigate `#/admin/users`             | Shows "Loading...", then user list table.                            | `GET /api/users`                      | Reads `users` collection.                          | User table displayed.                            |
+| 5   | Click "Delete" on a User             | Asks confirmation, sends user ID.                                     | `DELETE /api/users/:userId`           | Deletes user document.                             | Shows alert, refreshes user list.                |
+| 6   | Navigate `#/admin/products`          | Shows "Loading...", "Add New" button, product list table.            | `GET /api/products`                   | Reads `products` collection.                       | Product table displayed.                         |
+| 7   | Click "Add New Product"              | Navigates to `#/admin/products/new`.                                  | -                                     | -                                                  | Shows "Add Product" form within a card.         |
+| 8   | Fill & Submit Add Product Form       | Sends new product data.                                               | `POST /api/products`                  | Creates new product document.                      | Shows alert, redirects to `#/admin/products`.    |
+| 9   | Click "Edit" on a Product            | Navigates to `#/admin/products/edit/:name`, shows loading...           | `GET /api/products/:name`             | Reads specific product document.                   | Shows "Edit Product" form populated with data.  |
+| 10  | Modify & Submit Edit Product Form    | Sends updated product data (using original name in URL).              | `PUT /api/products/:originalName`     | Updates product document.                          | Shows alert, redirects to `#/admin/products`.    |
+| 11  | Click "Delete" on a Product          | Asks confirmation, sends product name.                                | `DELETE /api/products/:name`          | Deletes product document.                          | Shows alert, refreshes product list.             |
+| 12  | Navigate `#/admin/orders`            | Shows "Loading...", then order list table with status dropdowns.      | `GET /api/orders`                     | Reads *all* orders.                                | Order table displayed.                           |
+| 13  | Change Status Dropdown for an Order  | Asks confirmation, sends order ID and new status.                     | `PUT /api/orders/:orderId/status`     | Updates order status in specific order document. | Shows alert, refreshes order list.               |
+| 14  | Click "Details" on an Order          | Fetches order details.                                                | `GET /api/orders/:orderId`            | Reads specific order document.                     | Shows an `alert` box with formatted order details. |
+| 15  | Click "Logout" in Navbar             | Sends logout request.                                                 | `POST /api/auth/logout`               | Destroys session / Clears cookie.                  | Shows alert, updates navbar, redirects to `#/login`. |
+
+---
+
+
 [{
 	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
 	"owner": "typescript",
-	"code": "2613",
+	"code": "2339",
 	"severity": 8,
-	"message": "Module '\"c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/exceptions/HttpException\"' has no default export. Did you mean to use 'import { HttpException } from \"c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/exceptions/HttpException\"' instead?",
+	"message": "Property 'path' does not exist on type '(Routes & { needsAuth?: boolean; })[]'.",
 	"source": "ts",
-	"startLineNumber": 12,
-	"startColumn": 8,
-	"endLineNumber": 12,
-	"endColumn": 21
+	"startLineNumber": 76,
+	"startColumn": 38,
+	"endLineNumber": 76,
+	"endColumn": 42
 },{
 	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
 	"owner": "typescript",
-	"code": "2614",
+	"code": "2339",
 	"severity": 8,
-	"message": "Module '\"@routes/index\"' has no exported member 'webhookRoute'. Did you mean to use 'import webhookRoute from \"@routes/index\"' instead?",
+	"message": "Property 'router' does not exist on type '(Routes & { needsAuth?: boolean; })[]'.",
 	"source": "ts",
-	"startLineNumber": 24,
-	"startColumn": 10,
-	"endLineNumber": 24,
-	"endColumn": 22
+	"startLineNumber": 76,
+	"startColumn": 59,
+	"endLineNumber": 76,
+	"endColumn": 65
+},{
+	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'path' does not exist on type '(Routes & { needsAuth?: boolean; })[]'.",
+	"source": "ts",
+	"startLineNumber": 77,
+	"startColumn": 42,
+	"endLineNumber": 77,
+	"endColumn": 46
+},{
+	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
+	"owner": "typescript",
+	"code": "2339",
+	"severity": 8,
+	"message": "Property 'router' does not exist on type '(Routes & { needsAuth?: boolean; })[]'.",
+	"source": "ts",
+	"startLineNumber": 77,
+	"startColumn": 61,
+	"endLineNumber": 77,
+	"endColumn": 67
+},{
+	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
+	"owner": "typescript",
+	"code": "2367",
+	"severity": 8,
+	"message": "This comparison appears to be unintentional because the types 'Routes & { needsAuth?: boolean; }' and '(Routes & { needsAuth?: boolean; })[]' have no overlap.",
+	"source": "ts",
+	"startLineNumber": 106,
+	"startColumn": 11,
+	"endLineNumber": 106,
+	"endColumn": 33
 }]
-
-Here is a **clear, complete list of requirements** extracted from your university project's PDF:
-
----
-
-### ✅ **General Project Requirements**
-
-* **Topic:** Online Fashion Store
-* **Team:** Individual project
-* **Deadline:** As specified by your instructor (not in the PDF)
-
----
-
-### ✅ **Functional Requirements**
-
-#### 1. **Authentication**
-
-* Users must be able to:
-
-  * Register
-  * Login
-  * Logout
-  * Passwords must be hashed (backend)
-
-#### 2. **User Roles**
-
-* Two roles:
-
-  * **Admin**
-  * **Customer**
-* Role-based access control is required.
-
-#### 3. **Admin Functionalities**
-
-* Admin must be able to:
-
-  * View all users
-  * Add, edit, delete products
-  * View all orders
-  * Manage discounts
-  * View and manage product reviews
-
-#### 4. **Customer Functionalities**
-
-* Customers must be able to:
-
-  * Browse products (filter by category, gender, etc.)
-  * View product details
-  * Add to cart
-  * Update/remove items from cart
-  * Checkout
-  * View order history
-  * Add product reviews
-
----
-
-### ✅ **Frontend Requirements**
-
-* Use **HTML, CSS, JavaScript**, and **Node.js framework** studied in lab.
-* You **can** use other frameworks/libraries like **Bootstrap** (or Tailwind).
-* The frontend must be **responsive**.
-* Must support user interaction (form submissions, dynamic updates).
-
----
-
-### ✅ **Backend Requirements**
-
-* Use **Node.js** and **Express.js**
-* Store data using **MongoDB**
-* Follow **MVC architecture**
-* Implement **RESTful APIs**
-* Use **JWT** for authentication and authorization
-* Use **dotenv** for environment variables
-* Passwords must be **hashed**
-
----
-
-### ✅ **Database Requirements**
-
-* Use **MongoDB**
-* Collections:
-
-  * Users
-  * Products
-  * Orders
-  * Reviews
-  * (Optionally) Discounts
-
----
-
-### ✅ **Security Requirements**
-
-* Hash passwords
-* Use JWT securely (for both access control and token storage)
-* Protect admin routes
-* Validate all inputs (basic validation in frontend, stricter in backend)
-
----
-
-### ✅ **Deployment**
-
-* Project must be hosted on a **free cloud platform**
-
-  * Suggestions: **Render**, **Railway**, **Vercel**, or **Netlify**
-* Both frontend and backend should be deployed
-
----
-
-### ✅ **Submission Requirements**
-
-* Submit:
-
-  * Source code (client + server)
-  * Working live links
-  * Documentation (README + possibly a report or screenshots)
-
----
-
-Would you like a checklist or Trello-style breakdown for tracking these items?
-
-
