@@ -1,17 +1,20 @@
 import { NextFunction, Request, Response } from 'express';
 import * as orderService from '@services/order.service';
 import * as cartService from '@services/cart.service';
+import { RequestWithUser } from '@interfaces/auth.interface';
+import { HttpException } from '@exceptions/HttpException';
+import { OrderStatus } from '@interfaces/orders.interface';
 
-export const getOrders = async (req: Request, res: Response, next: NextFunction) => {
+export const getOrders = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   try {
-    const orders = await orderService.findAllOrders();
+    const orders = await orderService.findOrdersByCustomer(req.user._id);
     res.status(200).json({ data: orders, message: 'findAll' });
   } catch (error) {
     next(error);
   }
 };
 
-export const getOrdersByCustomer = async (req: Request, res: Response, next: NextFunction) => {
+export const getOrderById = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   try {
     const orders = await orderService.findOrdersByCustomer(req.user._id);
     res.status(200).json({ data: orders, message: 'findByCustomer' });
@@ -20,37 +23,33 @@ export const getOrdersByCustomer = async (req: Request, res: Response, next: Nex
   }
 };
 
-// export const createOrder = async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const orderData = req.body;
-//     const newOrder = await orderService.createOrder(orderData);
-//     res.status(201).json({ data: newOrder, message: 'created' });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-export async function createOrder(req: Request, res: Response) {
+export const createOrder = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { address } = req.body;
+    const userId = req.user._id;
+    const { shippingAddress } = req.body;
 
-    const { order, sessionUrl } = await orderService.create(req.user._id, req.user.cart, address);
+    if (!shippingAddress) {
+      throw new HttpException(400, 'Shipping address is required');
+    }
 
-    // Clear the cart
-    await cartService.clearUserCart(req.user._id);
-
-    res.status(201).json({ orderId: order._id, sessionUrl });
+    const result = await orderService.createOrderFromCart(userId, shippingAddress);
+    
+    res.status(201).json({ 
+      message: 'Order created and Stripe session initiated', 
+      orderId: result.order._id,
+      sessionUrl: result.sessionUrl 
+    });
   } catch (error) {
-    console.error('Create Order Error:', error); // 👈 log it
-    res.status(500).json({ message: 'Error creating order', error });
+    next(error);
   }
-}
+};
 
-export const updateOrderStatus = async (req: Request, res: Response, next: NextFunction) => {
+export const updateOrderStatus = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   try {
     const orderId = req.params.id;
-    const status = req.body.status;
-    const updatedOrder = await orderService.updateOrderStatus(orderId, status);
-    res.status(200).json({ data: updatedOrder, message: 'updatedStatus' });
+    const { status } = req.body;
+    const updatedOrder = await orderService.updateOrderStatusAndPayment(orderId, status as OrderStatus);
+    res.status(200).json({ data: updatedOrder, message: 'updated' });
   } catch (error) {
     next(error);
   }

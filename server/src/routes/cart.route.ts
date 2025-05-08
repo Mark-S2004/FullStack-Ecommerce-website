@@ -1,16 +1,23 @@
 import { Router } from 'express';
 import * as cartController from '@controllers/cart.controller';
-import { CreateCartItemDto } from '@/dtos/cart.dto';
+import authRequiredMiddleware from '@middlewares/authRequired.middleware';
 import validationMiddleware from '@middlewares/validation.middleware';
+import { CartItemDto } from '@dtos/cart.dto'; // Assuming a DTO for adding/updating items
 
-const path = '/cart'; // Base path for cart routes
-const router = Router(); // Create the router
+const path = '/cart';
+const router = Router();
 
-// Define routes relative to the base path ('/cart')
-// These will hit authRequiredMiddleware in app.ts if needsAuth is true for this route
-router.get('/', cartController.getCart); // Full path: /api/cart
-router.post('/', validationMiddleware(CreateCartItemDto, 'body'), cartController.addToCart); // Full path: /api/cart
-router.put('/', validationMiddleware(CreateCartItemDto, 'body', true), cartController.updateCart); // Full path: /api/cart
-router.delete('/:productId', cartController.removeFromCart); // Full path: /api/cart/:productId
+// Apply auth middleware to all cart routes
+router.use(path, authRequiredMiddleware);
+
+// Routes for managing cart items & general cart state
+router.get(`${path}`, cartController.getCart); // Get current user cart
+router.post(`${path}/item`, validationMiddleware(CartItemDto, 'body'), cartController.addOrUpdateItemInCart); // Add or update item quantity
+router.delete(`${path}/item/:productId`, cartController.removeItemFromCart); // Remove specific item
+router.delete(`${path}`, cartController.clearCartHandler); // Clear entire cart
+
+// Routes for cart discount management
+router.post(`${path}/discount`, cartController.applyDiscountHandler);    // POST /api/cart/discount
+router.delete(`${path}/discount`, cartController.removeDiscountHandler); // DELETE /api/cart/discount
 
 export default { path, router };

@@ -20,6 +20,16 @@ const productSchema: Schema = new Schema({
     trim: true,
     required: true,
   },
+  category: {
+    type: String,
+    trim: true,
+    index: true,
+  },
+  gender: {
+    type: String,
+    trim: true,
+    index: true,
+  },
   price: {
     type: Number,
     required: true,

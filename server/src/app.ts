@@ -9,7 +9,7 @@ import morgan from 'morgan';
 import { connect, set, disconnect } from 'mongoose';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import HttpException from '@exceptions/HttpException';
+import { HttpException } from '@exceptions/HttpException';
 import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from '@config';
 import { dbConnection } from '@databases';
 import { Routes } from '@interfaces/routes.interface';
@@ -21,7 +21,7 @@ import authRequiredMiddleware from '@middlewares/authRequired.middleware';
 import { logger, stream } from '@utils/logger';
 import allRoutes from '@routes/index';
 // Import your Stripe webhook route directly for raw body handling
-import { webhookRoute } from '@routes/index'; // <-- Adjust this import path as needed
+import webhookRoute from '@routes/index'; // <-- Use default import based on error message
 
 class App {
   public app: express.Application;
