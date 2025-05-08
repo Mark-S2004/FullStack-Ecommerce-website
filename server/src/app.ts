@@ -19,9 +19,8 @@ import authMiddleware from '@middlewares/auth.middleware';
 // Blocking auth (requires valid user)
 import authRequiredMiddleware from '@middlewares/authRequired.middleware';
 import { logger, stream } from '@utils/logger';
-import allRoutes from '@routes/index';
-// Import your Stripe webhook route directly for raw body handling
-import webhookRoute from '@routes/index'; // <-- Use default import based on error message
+import routesArray from '@routes/index'; // Default export (array of routes, excluding webhook)
+import { webhookRoute } from '@routes/index'; // Named export (webhook route object)
 
 class App {
   public app: express.Application;
@@ -35,7 +34,7 @@ class App {
 
     this.connectToDatabase();
     this.initializeMiddlewares();
-    this.initializeRoutes(allRoutes);
+    this.initializeRoutes(routesArray);
     this.initializeSwagger();
     this.initializeErrorHandling();
   }
@@ -76,7 +75,7 @@ class App {
     if (webhookRoute && webhookRoute.path && webhookRoute.router) {
       this.app.use('/api' + webhookRoute.path, webhookRoute.router);
     } else {
-      console.warn('Webhook route not found or incorrectly defined, skipping.');
+      console.warn('Webhook route object not found or incorrectly defined, skipping.');
     }
 
     // Standard body parsers for JSON and URL-encoded
@@ -94,16 +93,19 @@ class App {
    * Mount application routes under /api,
    * applying authRequiredMiddleware to routes flagged with needsAuth
    */
-  private initializeRoutes(routes: (Routes & { needsAuth?: boolean })[]) {
-    routes.forEach(route => {
+  private initializeRoutes(routesToMount: (Routes & { needsAuth?: boolean })[]) {
+    routesToMount.forEach(route => {
       const routeMiddlewares: express.RequestHandler[] = [];
 
       if (route.needsAuth) {
         routeMiddlewares.push(authRequiredMiddleware);
       }
 
-      // Avoid re-mounting the webhook route
-      if (route !== webhookRoute) {
+      // Avoid re-mounting the webhook route by comparing paths or specific object reference
+      if (webhookRoute && route.path === webhookRoute.path) {
+        // Skip mounting the webhook route here as it was mounted separately
+        console.log(`Skipping webhook route mounting: ${route.path}`);
+      } else {
         this.app.use('/api' + (route.path || '/'), ...routeMiddlewares, route.router);
       }
     });
