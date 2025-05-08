@@ -5,11 +5,12 @@ import { Product, ProductDocument } from '@interfaces/products.interface';
 import productModel from '@models/products.model';
 import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';
-import { Types, Document } from 'mongoose'; // Import Types and Document, removed CastError import
+import { Types, Document } from 'mongoose';
+import { CastError } from 'mongoose'; // Keep importing CastError
 
-// Function to check if an error is a Mongoose CastError by name (workaround for TS2693)
+// Function to check if an error is a Mongoose CastError by name
 function isCastError(error: any): error is Error {
-    // Check if it's an Error instance and if its name matches 'CastError'
+    // Check if it's an Error object and if its name property is 'CastError'
     return error instanceof Error && (error as any).name === 'CastError';
 }
 
@@ -55,7 +56,8 @@ export const findProductById = async (productId: string): Promise<Product> => {
 
     return product.toObject({ getters: true });
   } catch (error) {
-     if (isCastError(error)) { // Use the helper function
+     // Using the helper function to check for CastError
+     if (isCastError(error)) {
          logger.error(`CastError finding product by ID ${productId}: ${error.message}`);
           throw new HttpException(400, `Invalid product ID format: ${productId}`);
      } else {
@@ -104,7 +106,6 @@ export const updateProduct = async (productId: string, productData: CreateProduc
        throw new HttpException(400, 'Invalid product ID format');
     }
 
-    // Check if name change conflicts with existing product (if name is being updated)
     if (productData.name) {
       const existingProduct = await productModel.findOne({ name: productData.name });
       if (existingProduct && existingProduct._id.toString() !== productId) {
@@ -112,14 +113,13 @@ export const updateProduct = async (productId: string, productData: CreateProduc
       }
     }
 
-    // The productData DTO contains the fields to update.
-    // No need for manual data copying and password hashing logic here.
-    // Mongoose $set and `runValidators: true` handle applying DTO fields
-    // and running validators from the schema.
+    // Ensure productData object only contains fields valid for product update.
+    // The DTO 'CreateProductDto' seems appropriate here for specifying allowed update fields.
+    // If the DTO had sensitive user fields like password, remove them here.
 
     const updateProductData = await productModel.findByIdAndUpdate(
       productId,
-      { $set: productData }, // Directly use the DTO data with $set
+      { $set: productData },
       { new: true, runValidators: true }
     ) as (Product & Document) | null;
 
@@ -127,7 +127,8 @@ export const updateProduct = async (productId: string, productData: CreateProduc
 
     return updateProductData.toObject({ getters: true });
   } catch (error) {
-     if (isCastError(error)) { // Use the helper function
+     // Using the helper function to check for CastError
+     if (isCastError(error)) {
          logger.error(`CastError updating product by ID ${productId}: ${error.message}`);
           throw new HttpException(400, `Invalid product ID format: ${productId}`);
      } else {
@@ -153,7 +154,8 @@ export const deleteProduct = async (productId: string): Promise<Product> => {
 
     return deleteProductData.toObject({ getters: true });
   } catch (error) {
-     if (isCastError(error)) { // Use the helper function
+     // Using the helper function to check for CastError
+     if (isCastError(error)) {
          logger.error(`CastError deleting product by ID ${productId}: ${error.message}`);
           throw new HttpException(400, `Invalid product ID format: ${productId}`);
      } else {

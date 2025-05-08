@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools'; // Optional - Uncomment if you want devtools
 import { HelmetProvider } from 'react-helmet-async';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import React from 'react'; // Import React for JSX
+// import React from 'react'; // Import React for JSX
 
 
 // Contexts

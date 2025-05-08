@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 // Import the correct types from CartContext
-import { useCart, PopulatedCartItem, CartTotals } from '../contexts/CartContext'; // Corrected import name
+import { useCart, PopulatedCartItem } from '../contexts/CartContext'; // Corrected import name
+// import { CartTotals } from '../contexts/CartContext';
 // Removed direct toast import as it's handled by context
 // import toast from 'react-hot-toast';
 import clsx from 'clsx'; // Import clsx

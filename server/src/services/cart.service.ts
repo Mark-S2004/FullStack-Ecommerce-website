@@ -3,20 +3,16 @@ import { HttpException } from '@exceptions/HttpException';
 import userModel from '@models/users.model';
 import productModel from '@models/products.model';
 import { calcShipping, calcTax } from '../utils/orderCalculations';
-// Correct imports for User interface
 import { User } from '@interfaces/users.interface';
-// Correct imports for OrderItem from interfaces
 import { OrderItem } from '@interfaces/orders.interface';
-// Import Product interface (server side definition)
 import { Product, ProductDocument } from '../../../server/src/interfaces/products.interface';
 
-// Import Types, Document from mongoose as values/types, and CastError as a value
 import { Types, Document, CastError } from 'mongoose';
 
 
 // Define the structure of cart items *after* population and serialization (as returned by this service)
 interface ReturnedCartItem {
-    _id: string; // Subdocument ID as string
+    _id: string;
     product: Product; // Populated Product object (plain)
     quantity: number;
     price: number; // Price stored in the cart item (price at time of add)
@@ -34,24 +30,16 @@ export const getCart = async (userId: string): Promise<{ items: ReturnedCartItem
    if (!Types.ObjectId.isValid(userId)) {
        throw new HttpException(400, 'Invalid user ID format');
     }
-  // Populate cart items with full product details
-  // Explicitly type the populated fields within the DocumentArray
   const user = await userModel.findById(userId).populate('cart.product') as (User & Document & { cart: Types.DocumentArray<OrderItem & Document & { product: Product & Document }> }) | null;
   if (!user) throw new HttpException(404, 'User not found');
 
-  // Explicitly assert the type of the entire cart DocumentArray before mapping
-  const populatedCart: Types.DocumentArray<OrderItem & Document & { product: Product & Document }> = user.cart;
+  const returnedCartItems: ReturnedCartItem[] = user.cart.map(item => {
+    // Explicitly assert the type of item.product inside the map callback, casting through 'any'
+    // This is a workaround for Mongoose/TS population typing challenges
+    const populatedProduct = item.product as any as Product & Document;
 
-
-  // Map the Mongoose DocumentArray items to plain JavaScript objects
-  const returnedCartItems: ReturnedCartItem[] = populatedCart.map(item => {
-    // item.product is now expected to have the Product & Document type within this map callback due to the previous assertion
-
-    const populatedProduct = item.product;
-
-    // Ensure product is actually populated and has required fields
     if (!populatedProduct || !populatedProduct._id || !populatedProduct.name || populatedProduct.price === undefined || populatedProduct.stock === undefined) {
-         console.error(`Failed to process cart item ID ${item._id?.toString() || 'unknown'}: Product not found or incomplete data.`, item); // Improved log message
+         console.error(`Failed to populate product for item ID ${item._id?.toString() || 'unknown'}:`, item);
          return null;
     }
 
