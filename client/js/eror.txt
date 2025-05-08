@@ -58,59 +58,44 @@ Okay, let's create manual test flows for both customer and admin roles to verify
 ---
 
 
-[{
-	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
-	"owner": "typescript",
-	"code": "2339",
-	"severity": 8,
-	"message": "Property 'path' does not exist on type '(Routes & { needsAuth?: boolean; })[]'.",
-	"source": "ts",
-	"startLineNumber": 76,
-	"startColumn": 38,
-	"endLineNumber": 76,
-	"endColumn": 42
-},{
-	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
-	"owner": "typescript",
-	"code": "2339",
-	"severity": 8,
-	"message": "Property 'router' does not exist on type '(Routes & { needsAuth?: boolean; })[]'.",
-	"source": "ts",
-	"startLineNumber": 76,
-	"startColumn": 59,
-	"endLineNumber": 76,
-	"endColumn": 65
-},{
-	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
-	"owner": "typescript",
-	"code": "2339",
-	"severity": 8,
-	"message": "Property 'path' does not exist on type '(Routes & { needsAuth?: boolean; })[]'.",
-	"source": "ts",
-	"startLineNumber": 77,
-	"startColumn": 42,
-	"endLineNumber": 77,
-	"endColumn": 46
-},{
-	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
-	"owner": "typescript",
-	"code": "2339",
-	"severity": 8,
-	"message": "Property 'router' does not exist on type '(Routes & { needsAuth?: boolean; })[]'.",
-	"source": "ts",
-	"startLineNumber": 77,
-	"startColumn": 61,
-	"endLineNumber": 77,
-	"endColumn": 67
-},{
-	"resource": "/c:/Users/mdzhs/Downloads/ASU downlaods/New folder/mark's code 2/FullStack-Ecommerce-website/server/src/app.ts",
-	"owner": "typescript",
-	"code": "2367",
-	"severity": 8,
-	"message": "This comparison appears to be unintentional because the types 'Routes & { needsAuth?: boolean; }' and '(Routes & { needsAuth?: boolean; })[]' have no overlap.",
-	"source": "ts",
-	"startLineNumber": 106,
-	"startColumn": 11,
-	"endLineNumber": 106,
-	"endColumn": 33
-}]
+
+
+
+
+
+--------
+
+
+
+PS C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server> npm run dev --trace-warnings
+   
+> typescript-express-mongoose-starter@1.1.7 dev
+> cross-env NODE_ENV=development nodemon
+
+[nodemon] 2.0.22
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): src\**\* .env
+[nodemon] watching extensions: js,ts,json
+[nodemon] starting `ts-node -r tsconfig-paths/register --transpile-only src/server.ts`
+[nodemon] app crashed - waiting for file changes before starting...
+Terminate batch job (Y/N)? y
+PS C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server> npx ts-node src/server.ts
+Error: Cannot find module '@/app'
+Require stack:
+- C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\src\server.ts
+    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1048:15)
+    at Function.Module._resolveFilename.sharedData.moduleResolveFilenameHook.installedValue [as _resolveFilename] (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\node_modules\@cspotcode\source-map-support\source-map-support.js:811:30)    
+    at Function.Module._load (node:internal/modules/cjs/loader:901:27)
+    at Module.require (node:internal/modules/cjs/loader:1115:19)
+    at require (node:internal/modules/helpers:130:18)
+    at Object.<anonymous> (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\src\server.ts:2:1) 
+    at Module._compile (node:internal/modules/cjs/loader:1233:14)
+    at Module.m._compile (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\node_modules\ts-node\src\index.ts:1618:23)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1287:10)
+    at Object.require.extensions.<computed> [as .ts] (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\node_modules\ts-node\src\index.ts:1621:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    "C:\\Users\\mdzhs\\Downloads\\ASU downlaods\\New folder\\mark's code 2\\FullStack-Ecommerce-website\\server\\src\\server.ts"
+  ]
+}
+PS C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server> 
