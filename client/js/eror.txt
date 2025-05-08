@@ -65,10 +65,8 @@ Okay, let's create manual test flows for both customer and admin roles to verify
 
 --------
 
-
-
 PS C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server> npm run dev --trace-warnings
-   
+
 > typescript-express-mongoose-starter@1.1.7 dev
 > cross-env NODE_ENV=development nodemon
 
@@ -79,22 +77,26 @@ PS C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Eco
 [nodemon] starting `ts-node -r tsconfig-paths/register --transpile-only src/server.ts`
 [nodemon] app crashed - waiting for file changes before starting...
 Terminate batch job (Y/N)? y
-PS C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server> npx ts-node src/server.ts
-Error: Cannot find module '@/app'
+
+
+PS C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server> npx ts-node src/server.ts   
+Error: Cannot find module '@exceptions/HttpException'
 Require stack:
+- C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\src\app.ts
 - C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\src\server.ts
     at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1048:15)
     at Function.Module._resolveFilename.sharedData.moduleResolveFilenameHook.installedValue [as _resolveFilename] (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\node_modules\@cspotcode\source-map-support\source-map-support.js:811:30)    
     at Function.Module._load (node:internal/modules/cjs/loader:901:27)
     at Module.require (node:internal/modules/cjs/loader:1115:19)
     at require (node:internal/modules/helpers:130:18)
-    at Object.<anonymous> (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\src\server.ts:2:1) 
+    at Object.<anonymous> (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\src\app.ts:12:1)   
     at Module._compile (node:internal/modules/cjs/loader:1233:14)
     at Module.m._compile (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\node_modules\ts-node\src\index.ts:1618:23)
     at Module._extensions..js (node:internal/modules/cjs/loader:1287:10)
     at Object.require.extensions.<computed> [as .ts] (C:\Users\mdzhs\Downloads\ASU downlaods\New folder\mark's code 2\FullStack-Ecommerce-website\server\node_modules\ts-node\src\index.ts:1621:12) {
   code: 'MODULE_NOT_FOUND',
   requireStack: [
+    "C:\\Users\\mdzhs\\Downloads\\ASU downlaods\\New folder\\mark's code 2\\FullStack-Ecommerce-website\\server\\src\\app.ts",
     "C:\\Users\\mdzhs\\Downloads\\ASU downlaods\\New folder\\mark's code 2\\FullStack-Ecommerce-website\\server\\src\\server.ts"
   ]
 }
