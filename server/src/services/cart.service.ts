@@ -1,11 +1,11 @@
-import { HttpException } from '@exceptions/HttpException';
-import userModel from '@models/users.model';
-import productModel from '@models/products.model';
-import { User, CartItem } from '@interfaces/users.interface';
-import { Product } from '@interfaces/products.interface';
+import { HttpException } from '../exceptions/HttpException';
+import userModel from '../models/users.model';
+import productModel from '../models/products.model';
+import { User, CartItem } from '../interfaces/users.interface';
+import { Product } from '../interfaces/products.interface';
 import { Document, Types } from 'mongoose';
-import * as discountService from '@services/discount.service';
-import { Discount, DiscountType } from '@interfaces/discounts.interface';
+import * as discountService from './/discount.service';
+import { Discount, DiscountType } from '../interfaces/discounts.interface';
 
 export const calculateCartSubtotal = (cartItems: CartItem[]): number => {
   if (!cartItems) return 0;

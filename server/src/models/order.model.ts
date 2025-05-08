@@ -1,5 +1,5 @@
 import { model, Schema, Document } from 'mongoose';
-import { Order } from '@interfaces/orders.interface';
+import { Order } from '../interfaces/orders.interface';
 
 const OrderItemSchema = new Schema({
   product: { type: Schema.Types.ObjectId, ref: 'Product', required: true },

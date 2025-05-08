@@ -1,8 +1,8 @@
 // src/controllers/reviews.controller.ts
 
 import { NextFunction, Request, Response } from 'express';
-import * as reviewsService from '@services/reviews.service';
-import { CreateReviewDto } from '@dtos/reviews.dto';
+import * as reviewsService from '../services/reviews.service';
+import { CreateReviewDto } from '../dtos/reviews.dto';
 
 export const addReview = async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -1,7 +1,7 @@
-import { HttpException } from '@exceptions/HttpException';
-import reviewModel from '@models/review.model'; // Changed from reviews.model
-import productModel from '@models/products.model';
-import { Review } from '@interfaces/reviews.interface'; // Assuming you have a review interface
+import { HttpException } from '../exceptions/HttpException';
+import reviewModel from '../models/review.model'; // Changed from reviews.model
+import productModel from '../models/products.model';
+import { Review } from '../interfaces/reviews.interface'; // Assuming you have a review interface
 
 // Find all reviews (potentially populate user/product info)
 export const findAllReviews = async (): Promise<Review[]> => {

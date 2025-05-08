@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, Max, IsOptional, IsBoolean, IsDateString, IsArray, ArrayMinSize, IsMongoId } from 'class-validator';
-import { DiscountType } from '@interfaces/discounts.interface';
+import { DiscountType } from '../interfaces/discounts.interface';
 
 export class CreateDiscountDto {
   @IsString()

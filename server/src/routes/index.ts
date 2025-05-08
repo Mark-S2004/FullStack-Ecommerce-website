@@ -1,5 +1,5 @@
 // server/src/routes/index.ts
-import { Routes } from '@interfaces/routes.interface';
+import { Routes } from '../interfaces/routes.interface';
 
 // Import the route configuration objects directly
 // import indexRouteConfig from './index.route'; // Removed, as it likely doesn't exist

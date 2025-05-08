@@ -32,6 +32,10 @@ class App {
     this.env = NODE_ENV || 'development';
     this.port = PORT || 3000;
 
+    console.log('Environment:', this.env);
+    console.log('Port:', this.port);
+    console.log('Database URI:', dbConnection.url);
+    
     this.connectToDatabase();
     this.initializeMiddlewares();
     this.initializeRoutes(routesArray);
@@ -74,6 +78,7 @@ class App {
     // Mount Stripe webhook BEFORE body parsing to capture raw body
     if (webhookRoute && webhookRoute.path && webhookRoute.router) {
       this.app.use('/api' + webhookRoute.path, webhookRoute.router);
+      console.log('Webhook route mounted at:', '/api' + webhookRoute.path);
     } else {
       console.warn('Webhook route object not found or incorrectly defined, skipping.');
     }
@@ -94,26 +99,47 @@ class App {
    * applying authRequiredMiddleware to routes flagged with needsAuth
    */
   private initializeRoutes(routesToMount: (Routes & { needsAuth?: boolean })[]) {
-    routesToMount.forEach(route => {
-      const routeMiddlewares: express.RequestHandler[] = [];
-
-      if (route.needsAuth) {
-        routeMiddlewares.push(authRequiredMiddleware);
+    try {
+      if (!Array.isArray(routesToMount)) {
+        console.error('routesToMount is not an array:', routesToMount);
+        return;
       }
 
-      // Avoid re-mounting the webhook route by comparing paths or specific object reference
-      if (webhookRoute && route.path === webhookRoute.path) {
-        // Skip mounting the webhook route here as it was mounted separately
-        console.log(`Skipping webhook route mounting: ${route.path}`);
-      } else {
-        this.app.use('/api' + (route.path || '/'), ...routeMiddlewares, route.router);
-      }
-    });
+      console.log(`Mounting ${routesToMount.length} routes...`);
+      
+      routesToMount.forEach(route => {
+        try {
+          if (!route) {
+            console.error('Route is undefined');
+            return;
+          }
+          
+          const routeMiddlewares: express.RequestHandler[] = [];
 
-    // 404 for unmatched /api routes
-    this.app.use('/api', (req, res, next) => {
-      next(new HttpException(404, `API endpoint not found: ${req.method} ${req.originalUrl}`));
-    });
+          if (route.needsAuth) {
+            routeMiddlewares.push(authRequiredMiddleware);
+          }
+
+          // Avoid re-mounting the webhook route by comparing paths or specific object reference
+          if (webhookRoute && route.path === webhookRoute.path) {
+            // Skip mounting the webhook route here as it was mounted separately
+            console.log(`Skipping webhook route mounting: ${route.path}`);
+          } else {
+            console.log(`Mounting route: ${route.path || '/'}`);
+            this.app.use('/api' + (route.path || '/'), ...routeMiddlewares, route.router);
+          }
+        } catch (err) {
+          console.error('Error mounting route:', route?.path, err);
+        }
+      });
+
+      // 404 for unmatched /api routes
+      this.app.use('/api', (req, res, next) => {
+        next(new HttpException(404, `API endpoint not found: ${req.method} ${req.originalUrl}`));
+      });
+    } catch (err) {
+      console.error('Error initializing routes:', err);
+    }
   }
 
   /**
@@ -159,13 +185,16 @@ class App {
   private async connectToDatabase() {
     if (this.env !== 'production') {
       set('debug', true);
+      // Fix the deprecation warning
+      set('strictQuery', false);
     }
 
     try {
+      console.log('Connecting to MongoDB with URL:', dbConnection.url);
       await connect(dbConnection.url);
-      logger.info('Database connected');
+      console.log('Database connected successfully');
     } catch (error) {
-      logger.error('Failed to connect to database:', error);
+      console.error('Failed to connect to database. Error details:', error);
       // In production, you might exit the process here
       // process.exit(1);
     }

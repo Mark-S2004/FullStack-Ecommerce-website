@@ -1,9 +1,9 @@
 // server/src/routes/discount.route.ts
 import { Router } from 'express';
-import * as discountController from '@controllers/discount.controller';
-import adminRequiredMiddleware from '@middlewares/adminRequired.middleware';
-import validationMiddleware from '@middlewares/validation.middleware';
-import { CreateDiscountDto, UpdateDiscountDto } from '@dtos/discounts.dto';
+import * as discountController from '../controllers/discount.controller';
+import adminRequiredMiddleware from '../middlewares/adminRequired.middleware';
+import validationMiddleware from '../middlewares/validation.middleware';
+import { CreateDiscountDto, UpdateDiscountDto } from '../dtos/discounts.dto';
 
 const path = '/discounts';
 const router = Router();

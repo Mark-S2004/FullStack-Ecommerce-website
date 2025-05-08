@@ -1,11 +1,11 @@
 // src/services/reviews.service.ts
 
 import { Document, Types } from 'mongoose';
-import { HttpException } from '@exceptions/HttpException';
-import productModel from '@models/products.model';
-import { isEmpty } from '@utils/util';
-import { CreateReviewDto } from '@dtos/reviews.dto';
-import { Review } from '@interfaces/reviews.interface';
+import { HttpException } from '../exceptions/HttpException';
+import productModel from '../models/products.model';
+import { isEmpty } from '../utils/util';
+import { CreateReviewDto } from '../dtos/reviews.dto';
+import { Review } from '../interfaces/reviews.interface';
 
 export const addReview = async (productId: string, userId: string, reviewData: CreateReviewDto) => {
   if (isEmpty(reviewData)) throw new HttpException(400, 'reviewData is empty');

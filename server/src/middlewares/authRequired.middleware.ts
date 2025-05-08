@@ -1,7 +1,7 @@
 // server/src/middlewares/authRequired.middleware.ts
 import { NextFunction, Response } from 'express';
-import { HttpException } from '@exceptions/HttpException';
-import { RequestWithUser } from '@interfaces/auth.interface';
+import { HttpException } from '../exceptions/HttpException';
+import { RequestWithUser } from '../interfaces/auth.interface';
 
 // Middleware that enforces authentication is required for the route
 const authRequiredMiddleware = (req: RequestWithUser, res: Response, next: NextFunction) => {

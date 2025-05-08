@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import * as orderController from '@controllers/order.controller';
-import { CreateOrderDto } from '@dtos/orders.dto';
-import validationMiddleware from '@middlewares/validation.middleware';
+import * as orderController from '../controllers/order.controller';
+import { CreateOrderDto } from '../dtos/orders.dto';
+import validationMiddleware from '../middlewares/validation.middleware';
 
 const path = '/orders'; // Base path for order routes
 const router = Router(); // Create the router

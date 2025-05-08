@@ -1,12 +1,12 @@
 import { hash, compare } from 'bcrypt';
 import { sign } from 'jsonwebtoken';
-import { SECRET_KEY } from '@config';
-import { CreateUserDto, loginUserDto } from '@dtos/users.dto';
-import { HttpException } from '@exceptions/HttpException';
-import { DataStoredInToken, TokenData } from '@interfaces/auth.interface';
-import { User } from '@interfaces/users.interface';
-import userModel from '@models/users.model';
-import { isEmpty } from '@utils/util';
+import { SECRET_KEY } from '../config';
+import { CreateUserDto, loginUserDto } from '../dtos/users.dto';
+import { HttpException } from '../exceptions/HttpException';
+import { DataStoredInToken, TokenData } from '../interfaces/auth.interface';
+import { User } from '../interfaces/users.interface';
+import userModel from '../models/users.model';
+import { isEmpty } from '../utils/util';
 
 export const signup = async (userData: CreateUserDto): Promise<User> => {
   if (isEmpty(userData)) {

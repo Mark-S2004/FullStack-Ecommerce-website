@@ -1,7 +1,7 @@
-import { HttpException } from '@exceptions/HttpException';
-import productModel from '@models/products.model';
-import { Product } from '@interfaces/products.interface';
-import { CreateProductDto } from '@dtos/products.dto'; // Assuming you might use this elsewhere
+import { HttpException } from '../exceptions/HttpException';
+import productModel from '../models/products.model';
+import { Product } from '../interfaces/products.interface';
+import { CreateProductDto } from '../dtos/products.dto'; // Assuming you might use this elsewhere
 
 export const findAllProduct = async (query: any = {}): Promise<Product[]> => {
   let conditions: any = {};

@@ -1,9 +1,9 @@
 // server/src/middlewares/auth.middleware.ts
 import { NextFunction, Response } from 'express';
 import { verify } from 'jsonwebtoken';
-import { SECRET_KEY } from '@config';
-import { DataStoredInToken, RequestWithUser } from '@interfaces/auth.interface';
-import userModel from '@models/users.model';
+import { SECRET_KEY } from '../config';
+import { DataStoredInToken, RequestWithUser } from '../interfaces/auth.interface';
+import userModel from '../models/users.model';
 
 // This middleware attempts to authenticate the user if a token is present.
 // It attaches req.user if successful, but always calls next() regardless of status.

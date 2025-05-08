@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { CreateUserDto } from '@dtos/users.dto';
-import validationMiddleware from '@middlewares/validation.middleware';
-import * as usersController from '@controllers/users.controller';
+import { CreateUserDto } from '../dtos/users.dto';
+import validationMiddleware from '../middlewares/validation.middleware';
+import * as usersController from '../controllers/users.controller';
 
 const path = '/users'; // This is the base path for user-related routes
 const router = Router(); // Create the router

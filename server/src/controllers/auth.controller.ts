@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
-import { CreateUserDto, loginUserDto } from '@dtos/users.dto';
-import { RequestWithUser } from '@interfaces/auth.interface';
-import { User } from '@interfaces/users.interface';
-import * as authService from '@services/auth.service';
+import { CreateUserDto, loginUserDto } from '../dtos/users.dto';
+import { RequestWithUser } from '../interfaces/auth.interface';
+import { User } from '../interfaces/users.interface';
+import * as authService from '../services/auth.service';
 
 export const signUp = async (req: Request, res: Response, next: NextFunction) => {
   try {

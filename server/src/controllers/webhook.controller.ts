@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import stripe from '../utils/stripe';
 import * as orderService from '../services/order.service';
-import { OrderStatus } from '@interfaces/orders.interface';
+import { OrderStatus } from '../interfaces/orders.interface';
 import Stripe from 'stripe';
-import { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '@config';
+import { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from '../config';
 
 const stripeInstance = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2025-04-30.basil' }); // Match service version
 

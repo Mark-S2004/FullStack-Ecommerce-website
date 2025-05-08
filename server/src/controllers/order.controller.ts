@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
-import * as orderService from '@services/order.service';
-import * as cartService from '@services/cart.service';
-import { RequestWithUser } from '@interfaces/auth.interface';
-import { HttpException } from '@exceptions/HttpException';
-import { OrderStatus } from '@interfaces/orders.interface';
+import * as orderService from '../services/order.service';
+import * as cartService from '../services/cart.service';
+import { RequestWithUser } from '../interfaces/auth.interface';
+import { HttpException } from '../exceptions/HttpException';
+import { OrderStatus } from '../interfaces/orders.interface';
 
 export const getOrders = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   try {

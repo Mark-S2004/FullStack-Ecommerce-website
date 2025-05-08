@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
-import { Review } from '@interfaces/reviews.interface';
-import * as reviewService from '@services/review.service';
+import { Review } from '../interfaces/reviews.interface';
+import * as reviewService from '../services/review.service';
 
 export const getReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

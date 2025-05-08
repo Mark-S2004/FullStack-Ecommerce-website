@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
-import * as discountService from '@services/discount.service';
-import { CreateDiscountDto, UpdateDiscountDto } from '@dtos/discounts.dto';
-import { Discount } from '@interfaces/discounts.interface';
+import * as discountService from '../services/discount.service';
+import { CreateDiscountDto, UpdateDiscountDto } from '../dtos/discounts.dto';
+import { Discount } from '../interfaces/discounts.interface';
 
 export const createDiscountHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

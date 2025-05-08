@@ -1,6 +1,6 @@
 // server/src/models/discount.model.ts
 import { model, Schema, Document } from 'mongoose';
-import { Discount } from '@interfaces/discounts.interface';
+import { Discount } from '../interfaces/discounts.interface';
 
 const discountSchema: Schema = new Schema(
   {

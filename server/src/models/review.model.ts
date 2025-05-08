@@ -1,7 +1,7 @@
 import { model, Schema, Document } from 'mongoose';
-import { Review } from '@interfaces/reviews.interface';
-import { Product } from '@interfaces/products.interface'; // For type referencing
-import { User } from '@interfaces/users.interface'; // For type referencing
+import { Review } from '../interfaces/reviews.interface';
+import { Product } from '../interfaces/products.interface'; // For type referencing
+import { User } from '../interfaces/users.interface'; // For type referencing
 
 const reviewSchema: Schema = new Schema(
   {

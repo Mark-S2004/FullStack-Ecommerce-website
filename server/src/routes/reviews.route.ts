@@ -1,8 +1,8 @@
 // server/src/routes/reviews.route.ts
 import { Router } from 'express';
-import * as reviewsController from '@controllers/reviews.controller';
-import validationMiddleware from '@middlewares/validation.middleware';
-import { CreateReviewDto } from '@dtos/reviews.dto';
+import * as reviewsController from '../controllers/reviews.controller';
+import validationMiddleware from '../middlewares/validation.middleware';
+import { CreateReviewDto } from '../dtos/reviews.dto';
 
 // This path includes a parameter, it defines WHERE this router will be mounted
 const path = '/products/:productId/reviews';

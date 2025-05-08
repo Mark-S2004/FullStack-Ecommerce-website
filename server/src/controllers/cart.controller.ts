@@ -1,7 +1,7 @@
 import { NextFunction, Response } from 'express';
-import { RequestWithUser } from '@interfaces/auth.interface';
-import * as cartService from '@services/cart.service';
-import { HttpException } from '@exceptions/HttpException';
+import { RequestWithUser } from '../interfaces/auth.interface';
+import * as cartService from '../services/cart.service';
+import { HttpException } from '../exceptions/HttpException';
 
 export const getCart = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   try {

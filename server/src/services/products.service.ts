@@ -1,8 +1,8 @@
-import { CreateProductDto } from '@dtos/products.dto';
-import { HttpException } from '@exceptions/HttpException';
-import { Product } from '@interfaces/products.interface';
-import productModel from '@models/products.model';
-import { isEmpty } from '@utils/util';
+import { CreateProductDto } from '../dtos/products.dto';
+import { HttpException } from '../exceptions/HttpException';
+import { Product } from '../interfaces/products.interface';
+import productModel from '../models/products.model';
+import { isEmpty } from '../utils/util';
 
 export const findAllProduct = async (): Promise<Product[]> => {
   const Products: Product[] = await productModel.find();

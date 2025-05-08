@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import * as cartController from '@controllers/cart.controller';
-import authRequiredMiddleware from '@middlewares/authRequired.middleware';
-import validationMiddleware from '@middlewares/validation.middleware';
-import { CartItemDto } from '@dtos/cart.dto'; // Assuming a DTO for adding/updating items
+import * as cartController from '../controllers/cart.controller';
+import authRequiredMiddleware from '../middlewares/authRequired.middleware';
+import validationMiddleware from '../middlewares/validation.middleware';
+import { CartItemDto } from '../dtos/cart.dto'; // Assuming a DTO for adding/updating items
 
 const path = '/cart';
 const router = Router();

@@ -1,14 +1,14 @@
-import { HttpException } from '@exceptions/HttpException';
-import orderModel from '@models/order.model';
-import userModel from '@models/users.model';
-import productModel from '@models/products.model';
-import { Order, OrderItem, OrderStatus } from '@interfaces/orders.interface';
-import { Product } from '@interfaces/products.interface';
-import { User } from '@interfaces/users.interface';
-import * as cartService from '@services/cart.service';
-import discountModel from '@models/discount.model';
+import { HttpException } from '../exceptions/HttpException';
+import orderModel from '../models/order.model';
+import userModel from '../models/users.model';
+import productModel from '../models/products.model';
+import { Order, OrderItem, OrderStatus } from '../interfaces/orders.interface';
+import { Product } from '../interfaces/products.interface';
+import { User } from '../interfaces/users.interface';
+import * as cartService from './/cart.service';
+import discountModel from '../models/discount.model';
 import Stripe from 'stripe';
-import { STRIPE_SECRET_KEY } from '@config';
+import { STRIPE_SECRET_KEY } from '../config';
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2025-04-30.basil' });
 

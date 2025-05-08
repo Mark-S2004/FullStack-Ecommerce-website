@@ -1,10 +1,10 @@
 // server/src/scripts/seed.ts
 import { connect, disconnect } from 'mongoose';
-import { dbConnection } from '@databases'; // Import DB connection config
-import productModel from '@models/products.model'; // Import your product model
-import { Product } from '@interfaces/products.interface'; // Import Product interface
-import { logger } from '@utils/logger'; // Import logger
-import validateEnv from '@utils/validateEnv'; // Import validateEnv
+import { dbConnection } from '../databases'; // Import DB connection config
+import productModel from '../models/products.model'; // Import your product model
+import { Product } from '../interfaces/products.interface'; // Import Product interface
+import { logger } from '../utils/logger'; // Import logger
+import validateEnv from '../utils/validateEnv'; // Import validateEnv
 
 // Sample product data (keep it simple)
 const sampleProducts: Partial<Product>[] = [
