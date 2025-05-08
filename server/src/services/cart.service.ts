@@ -15,7 +15,7 @@ export const addToCart = async (userId: string, productId: string, qty: number) 
   const product = await productModel.findById(productId);
   if (!product) throw new HttpException(404, 'Product not found');
 
-  const existingItem = user.cart.find(item => item.product === productId);
+  const existingItem = user.cart.find(item => item.product.toString() === productId); // <--- Use toString()
   if (existingItem) {
     existingItem.qty += qty;
   } else {
@@ -33,9 +33,9 @@ export const updateCart = async (userId: string, productId: string, qty: number)
   const product = await productModel.findById(productId);
   if (!product) throw new HttpException(404, 'Product not found');
 
-  const item = user.cart.find(item => item.product === productId);
+  const item = user.cart.find(item => item.product.toString() === productId); // <--- Use toString()
   if (!item) throw new HttpException(404, 'Product not in cart');
-
+  
   item.qty = qty;
   await user.save();
   return user.cart;
@@ -45,7 +45,7 @@ export const removeFromCart = async (userId: string, productId: string) => {
   const user = await userModel.findById(userId);
   if (!user) throw new HttpException(404, 'User not found');
 
-  user.cart = user.cart.filter(item => item.product != productId);
+  user.cart = user.cart.filter(item => item.product.toString() !== productId); // <--- Use toString()
   await user.save();
   return user.cart;
 };

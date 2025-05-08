@@ -1,0 +1,16 @@
+/* Basic styles to show/hide admin links */
+/* These will be controlled by JavaScript based on user role */
+.admin-link {
+    /* Display will be handled by JS */
+}
+
+/* Adjustments for Auth links */
+#loginLink,
+#registerLink {
+    /* Display will be handled by JS */
+}
+
+#userInfo,
+#logoutLink {
+    /* Display will be handled by JS */
+}
