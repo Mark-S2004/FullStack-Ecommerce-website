@@ -2,15 +2,26 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useCart } from '../contexts/CartContext';
+import toast from 'react-hot-toast'; // Ensure toast is imported and used
+import clsx from 'clsx'; // Import clsx
 
-export default function CartPage() {
+export default function CartPage(): JSX.Element { // Added return type annotation
+  // Destructure total from useCart context
   const { items, total, isLoading, updateQuantity, removeItem } = useCart();
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleQuantityChange = async (itemId: string, newQuantity: number) => {
     setIsUpdating(true);
-    await updateQuantity(itemId, newQuantity);
+    // Ensure quantity is a positive integer
+    const quantity = Math.max(1, parseInt(newQuantity as any, 10)); // Use item ID
+    await updateQuantity(itemId, quantity);
     setIsUpdating(false);
+  };
+
+  const handleRemoveItem = async (itemId: string) => {
+    if (window.confirm('Are you sure you want to remove this item?')) {
+      await removeItem(itemId); // Use item ID
+    }
   };
 
   if (isLoading) {
@@ -21,12 +32,13 @@ export default function CartPage() {
     );
   }
 
+  // Check if items array is empty or undefined
   if (!items || items.length === 0) {
     return (
-      <div className="grid min-h-screen place-items-center">
+      <div className="grid min-h-[calc(100vh-12rem)] place-items-center px-4 py-16">
         <div className="text-center">
           <h2 className="text-lg font-semibold text-gray-900">Your cart is empty</h2>
-          <p className="mt-1 text-gray-500">Add some items to your cart to continue shopping.</p>
+          <p className="mt-1 text-sm text-gray-500">Add some items to your cart to continue shopping.</p>
           <Link
             to="/"
             className="mt-6 inline-block rounded-md bg-indigo-600 px-8 py-3 text-base font-medium text-white hover:bg-indigo-500"
@@ -53,11 +65,12 @@ export default function CartPage() {
 
             <ul role="list" className="divide-y divide-gray-200 border-b border-t border-gray-200">
               {items.map((item) => (
+                // Use item._id as key as it's unique per item instance in the cart
                 <li key={item._id} className="flex py-6 sm:py-10">
                   <div className="flex-shrink-0">
                     <img
-                      src={item.product.images[0]}
-                      alt={item.product.name}
+                      src={item.product?.images?.[0]} // Use optional chaining
+                      alt={item.product?.name || 'Product Image'} // Use optional chaining
                       className="h-24 w-24 rounded-md object-cover object-center sm:h-32 sm:w-32"
                     />
                   </div>
@@ -67,18 +80,21 @@ export default function CartPage() {
                       <div>
                         <div className="flex justify-between">
                           <h3 className="text-sm">
+                            {/* Link to product page using product._id */}
                             <Link
-                              to={`/product/${item.product._id}`}
+                              to={`/product/${item.product?._id}`}
                               className="font-medium text-gray-700 hover:text-gray-800"
                             >
-                              {item.product.name}
+                              {item.product?.name}
                             </Link>
                           </h3>
                         </div>
                         <p className="mt-1 text-sm font-medium text-gray-900">
-                          ${item.product.price}
+                           ${item.product?.price?.toFixed(2) || '0.00'} {/* Use optional chaining and toFixed */}
                         </p>
-                        <p className="mt-1 text-sm text-gray-500">Size: {item.size}</p>
+                         {item.size && ( // Only display size if it exists
+                            <p className="mt-1 text-sm text-gray-500">Size: {item.size}</p>
+                         )}
                       </div>
 
                       <div className="mt-4 sm:mt-0 sm:pr-9">
@@ -92,10 +108,11 @@ export default function CartPage() {
                           onChange={(e) =>
                             handleQuantityChange(item._id, parseInt(e.target.value, 10))
                           }
-                          disabled={isUpdating}
-                          className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                           // Disable select while updating
+                          className="max-w-full rounded-md border border-gray-300 py-1.5 text-left text-base font-medium leading-5 text-gray-700 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm disabled:opacity-50"
+                           disabled={isUpdating}
                         >
-                          {[1, 2, 3, 4, 5].map((num) => (
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => ( // Offer more quantity options
                             <option key={num} value={num}>
                               {num}
                             </option>
@@ -105,8 +122,9 @@ export default function CartPage() {
                         <div className="absolute right-0 top-0">
                           <button
                             type="button"
-                            onClick={() => removeItem(item._id)}
+                            onClick={() => handleRemoveItem(item._id)} // Use item ID
                             className="-m-2 inline-flex p-2 text-gray-400 hover:text-gray-500"
+                            disabled={isUpdating} // Disable remove button while updating
                           >
                             <span className="sr-only">Remove</span>
                             <XMarkIcon className="h-5 w-5" aria-hidden="true" />
@@ -129,29 +147,43 @@ export default function CartPage() {
               Order summary
             </h2>
 
+            {/* Use totals from context */}
             <dl className="mt-6 space-y-4">
               <div className="flex items-center justify-between">
                 <dt className="text-sm text-gray-600">Subtotal</dt>
-                <dd className="text-sm font-medium text-gray-900">${total.subtotal}</dd>
+                <dd className="text-sm font-medium text-gray-900">${total.subtotal.toFixed(2)}</dd>
               </div>
               <div className="flex items-center justify-between border-t border-gray-200 pt-4">
                 <dt className="text-sm text-gray-600">Shipping estimate</dt>
-                <dd className="text-sm font-medium text-gray-900">${total.shipping}</dd>
+                <dd className="text-sm font-medium text-gray-900">${total.shipping.toFixed(2)}</dd>
               </div>
               <div className="flex items-center justify-between border-t border-gray-200 pt-4">
                 <dt className="text-sm text-gray-600">Tax estimate</dt>
-                <dd className="text-sm font-medium text-gray-900">${total.tax}</dd>
+                <dd className="text-sm font-medium text-gray-900">${total.tax.toFixed(2)}</dd>
               </div>
               <div className="flex items-center justify-between border-t border-gray-200 pt-4">
                 <dt className="text-base font-medium text-gray-900">Order total</dt>
-                <dd className="text-base font-medium text-gray-900">${total.total}</dd>
+                <dd className="text-base font-medium text-gray-900">${total.total.toFixed(2)}</dd>
               </div>
             </dl>
 
             <div className="mt-6">
               <Link
                 to="/checkout"
-                className="w-full rounded-md border border-transparent bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50"
+                 // Disable checkout if cart is empty or still loading/updating
+                className={clsx(
+                  "w-full rounded-md border border-transparent px-4 py-3 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-50 text-center",
+                  {
+                    "bg-indigo-600 hover:bg-indigo-700": !isLoading && items.length > 0 && !isUpdating,
+                    "bg-gray-400 cursor-not-allowed": isLoading || items.length === 0 || isUpdating,
+                  }
+                )}
+                 aria-disabled={isLoading || items.length === 0 || isUpdating}
+                 onClick={(e) => {
+                    if (isLoading || items.length === 0 || isUpdating) {
+                       e.preventDefault(); // Prevent navigation if disabled
+                    }
+                 }}
               >
                 Checkout
               </Link>
@@ -161,4 +193,4 @@ export default function CartPage() {
       </div>
     </div>
   );
-} 
+}

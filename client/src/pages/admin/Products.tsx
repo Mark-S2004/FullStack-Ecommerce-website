@@ -1,63 +1,102 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/axios';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useState } from 'react';
+import { useState, Fragment } from 'react'; // Import Fragment
 import { TrashIcon, PencilSquareIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { Dialog, Transition } from '@headlessui/react'; // Import Dialog and Transition
 
 interface Product {
   _id: string;
   name: string;
   price: number;
   category: string;
-  inStock: boolean;
-  stock: number; // Assuming stock count is available
+  inStock: boolean; // Derived from stock > 0 on backend, but useful flag
+  stock: number;
 }
 
-// Basic Modal Component (Consider moving to a shared components folder)
+// Basic Modal Component
 function ConfirmationModal({
   isOpen,
   onClose,
   onConfirm,
   title,
   message,
+  isDeleting // Add a prop for pending state
 }: {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
   title: string;
   message: string;
+   isDeleting: boolean; // Indicate if deletion is in progress
 }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="rounded-lg bg-white p-6 shadow-xl">
-        <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-        <p className="mt-2 text-sm text-gray-500">{message}</p>
-        <div className="mt-4 flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-            className="rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700"
-          >
-            Delete
-          </button>
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black bg-opacity-25" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-95 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
+                  {title}
+                </Dialog.Title>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">
+                    {message}
+                  </p>
+                </div>
+
+                <div className="mt-4 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    onClick={onClose}
+                    disabled={isDeleting} // Disable while deleting
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={onConfirm}
+                    disabled={isDeleting} // Disable while deleting
+                  >
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
         </div>
-      </div>
-    </div>
+      </Dialog>
+    </Transition>
   );
 }
+
 
 export default function AdminProducts() {
   const queryClient = useQueryClient();
@@ -65,25 +104,37 @@ export default function AdminProducts() {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Fetch Products
-  const { data: products, isLoading } = useQuery<Product[]>({
+  const { data: productsResponse, isLoading, isError, error } = useQuery<{ products: Product[] }>({ // Expecting { products: [...] }
     queryKey: ['admin-products'],
     queryFn: async () => {
-      const { data } = await api.get('/products');
-      return data.products; // Assuming API returns { products: [] }
+       const { data } = await api.get('/admin/products'); // Assuming admin product listing route is /admin/products
+       console.log('Admin Products API response:', data);
+        if (!data || !data.data || !data.data.products) {
+           console.error('Invalid Admin Products API response format:', data);
+           throw new Error("Invalid data format from API");
+       }
+       return data.data; // Return data.data which contains { products: [...] }
     },
+     retry: false,
   });
+
+   // Access the products array from the response data
+   const products = productsResponse?.products;
 
   // Delete Mutation
   const deleteMutation = useMutation({
     mutationFn: (productId: string) => {
-      return api.delete(`/products/${productId}`);
+      return api.delete(`/admin/products/${productId}`); // Use admin delete route
     },
     onSuccess: () => {
       toast.success('Product deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-products'] }); // Refetch product list
+       setProductToDelete(null); // Clear the product after deletion
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Failed to delete product');
+       console.error("Delete product error:", error);
+       setProductToDelete(null); // Clear the product on error
     },
   });
 
@@ -93,7 +144,7 @@ export default function AdminProducts() {
   };
 
   const handleConfirmDelete = () => {
-    if (productToDelete) {
+    if (productToDelete && !deleteMutation.isPending) { // Add pending check
       deleteMutation.mutate(productToDelete._id);
     }
   };
@@ -110,8 +161,9 @@ export default function AdminProducts() {
             <p className="mt-2 text-sm text-gray-700">Manage your store's products here.</p>
           </div>
           <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            {/* Placeholder link for adding new product */}
             <Link
-              to="/admin/products/new" // Placeholder link for adding new product
+              to="/admin/products/new"
               className="inline-flex items-center gap-x-1.5 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
                <PlusIcon className="-ml-0.5 h-5 w-5" aria-hidden="true" />
@@ -127,7 +179,11 @@ export default function AdminProducts() {
                 <div className="grid place-items-center py-10">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
                 </div>
-              ) : products && products.length > 0 ? (
+              ) : isError || !products ? ( // Handle error state
+                 <div className="text-center py-12 text-red-600">
+                     Error loading products. {isError ? (error instanceof Error ? error.message : '') : ''}
+                 </div>
+              ) : products.length > 0 ? ( // Check if products array is not empty
                 <table className="min-w-full divide-y divide-gray-300">
                   <thead>
                     <tr>
@@ -145,17 +201,18 @@ export default function AdminProducts() {
                       <tr key={product._id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">{product.name}</td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{product.category}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">${product.price.toFixed(2)}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{product.stock} ({product.inStock ? 'In Stock' : 'Out'})</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">${product.price?.toFixed(2) || '0.00'}</td> {/* Use optional chaining and toFixed */}
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{product.stock} ({product.inStock ? 'In Stock' : 'Out'})</td> {/* Use optional chaining */}
                         <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                           {/* Placeholder link for editing */}
                           <Link to={`/admin/products/edit/${product._id}`} className="text-indigo-600 hover:text-indigo-900 mr-3">
                             <PencilSquareIcon className="h-5 w-5 inline-block"/>
                             <span className="sr-only">, {product.name}</span>
                           </Link>
-                          <button 
+                          <button
                             onClick={() => handleDeleteClick(product)}
-                            className="text-red-600 hover:text-red-900"
-                            disabled={deleteMutation.isPending && productToDelete?._id === product._id}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={deleteMutation.isPending} // Disable while any delete is pending
                           >
                             <TrashIcon className="h-5 w-5 inline-block"/>
                             <span className="sr-only">, {product.name}</span>
@@ -166,7 +223,7 @@ export default function AdminProducts() {
                   </tbody>
                 </table>
               ) : (
-                <div className="text-center py-12">
+                <div className="text-center py-12"> {/* Empty state */}
                   <p className="text-sm text-gray-500">No products found.</p>
                 </div>
               )}
@@ -174,7 +231,7 @@ export default function AdminProducts() {
           </div>
         </div>
       </div>
-      
+
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={isModalOpen}
@@ -182,7 +239,8 @@ export default function AdminProducts() {
         onConfirm={handleConfirmDelete}
         title="Delete Product"
         message={`Are you sure you want to delete "${productToDelete?.name}"? This action cannot be undone.`}
+        isDeleting={deleteMutation.isPending} // Pass pending state to modal
       />
     </>
   );
-} 
+}

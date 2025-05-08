@@ -6,8 +6,9 @@ export default defineConfig(({ mode }) => ({
   plugins: [react(), tsconfigPaths()],
   server: {
     proxy: {
+      // Correct proxy target based on server README
       "/api": {
-        target: "http://localhost:3000", // or your backend port
+        target: "http://localhost:3000", // Match the default PORT in server .env.development.local
         changeOrigin: true,
         secure: false,
       },
@@ -16,19 +17,30 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
     sourcemap: mode === 'development',
-    minify: 'esbuild',
+    minify: 'esbuild', // Ensure esbuild is used for minification
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'mui-vendor': ['@mui/material', '@mui/icons-material'],
-          'utils-vendor': ['axios', '@tanstack/react-query']
-        }
-      }
+        // Improve chunking strategy
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'react-vendor';
+            }
+             if (id.includes('@mui')) {
+               return 'mui-vendor';
+             }
+             if (id.includes('@tanstack/react-query') || id.includes('axios')) {
+               return 'query-axios-vendor';
+             }
+            return 'vendor'; // Catch-all for other node_modules
+          }
+        },
+      },
     }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled']
+    // Explicitly include common deps
+    include: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled', 'axios', '@tanstack/react-query']
   },
   css: {
     devSourcemap: true,

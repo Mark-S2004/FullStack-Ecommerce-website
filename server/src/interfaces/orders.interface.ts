@@ -1,8 +1,26 @@
 import { Types } from 'mongoose'; // Import Types from mongoose
-import { Product } from './products.interface'; // Import Product interface
 
-// Update OrderItem interface to reflect potential product details
+// Define Product interface here if it's not already in a shared file
+// Otherwise, remove this definition and ensure it's imported correctly
+export interface Product {
+  _id?: string;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  category: string;
+  gender: 'Men' | 'Women' | 'Unisex';
+  sizes?: string[]; // Optional sizes array
+  colors?: string[]; // Optional colors array
+  images?: string[]; // Optional images array
+  reviews?: any[]; // Simplified, could use a more specific Review interface
+  totalRating?: number;
+  reviewCount?: number;
+}
+
+
 export interface OrderItem {
+  _id?: string; // Add optional _id for subdocuments
   product: Types.ObjectId | Product; // Can be ObjectId (stored) or populated Product (fetched)
   qty: number;
   price: number; // Store price at time of order for consistency
@@ -24,13 +42,13 @@ export interface ShippingAddress {
 
 export interface Order {
   _id?: string; // Add _id for fetched orders
-  user: Types.ObjectId; // User reference is ObjectId
+  user: Types.ObjectId | { _id: string; name: string }; // User reference is ObjectId, can be populated User
   items: OrderItem[];
-  shippingAddress: ShippingAddress; // Use the new ShippingAddress interface
+  shippingAddress: ShippingAddress; // Use the ShippingAddress interface
   shippingCost: number;
   tax: number;
   total: number;
-  status: 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled'; // Use enum for status
+  status: 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled'; // Use union type for status
   createdAt: Date;
-  orderNumber: string; // Add order number field
+  orderNumber?: string; // Add optional order number field
 }

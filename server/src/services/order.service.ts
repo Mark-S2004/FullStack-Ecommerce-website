@@ -1,16 +1,38 @@
+
 import { HttpException } from '@exceptions/HttpException';
 import orderModel from '@models/order.model';
 import stripe from '../utils/stripe';
 import { calcShipping, calcTax } from '../utils/orderCalculations';
 import { User } from '@interfaces/users.interface'; // Assuming User interface is correct now
 import productModel from '@/models/products.model';
-import { OrderItem } from '@interfaces/orders.interface'; // Import OrderItem interface
+// Correct imports for Order and OrderItem interfaces
+import { Order, OrderItem, ShippingAddress } from '@interfaces/orders.interface'; // Import Order, OrderItem, ShippingAddress
+import { Types } from 'mongoose'; // Import Types for ObjectId
 
-// Assuming the input `cart` is the populated cart from the user model
-export const create = async (userId: string, userCart: User['cart'], shippingAddress: any) => {
+
+export const findAllOrders = async (): Promise<Order[]> => {
+  // Populate user name and product names for easier display
+  return await orderModel.find().populate('user', 'name').populate('items.product', 'name price images');
+};
+
+export const findOrdersByCustomer = async (customerId: string): Promise<Order[]> => {
+   // Validate customerId format
+    if (!Types.ObjectId.isValid(customerId)) {
+       throw new HttpException(400, 'Invalid customer ID format');
+    }
+  // Populate product names within order items
+  return await orderModel.find({ user: customerId }).populate('items.product', 'name price');
+};
+
+// Updated function signature and logic
+export const create = async (userId: string, userCart: OrderItem[], shippingAddress: ShippingAddress): Promise<{ order: Order; sessionUrl: string | null }> => { // Added return type
   if (!userCart || userCart.length === 0) {
-    throw new HttpException(400, 'Cart is empty');
+    throw new HttpException(400, 'Cannot create order from empty cart');
   }
+
+   if (!Types.ObjectId.isValid(userId)) {
+       throw new HttpException(400, 'Invalid user ID format');
+    }
 
   // Recalculate totals on the server side based on current product prices/stock
   // Fetch fresh product data to ensure price/stock is accurate
@@ -20,13 +42,16 @@ export const create = async (userId: string, userCart: User['cart'], shippingAdd
       if (!product) throw new HttpException(404, `Product not found: ${item.product}`);
       // Ensure stock is sufficient
       if (product.stock < item.qty) {
-        throw new HttpException(400, `Not enough stock for ${product.name}. Available: ${product.stock}`);
+        // Revert stock decrement if this is a retry and stock was already decremented
+        // For simplicity, assuming we only decrement once on successful order creation in DB
+         throw new HttpException(400, `Not enough stock for ${product.name}. Available: ${product.stock}`);
       }
-      // Decrement stock *before* creating order (or handle this post-payment)
+      // Decrement stock *before* creating order (or handle this post-payment confirmation)
       // Note: A more robust flow would reserve stock or decrement only on payment confirmation.
       // For simplicity based on the provided code, we'll decrement now.
        product.stock -= item.qty;
        await product.save();
+
       return { product, item };
     })
   );
@@ -35,14 +60,14 @@ export const create = async (userId: string, userCart: User['cart'], shippingAdd
 
   // Assuming country is part of the shippingAddress
   const country = shippingAddress.country || 'US'; // Default to US if not provided
-  const shippingCost = calcShipping(country, userCart as any[]); // Pass cart items to shipping calc
+  const shippingCost = calcShipping(country, userCart as any); // Pass cart items to shipping calc (casting to any due to interface mismatch)
   const tax = calcTax(subtotal);
   const total = subtotal + shippingCost + tax;
 
   // Create the order in your database first
   const order = await orderModel.create({
     user: userId,
-    items: userCart, // Store the cart items as they were
+    items: userCart, // Store the cart items as they were (ObjectIds)
     shippingAddress: shippingAddress, // Store the shipping address object
     shippingCost,
     tax,
@@ -53,30 +78,39 @@ export const create = async (userId: string, userCart: User['cart'], shippingAdd
 
   // Create Stripe Checkout session
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
+    payment_method_types: ['card'], // Or 'cashapp', etc.
     mode: 'payment',
     line_items: productDetails.map(({ product, item }) => ({
       price_data: {
-        currency: 'usd',
+        currency: 'usd', // Ensure currency is correct
         product_data: {
           name: product.name,
-          images: product.images, // Include product images
+          images: product.images && product.images.length > 0 ? [product.images[0]] : [], // Use first image if available
         },
         unit_amount: Math.round(product.price * 100), // Price in cents
       },
       quantity: item.qty,
+       // Optional: add tax_behavior here if needed for line items
     })),
      // Include shipping cost as a line item (optional, but common)
      shipping_options: [{
-        shipping_amount: Math.round(shippingCost * 100), // Shipping in cents
-        shipping_address_collection: { allowed_countries: [country] }, // Limit shipping countries
-        // You might want a more sophisticated shipping setup in a real app
-         tax_behavior: 'inclusive', // Or 'exclusive' depending on your tax setup
-         type: 'fixed_amount',
-         display_name: 'Standard Shipping'
+        // Use shipping_rate_data instead of shipping_amount
+        shipping_rate_data: {
+           type: 'fixed_amount',
+           fixed_amount: {
+             amount: Math.round(shippingCost * 100), // Shipping in cents
+             currency: 'usd', // Ensure currency matches
+           },
+           display_name: 'Standard Shipping',
+            // Optional: add tax_behavior here
+        },
      }],
-     // Add tax rate logic if you have different rates or need to specify tax_id
-     // For a simple flat tax calculated manually, it might just be included in the total price or handled via tax_behavior
+     // You can configure tax_behavior at the session level or line item level
+     // For a simple flat tax already included in the total, you might set this to 'inclusive' or 'none'
+     // depending on your Stripe tax settings and how the tax was calculated.
+     // If tax is applied by Stripe based on destination, you'd configure tax_rates or default_tax_behavior.
+     // tax_id: 'txr_...', // Reference a tax rate configured in Stripe
+     // automatic_tax: { enabled: true }, // Let Stripe calculate tax
 
     success_url: `${process.env.CLIENT_URL}/checkout-success?orderId=${order._id}`,
     cancel_url: `${process.env.CLIENT_URL}/checkout-cancel`,
@@ -88,31 +122,11 @@ export const create = async (userId: string, userCart: User['cart'], shippingAdd
      allow_promotion_codes: true,
   });
 
-   // Important: Clear the user's cart only *after* the order is successfully created in the DB and before redirecting to Stripe
-   // Clearing here ensures the cart is empty if the user completes the Stripe payment.
-   // If the user cancels the Stripe payment, the stock decrement might need to be rolled back.
-   // A more robust system might handle stock updates upon webhook receipt.
-   // For this fix, we'll clear the cart here and decrement stock immediately.
-   // await clearUserCart(userId); // Clear cart is now handled in the controller after session creation
+   // Important: Clearing the user's cart and decrementing stock is handled *before* creating the Stripe session
+   // in this revised logic. A more robust system might do this post-payment confirmation via webhook.
 
 
   return { order, sessionUrl: session.url };
-};
-
-// Updated to fetch populated orders for display (e.g., in admin or profile)
-export const findAllOrders = async (): Promise<Order[]> => {
-  // Populate user name and product names for easier display
-  return await orderModel.find().populate('user', 'name').populate('items.product', 'name price images');
-};
-
-// Updated to fetch populated orders for a specific customer
-export const findOrdersByCustomer = async (customerId: string): Promise<Order[]> => {
-   // Validate customerId format
-    if (!Types.ObjectId.isValid(customerId)) {
-       throw new HttpException(400, 'Invalid customer ID format');
-    }
-  // Populate product names within order items
-  return await orderModel.find({ user: customerId }).populate('items.product', 'name price');
 };
 
 export const updateOrderStatus = async (orderId: string, status: Order['status']): Promise<Order> => { // Use Order['status'] for type safety
@@ -120,8 +134,24 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
    if (!Types.ObjectId.isValid(orderId)) {
        throw new HttpException(400, 'Invalid order ID format');
     }
+  // Validate status
+  const validStatuses: Order['status'][] = ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'];
+  if (!validStatuses.includes(status)) {
+      throw new HttpException(400, `Invalid order status: ${status}`);
+  }
 
   const order = await orderModel.findByIdAndUpdate(orderId, { status }, { new: true, runValidators: true }); // Added runValidators
   if (!order) throw new HttpException(404, 'Order not found');
   return order;
+};
+
+// Dummy function to match original controller import (though not used in updated logic)
+export const findOrderById = async (orderId: string) => {
+    // Implementation to find a single order by ID
+     if (!Types.ObjectId.isValid(orderId)) {
+       throw new HttpException(400, 'Invalid order ID format');
+    }
+    const order = await orderModel.findById(orderId).populate('user', 'name').populate('items.product', 'name price images');
+    if (!order) throw new HttpException(404, 'Order not found');
+    return order;
 };

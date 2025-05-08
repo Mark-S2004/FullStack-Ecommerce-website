@@ -4,6 +4,9 @@ import './index.css'
 import App from './App.tsx'
 import { createTheme, ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
+// import { ToastContainer } from 'react-toastify'; // Removed if using react-hot-toast
+// import 'react-toastify/dist/ReactToastify.css'; // Removed if using react-hot-toast
+
 
 // Create a theme with proper sizing for MUI components
 const theme = createTheme({

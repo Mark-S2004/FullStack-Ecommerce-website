@@ -7,15 +7,17 @@ import {
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import api from '../../lib/axios';
+import { Helmet } from 'react-helmet-async'; // Import Helmet
+
 
 interface DashboardStats {
   totalOrders: number;
   totalRevenue: number;
-  totalCustomers: number;
-  totalProducts: number;
+  totalCustomers: number; // Assuming endpoint provides this
+  totalProducts: number; // Assuming endpoint provides this
   recentOrders: Array<{
     _id: string;
-    orderNumber: string;
+    orderNumber: string; // Assuming this field exists on the order model
     customer: {
       name: string;
     };
@@ -26,23 +28,54 @@ interface DashboardStats {
 }
 
 export default function Dashboard() {
-  const { data: stats, isLoading } = useQuery<DashboardStats>({
+   // Fetch stats from backend admin route
+  const { data: statsResponse, isLoading, isError, error } = useQuery<{ data: DashboardStats }>({ // Expecting { data: { ... } }
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      const { data } = await api.get('/admin/stats');
-      return data;
+       const { data } = await api.get('/admin'); // Assuming the admin dashboard route is just '/admin'
+       console.log('Admin Stats API response:', data);
+        if (!data || !data.data) {
+           console.error('Invalid Admin Stats API response format:', data);
+           throw new Error("Invalid data format from API");
+       }
+       return data; // Return the full data object
     },
+     retry: false, // Prevent retries for auth-gated routes on initial load
   });
+
+   // Access the stats object from the response data
+   const stats = statsResponse?.data;
 
   if (isLoading) {
     return (
-      <div className="grid min-h-screen place-items-center">
+      <div className="grid min-h-[calc(100vh-12rem)] place-items-center"> {/* Adjusted min-height */}
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
       </div>
     );
   }
 
-  if (!stats) return null;
+   // Handle error state
+   if (isError || !stats) {
+     return (
+       <div className="grid min-h-[calc(100vh-12rem)] place-items-center px-4 py-16">
+         <div className="text-center">
+           <h2 className="text-lg font-semibold text-red-700">Error Loading Dashboard</h2>
+           <p className="mt-1 text-gray-500">
+              {isError ? (error instanceof Error ? error.message : 'Failed to load dashboard data.') : 'Dashboard data not available.'}
+           </p>
+            {isError && (
+             <button
+               className="mt-6 inline-block rounded-md bg-indigo-600 px-8 py-3 text-base font-medium text-white hover:bg-indigo-500"
+               onClick={() => window.location.reload()}
+             >
+               Retry Loading
+             </button>
+            )}
+         </div>
+       </div>
+     );
+   }
+
 
   const cards = [
     {
@@ -52,7 +85,7 @@ export default function Dashboard() {
     },
     {
       name: 'Total Revenue',
-      value: `$${stats.totalRevenue.toFixed(2)}`,
+      value: `$${stats.totalRevenue?.toFixed(2) || '0.00'}`, // Use optional chaining and toFixed
       icon: CurrencyDollarIcon,
     },
     {
@@ -68,103 +101,115 @@ export default function Dashboard() {
   ];
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+    <>
+       <Helmet>
+         <title>Admin Dashboard | Store</title>
+       </Helmet>
+       <div>
+         <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
 
-      <dl className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card) => (
-          <div
-            key={card.name}
-            className="relative overflow-hidden rounded-lg bg-white px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6"
-          >
-            <dt>
-              <div className="absolute rounded-md bg-indigo-500 p-3">
-                <card.icon className="h-6 w-6 text-white" aria-hidden="true" />
-              </div>
-              <p className="ml-16 truncate text-sm font-medium text-gray-500">{card.name}</p>
-            </dt>
-            <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
-              <p className="text-2xl font-semibold text-gray-900">{card.value}</p>
-            </dd>
-          </div>
-        ))}
-      </dl>
+         <dl className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+           {cards.map((card) => (
+             <div
+               key={card.name}
+               className="relative overflow-hidden rounded-lg bg-white px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6"
+             >
+               <dt>
+                 <div className="absolute rounded-md bg-indigo-500 p-3">
+                   <card.icon className="h-6 w-6 text-white" aria-hidden="true" />
+                 </div>
+                 <p className="ml-16 truncate text-sm font-medium text-gray-500">{card.name}</p>
+               </dt>
+               <dd className="ml-16 flex items-baseline pb-6 sm:pb-7">
+                 <p className="text-2xl font-semibold text-gray-900">{card.value}</p>
+               </dd>
+             </div>
+           ))}
+         </dl>
 
-      <h2 className="mt-8 text-lg font-medium leading-6 text-gray-900">Recent Orders</h2>
-      <div className="mt-4 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead>
-                <tr>
-                  <th
-                    scope="col"
-                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
-                  >
-                    Order Number
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Customer
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Total
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Status
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {stats.recentOrders.map((order) => (
-                  <tr key={order._id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                      {order.orderNumber}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {order.customer.name}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      ${order.total}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      <span
-                        className={clsx(
-                          'inline-flex rounded-full px-2 text-xs font-semibold leading-5',
-                          {
-                            'bg-green-100 text-green-800': order.status === 'completed',
-                            'bg-yellow-100 text-yellow-800': order.status === 'processing',
-                            'bg-red-100 text-red-800': order.status === 'cancelled',
-                          }
-                        )}
-                      >
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
+         <h2 className="mt-8 text-lg font-medium leading-6 text-gray-900">Recent Orders</h2>
+         <div className="mt-4 flow-root">
+           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                {stats.recentOrders && stats.recentOrders.length > 0 ? (
+                 <table className="min-w-full divide-y divide-gray-300">
+                   <thead>
+                     <tr>
+                       <th
+                         scope="col"
+                         className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
+                       >
+                         Order Number
+                       </th>
+                       <th
+                         scope="col"
+                         className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                       >
+                         Customer
+                       </th>
+                       <th
+                         scope="col"
+                         className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                       >
+                         Total
+                       </th>
+                       <th
+                         scope="col"
+                         className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                       >
+                         Status
+                       </th>
+                       <th
+                         scope="col"
+                         className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                       >
+                         Date
+                       </th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-gray-200">
+                     {stats.recentOrders.map((order) => (
+                       <tr key={order._id}>
+                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                           {order.orderNumber}
+                         </td>
+                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                           {order.customer?.name} {/* Use optional chaining */}
+                         </td>
+                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                           ${order.total?.toFixed(2)} {/* Use optional chaining and toFixed */}
+                         </td>
+                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                           <span
+                             className={clsx(
+                               'inline-flex rounded-full px-2 text-xs font-semibold leading-5',
+                               {
+                                 'bg-green-100 text-green-800': order.status === 'Delivered', // Changed from completed to Delivered
+                                 'bg-yellow-100 text-yellow-800': order.status === 'Processing' || order.status === 'Pending', // Added Pending, Changed from processing
+                                 'bg-blue-100 text-blue-800': order.status === 'Shipped', // Added Shipped
+                                 'bg-red-100 text-red-800': order.status === 'Cancelled',
+                               }
+                             )}
+                           >
+                             {order.status}
+                           </span>
+                         </td>
+                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                           {new Date(order.createdAt).toLocaleDateString()}
+                         </td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               ) : (
+                 <div className="text-center py-12">
+                   <p className="text-sm text-gray-500">No recent orders found.</p>
+                 </div>
+               )}
+             </div>
+           </div>
+         </div>
+       </div>
+    </>
   );
-} 
+}

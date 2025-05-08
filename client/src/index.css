@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 /* Base reset with less aggressive approach */
+/* Tailwind's preflight provides a good base reset when enabled */
+/* Keeping the manual reset below as per original code structure */
 * {
   margin: 0;
   padding: 0;
@@ -11,7 +13,8 @@
 
 html {
   overflow-x: hidden;
-  font-size: 16px;
+  /* base font-size controlled by MUI theme.typography.htmlFontSize (16px by default) */
+  /* font-size: 16px; */ /* Removed this line to avoid conflict with MUI */
   -webkit-text-size-adjust: 100%;
 }
 
@@ -21,11 +24,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   line-height: 1.5;
+  /* Tailwind applies bg-background and text-foreground if the @layer base block is active */
 }
-:root {
+
+/* Remove link underlines and improve link styles */
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  /* Referencing Tailwind color via theme() function */
+  color: theme('colors.primary.DEFAULT');
+}
+
+/* Font Family: Primary font set in html and MUI theme */
+/* :root {
   font-family: 'Inter', sans-serif;
-}
+} */ /* Redundant with html style */
+
 /* Theme variables */
+/* These CSS variables are commented out but potentially referenced by Tailwind config. */
+/* If using Tailwind's color system primarily, you might define these in tailwind.config.js */
+/* Or uncomment these if you intend to use raw CSS variables elsewhere */
+/* Keeping them commented as found, but note the potential styling impact */
+/*
 :root {
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
@@ -70,34 +94,62 @@ body {
   --input: 217.2 32.6% 17.5%;
   --ring: 224.3 76.3% 48%;
 }
+*/
 
-@layer base {
+/* Tailwind Base Layer: Uncomment if you want Tailwind's aggressive reset */
+/* Currently preflight is false in tailwind.config.js, so this layer is not active */
+/* @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
   }
-}
+} */
+
 
 /* MUI Overrides - with higher specificity */
+/* These overrides ensure MUI components respect font-family and basic styling from Tailwind/global styles */
+/* Keep these if MUI components look wrong without them */
 .MuiPaper-root.MuiPaper-root {
   font-family: inherit;
 }
 
 .MuiButton-root.MuiButton-root {
   font-family: inherit;
-  text-transform: none;
+  text-transform: none; /* MUI buttons default to uppercase */
 }
 
 .MuiTypography-root.MuiTypography-root {
   font-family: inherit;
 }
 
+/* Add overrides for other MUI components if needed to match overall theme */
+.MuiInputBase-root.MuiOutlinedInput-root {
+    font-size: 0.875rem; /* Ensure font size matches theme */
+}
+
+.MuiInputBase-input.MuiOutlinedInput-input {
+    padding: 8px 12px; /* Adjust padding */
+}
+
+.MuiFormLabel-root {
+    font-size: 0.875rem; /* Adjust label font size */
+}
+
+.MuiMenuItem-root {
+    font-size: 0.875rem; /* Adjust menu item font size */
+}
+
+.MuiTableCell-root {
+    font-size: 0.875rem; /* Adjust table cell font size */
+}
+
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   html {
-    font-size: 14px;
+    font-size: 14px; /* Smaller base font size on small screens */
   }
   
   .container {
@@ -106,8 +158,19 @@ body {
   }
 }
 
-/* Ensure proper table display */
+/* Ensure proper table display for MUI */
+/* This is a common fix for MUI DataGrid or Table when used within flex/grid containers */
 .MuiTable-root {
   width: 100% !important;
-  display: table !important;
+  display: table !important; /* Ensures table layout */
 }
+
+/* Hide scrollbar for specific elements if desired */
+/* Example: */
+/* .hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+} */
