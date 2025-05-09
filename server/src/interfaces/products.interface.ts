@@ -1,6 +1,7 @@
 import { Review } from './reviews.interface';
+import { Document } from 'mongoose';
 
-export interface Product {
+export interface Product extends Document { 
   _id?: string; // Mongoose assigns _id
   name: string;
   description: string;
