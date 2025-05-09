@@ -57,9 +57,9 @@ async function updateAuthUI() {
 
         // Show/hide admin main nav link based on role
         if (adminLinkLi) {
-            if (user.role === 'admin') {
+        if (user.role === 'admin') {
                 adminLinkLi.classList.remove('d-none');
-            } else {
+        } else {
                 adminLinkLi.classList.add('d-none');
             }
         }
