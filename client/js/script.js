@@ -46,9 +46,9 @@ async function updateAuthUI() {
 
         // Show/hide admin main nav link based on role
         if (adminLinkLi) {
-            if (user.role === 'admin') {
+        if (user.role === 'admin') {
                 adminLinkLi.classList.remove('d-none');
-            } else {
+        } else {
                 adminLinkLi.classList.add('d-none');
             }
         }
@@ -996,8 +996,8 @@ async function renderAdminPage(adminPath, editProductName = null) {
     const adminContentDiv = document.getElementById('adminContent');
     if (!adminContentDiv) {
         console.error('Could not find adminContent div');
-        return;
-    }
+                 return;
+             }
 
     // Check if admin module is loaded
     if (typeof window.AdminUsers === 'undefined' || 
@@ -1010,8 +1010,8 @@ async function renderAdminPage(adminPath, editProductName = null) {
                 <p>The required admin.js file could not be loaded. Please check your network connection or contact support.</p>
             </div>
         `;
-        return;
-    }
+                 return;
+             }
 
     // Delegate rendering to namespaced functions from admin.js
     try {
@@ -1340,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (orderIdFromUrl) {
             handleCheckoutRedirect(orderIdFromUrl, true);
-        } else {
+         } else {
             console.error('No order ID found in success redirect URL');
             appDiv.innerHTML = `
                 <div class="alert alert-warning" role="alert">
@@ -1387,8 +1387,8 @@ async function handleCheckout(event) {
     const cartData = await cartCheckResponse.json();
     if (!cartData.data || cartData.data.length === 0) {
         if(errorDiv) errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
-        return;
-    }
+         return;
+     }
 
     // Calculate shipping based on address
     let shippingCost = 75; // Default
@@ -1443,11 +1443,11 @@ async function handleCheckout(event) {
             sessionStorage.setItem('pendingOrderTotal', total.toFixed(2));
             
             window.location.href = data.sessionUrl;
-        } else {
+         } else {
             console.error('[Checkout] Checkout failed: No session URL received');
             if(errorDiv) errorDiv.textContent = 'Could not initialize payment. Please try again or contact support.';
-        }
-    } catch (error) {
+         }
+     } catch (error) {
         console.error('[Checkout] Checkout error:', error);
         if(errorDiv) errorDiv.textContent = 'An error occurred during checkout.';
     }
@@ -1467,11 +1467,11 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
             });
             
             // Even if verification fails, still show success message based on URL
-            appDiv.innerHTML = `
+       appDiv.innerHTML = `
                 <div class="alert alert-success" role="alert">
                     <h4 class="alert-heading">Order Successful!</h4>
-                    <p>Your order #${orderId} has been placed.</p>
-                    <p>Thank you for your purchase!</p>
+           <p>Your order #${orderId} has been placed.</p>
+           <p>Thank you for your purchase!</p>
                 </div>
                 <p class="mt-3"><a href="#/orders" class="btn btn-primary">View My Orders</a></p>
             `;
@@ -1481,7 +1481,7 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
             sessionStorage.removeItem('pendingOrderTotal');
         } catch (error) {
             console.error('Error handling successful checkout:', error);
-            appDiv.innerHTML = `
+       appDiv.innerHTML = `
                 <div class="alert alert-success" role="alert">
                     <h4 class="alert-heading">Payment Received!</h4>
                     <p>Your payment was successful, but we encountered an error checking your order status.</p>
@@ -1509,7 +1509,7 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
     setTimeout(() => {
         if (isSuccess) {
             window.location.hash = '#/orders';
-        } else {
+} else {
             window.location.hash = '#/cart';
         }
     }, 500);

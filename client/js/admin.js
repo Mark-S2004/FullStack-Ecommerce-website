@@ -57,14 +57,16 @@ const AdminUsers = {
                 // Add event listeners for buttons
                 document.querySelectorAll('.edit-user-btn').forEach(button => {
                     button.addEventListener('click', function() {
-                        alert('Edit user functionality will be implemented later.');
+                        const userId = this.getAttribute('data-user-id');
+                        AdminUsers.renderEditForm(usersListDiv, userId);
                     });
                 });
                 
                 document.querySelectorAll('.delete-user-btn').forEach(button => {
                     button.addEventListener('click', function() {
+                        const userId = this.getAttribute('data-user-id');
                         if (confirm('Are you sure you want to delete this user?')) {
-                            alert('Delete user functionality will be implemented later.');
+                            AdminUsers.deleteUser(userId);
                         }
                     });
                 });
@@ -74,6 +76,121 @@ const AdminUsers = {
         } catch (error) {
             console.error('Error fetching users:', error);
             containerDiv.innerHTML = `<p class="text-danger">Failed to load users: ${error.message}</p>`;
+        }
+    },
+    
+    renderEditForm: async function(containerDiv, userId) {
+        containerDiv.innerHTML = `<h3>Edit User</h3><div id="editUserForm">Loading user details...</div>`;
+        
+        try {
+            const response = await fetch(`${ADMIN_API_BASE_URL}/users/${userId}`, {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('User not found');
+            }
+            
+            const data = await response.json();
+            const user = data.data;
+            
+            const formDiv = document.getElementById('editUserForm');
+            formDiv.innerHTML = `
+                <form id="updateUserForm">
+                    <input type="hidden" id="userId" value="${user._id}">
+                    <div class="mb-3">
+                        <label for="userName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="userName" value="${user.name}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="userEmail" value="${user.email}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userRole" class="form-label">Role</label>
+                        <select class="form-select" id="userRole" required>
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                            <option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Customer</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userPassword" class="form-label">New Password (leave blank to keep current)</label>
+                        <input type="password" class="form-control" id="userPassword">
+                        <div class="form-text">Only fill this if you want to change the user's password</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update User</button>
+                    <button type="button" class="btn btn-secondary" id="cancelEditUserBtn">Cancel</button>
+                </form>
+            `;
+            
+            // Add event listener for form submission
+            document.getElementById('updateUserForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                AdminUsers.updateUser(userId);
+            });
+            
+            // Add event listener for cancel button
+            document.getElementById('cancelEditUserBtn').addEventListener('click', function() {
+                AdminUsers.renderList(containerDiv.parentElement);
+            });
+        } catch (error) {
+            console.error('Error fetching user details:', error);
+            containerDiv.innerHTML = `<p class="text-danger">Failed to load user details: ${error.message}</p>`;
+        }
+    },
+    
+    updateUser: async function(userId) {
+        const userData = {
+            name: document.getElementById('userName').value,
+            email: document.getElementById('userEmail').value,
+            role: document.getElementById('userRole').value
+        };
+        
+        // Only include password in the update if it's provided
+        const password = document.getElementById('userPassword').value;
+        if (password) {
+            userData.password = password;
+        }
+        
+        try {
+            const response = await fetch(`${ADMIN_API_BASE_URL}/users/${userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData),
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                alert('User updated successfully!');
+                AdminUsers.renderList(document.getElementById('adminContent'));
+            } else {
+                alert(`Failed to update user: ${data.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error updating user:', error);
+            alert('An error occurred while updating the user.');
+        }
+    },
+    
+    deleteUser: async function(userId) {
+        try {
+            const response = await fetch(`${ADMIN_API_BASE_URL}/users/${userId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                alert('User deleted successfully!');
+                AdminUsers.renderList(document.getElementById('adminContent'));
+            } else {
+                const data = await response.json();
+                alert(`Failed to delete user: ${data.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            alert('An error occurred while deleting the user.');
         }
     }
 };
@@ -172,6 +289,33 @@ const AdminProducts = {
                     <label for="productPrice" class="form-label">Price</label>
                     <input type="number" class="form-control" id="productPrice" step="0.01" min="0" required>
                 </div>
+                
+                <!-- Discount section -->
+                <div class="card mb-3 border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="discountEnabled">
+                            <label class="form-check-label" for="discountEnabled">Enable Discount</label>
+                        </div>
+                    </div>
+                    <div class="card-body" id="discountSection" style="display: none;">
+                        <div class="mb-3">
+                            <label for="discountPercentage" class="form-label">Discount Percentage (%)</label>
+                            <input type="number" class="form-control" id="discountPercentage" min="0" max="100" step="1" value="0">
+                            <div class="form-text">Enter a percentage between 0-100</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="originalPrice" class="form-label">Original Price ($)</label>
+                            <input type="number" class="form-control" id="originalPrice" step="0.01" min="0">
+                            <div class="form-text">The pre-discount price (shown as strikethrough)</div>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-1"></i> 
+                            When discount is enabled, both prices will be displayed to customers.
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="mb-3">
                     <label for="productStock" class="form-label">Stock</label>
                     <input type="number" class="form-control" id="productStock" min="0" required>
@@ -183,6 +327,52 @@ const AdminProducts = {
                 <button type="submit" class="btn btn-primary">Add Product</button>
                 <a href="#/admin/products" class="btn btn-secondary">Cancel</a>
             </form>
+            
+            <script>
+                // Toggle discount section visibility
+                document.getElementById('discountEnabled').addEventListener('change', function() {
+                    document.getElementById('discountSection').style.display = this.checked ? 'block' : 'none';
+                    
+                    // If discount is disabled, reset values
+                    if (!this.checked) {
+                        document.getElementById('discountPercentage').value = 0;
+                    } else {
+                        // When enabling, set originalPrice to current price if it's empty
+                        if (!document.getElementById('originalPrice').value) {
+                            document.getElementById('originalPrice').value = document.getElementById('productPrice').value;
+                        }
+                    }
+                });
+                
+                // Calculate discount price automatically
+                document.getElementById('discountPercentage').addEventListener('input', function() {
+                    const originalPrice = parseFloat(document.getElementById('originalPrice').value) || 0;
+                    const discountPercent = parseFloat(this.value) || 0;
+                    
+                    if (originalPrice > 0 && discountPercent > 0) {
+                        const discountedPrice = originalPrice * (1 - discountPercent/100);
+                        document.getElementById('productPrice').value = discountedPrice.toFixed(2);
+                    }
+                });
+                
+                document.getElementById('originalPrice').addEventListener('input', function() {
+                    const discountPercent = parseFloat(document.getElementById('discountPercentage').value) || 0;
+                    const originalPrice = parseFloat(this.value) || 0;
+                    
+                    if (originalPrice > 0 && discountPercent > 0) {
+                        const discountedPrice = originalPrice * (1 - discountPercent/100);
+                        document.getElementById('productPrice').value = discountedPrice.toFixed(2);
+                    }
+                });
+                
+                // Set original price to match price when price is entered first
+                document.getElementById('productPrice').addEventListener('input', function() {
+                    if (document.getElementById('discountEnabled').checked) {
+                        return; // Don't update original price when discount is active
+                    }
+                    document.getElementById('originalPrice').value = this.value;
+                });
+            </script>
         `;
         
         // Add event listener for form submission
@@ -225,6 +415,33 @@ const AdminProducts = {
                         <label for="productPrice" class="form-label">Price</label>
                         <input type="number" class="form-control" id="productPrice" step="0.01" min="0" value="${product.price}" required>
                     </div>
+                    
+                    <!-- Discount section -->
+                    <div class="card mb-3 border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="discountEnabled" ${product.discountPercentage > 0 ? 'checked' : ''}>
+                                <label class="form-check-label" for="discountEnabled">Enable Discount</label>
+                            </div>
+                        </div>
+                        <div class="card-body" id="discountSection" ${product.discountPercentage > 0 ? '' : 'style="display: none;"'}>
+                            <div class="mb-3">
+                                <label for="discountPercentage" class="form-label">Discount Percentage (%)</label>
+                                <input type="number" class="form-control" id="discountPercentage" min="0" max="100" step="1" value="${product.discountPercentage || 0}">
+                                <div class="form-text">Enter a percentage between 0-100</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="originalPrice" class="form-label">Original Price ($)</label>
+                                <input type="number" class="form-control" id="originalPrice" step="0.01" min="0" value="${product.originalPrice || product.price}">
+                                <div class="form-text">The pre-discount price (shown as strikethrough)</div>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-1"></i> 
+                                When discount is enabled, both prices will be displayed to customers.
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="mb-3">
                         <label for="productStock" class="form-label">Stock</label>
                         <input type="number" class="form-control" id="productStock" min="0" value="${product.stock}" required>
@@ -236,6 +453,39 @@ const AdminProducts = {
                     <button type="submit" class="btn btn-primary">Update Product</button>
                     <a href="#/admin/products" class="btn btn-secondary">Cancel</a>
                 </form>
+                
+                <script>
+                    // Toggle discount section visibility
+                    document.getElementById('discountEnabled').addEventListener('change', function() {
+                        document.getElementById('discountSection').style.display = this.checked ? 'block' : 'none';
+                        
+                        // If discount is disabled, reset values
+                        if (!this.checked) {
+                            document.getElementById('discountPercentage').value = 0;
+                        }
+                    });
+                    
+                    // Calculate discount price automatically
+                    document.getElementById('discountPercentage').addEventListener('input', function() {
+                        const originalPrice = parseFloat(document.getElementById('originalPrice').value) || 0;
+                        const discountPercent = parseFloat(this.value) || 0;
+                        
+                        if (originalPrice > 0 && discountPercent > 0) {
+                            const discountedPrice = originalPrice * (1 - discountPercent/100);
+                            document.getElementById('productPrice').value = discountedPrice.toFixed(2);
+                        }
+                    });
+                    
+                    document.getElementById('originalPrice').addEventListener('input', function() {
+                        const discountPercent = parseFloat(document.getElementById('discountPercentage').value) || 0;
+                        const originalPrice = parseFloat(this.value) || 0;
+                        
+                        if (originalPrice > 0 && discountPercent > 0) {
+                            const discountedPrice = originalPrice * (1 - discountPercent/100);
+                            document.getElementById('productPrice').value = discountedPrice.toFixed(2);
+                        }
+                    });
+                </script>
             `;
             
             // Add event listener for form submission
@@ -250,6 +500,8 @@ const AdminProducts = {
     },
     
     addProduct: async function() {
+        const discountEnabled = document.getElementById('discountEnabled').checked;
+        
         const productData = {
             name: document.getElementById('productName').value,
             description: document.getElementById('productDescription').value,
@@ -258,6 +510,16 @@ const AdminProducts = {
             stock: parseInt(document.getElementById('productStock').value, 10),
             imageUrl: document.getElementById('productImageUrl').value || undefined
         };
+        
+        // Add discount information if enabled
+        if (discountEnabled) {
+            productData.discountPercentage = parseFloat(document.getElementById('discountPercentage').value) || 0;
+            productData.originalPrice = parseFloat(document.getElementById('originalPrice').value) || productData.price;
+        } else {
+            // If discount is disabled, explicitly set to 0
+            productData.discountPercentage = 0;
+            productData.originalPrice = productData.price;
+        }
         
         try {
             const response = await fetch(`${ADMIN_API_BASE_URL}/products`, {
@@ -282,6 +544,8 @@ const AdminProducts = {
     },
     
     updateProduct: async function(originalName) {
+        const discountEnabled = document.getElementById('discountEnabled').checked;
+        
         const productData = {
             name: document.getElementById('productName').value,
             description: document.getElementById('productDescription').value,
@@ -290,6 +554,16 @@ const AdminProducts = {
             stock: parseInt(document.getElementById('productStock').value, 10),
             imageUrl: document.getElementById('productImageUrl').value || undefined
         };
+        
+        // Add discount information if enabled
+        if (discountEnabled) {
+            productData.discountPercentage = parseFloat(document.getElementById('discountPercentage').value) || 0;
+            productData.originalPrice = parseFloat(document.getElementById('originalPrice').value) || productData.price;
+        } else {
+            // If discount is disabled, explicitly set to 0 to clear any existing discount
+            productData.discountPercentage = 0;
+            productData.originalPrice = productData.price;
+        }
         
         try {
             const response = await fetch(`${ADMIN_API_BASE_URL}/products/${encodeURIComponent(originalName)}`, {
