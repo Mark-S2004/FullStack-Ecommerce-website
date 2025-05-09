@@ -462,9 +462,9 @@ async function renderProductDetailPage(productName) {
                 </div>
                 <div class="mb-3">
                     <label for="reviewComment" class="form-label">Comment</label>
-                    <textarea class="form-control" id="reviewComment" rows="3" tabindex="0" 
-                              required style="pointer-events: auto; user-select: auto;"
-                              placeholder="Enter your review here"></textarea>
+                    <input type="text" class="form-control" id="reviewComment" tabindex="0" 
+                           required style="pointer-events: auto; user-select: auto;"
+                           placeholder="Enter your review here">
                 </div>
                 <button type="submit" class="btn btn-primary">Submit Review</button>
                 <div id="reviewError" class="text-danger mt-2"></div> <!-- General form error -->
@@ -763,64 +763,17 @@ async function handleRemoveFromCart(event) {
     }
 }
 
-// Handles checkout form submission
-async function handleCheckout(event) {
-    event.preventDefault();
-    const shippingAddress = document.getElementById('shippingAddress').value;
-    const errorDiv = document.getElementById('checkoutError');
-    errorDiv.textContent = '';
-
-    if (shippingAddress.trim() === '') {
-        errorDiv.textContent = 'Please enter a shipping address.';
-        return;
-    }
-
-    const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
-    if (!cartCheckResponse.ok) {
-        errorDiv.textContent = 'Could not retrieve cart details for checkout.';
-        console.error('Failed to fetch cart for checkout');
-        return;
-    }
-    const cartData = await cartCheckResponse.json();
-    if (!cartData.data || cartData.data.length === 0) {
-        errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/orders`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: shippingAddress }), // Backend calculates final total
-            credentials: 'include'
-        });
-        const data = await response.json();
-        if (response.ok) {
-            console.log('Order created, redirecting to Stripe:', data.orderId);
-            if (data.sessionUrl) {
-                window.location.href = data.sessionUrl;
-            } else {
-                errorDiv.textContent = 'Order created, but no payment URL received.';
-                alert('Order created, but payment could not be initiated.');
-            }
-        } else {
-            console.error('Checkout failed:', data.message);
-            errorDiv.textContent = data.message || 'Checkout failed. Please try again.';
-        }
-    } catch (error) {
-        console.error('Checkout error:', error);
-        errorDiv.textContent = 'An error occurred during checkout.';
-    }
-}
 
 // Renders the checkout page
 async function renderCheckoutPage() {
+    // Check if user is logged in, redirect if not
     const user = await checkAuth();
     if (!user) {
         renderLoginMessage('Please log in to checkout.');
         return;
     }
 
+    // Fetch the current cart to display summary and ensure it's not empty
     const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
      if (!cartCheckResponse.ok) {
           appDiv.innerHTML = '<p class="text-danger">Failed to load cart for checkout.</p>';
@@ -837,7 +790,7 @@ async function renderCheckoutPage() {
 
     const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
     
-    let shippingCost = 75; 
+    let shippingCost = 75; // Default
     const tempShippingAddressForDisplay = document.getElementById('shippingAddress')?.value || ''; 
     const addressLowerForDisplay = tempShippingAddressForDisplay.toLowerCase();
     if (addressLowerForDisplay.includes('cairo')) {
@@ -846,7 +799,7 @@ async function renderCheckoutPage() {
         shippingCost = 100;
     }
 
-    const tax = subtotal * 0.14; 
+    const tax = subtotal * 0.14; // 14% VAT
     const total = subtotal + shippingCost + tax;
 
     appDiv.innerHTML = `
@@ -887,16 +840,22 @@ async function renderCheckoutPage() {
             } else if (currentAddress.includes('alexandria')) {
                 newShipping = 100;
             }
-            const newTax = subtotal * 0.14;
-            const newTotal = subtotal + newShipping + newTax;
+            const newSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0); // Recalculate subtotal, though it doesn't change here
+            const newTax = newSubtotal * 0.14;
+            const newTotal = newSubtotal + newShipping + newTax;
             
             document.getElementById('checkoutShipping').textContent = `$${newShipping.toFixed(2)}`;
             document.getElementById('checkoutTax').textContent = `$${newTax.toFixed(2)}`;
             document.getElementById('checkoutTotal').textContent = `$${newTotal.toFixed(2)}`;
         });
     }
-
-    document.getElementById('checkoutForm').addEventListener('submit', handleCheckout);
+    // Ensure this ID matches the form ID and handleCheckout is defined in scope
+    const checkoutForm = document.getElementById('checkoutForm');
+    if (checkoutForm) {
+        checkoutForm.addEventListener('submit', handleCheckout);
+    } else {
+        console.error('[Checkout] Checkout form not found, cannot attach submit listener.');
+    }
 }
 
 // Renders the order history page for the logged-in user
@@ -1206,57 +1165,74 @@ async function handleAddToCart(event) {
 }
 
 // Handles adding a review to a product
-async function handleAddReview(event, productName) {
+async function handleAddReview(event, productNameForLookup) {
     event.preventDefault();
-    const ratingInput = document.getElementById('reviewRating'); // This is now the hidden input
+    const ratingInput = document.getElementById('reviewRating');
     const commentInput = document.getElementById('reviewComment');
     const errorDiv = document.getElementById('reviewError');
     const ratingErrorDiv = document.getElementById('ratingError');
-    errorDiv.textContent = '';
-    ratingErrorDiv.textContent = '';
+    if(errorDiv) errorDiv.textContent = '';
+    if(ratingErrorDiv) ratingErrorDiv.textContent = '';
 
     const rating = parseInt(ratingInput.value, 10);
     const comment = commentInput.value;
 
     if (!ratingInput.value || isNaN(rating) || rating < 1 || rating > 5) {
-        ratingErrorDiv.textContent = 'Please select a rating by clicking one of the stars/buttons.';
+        if(ratingErrorDiv) ratingErrorDiv.textContent = 'Please select a rating by clicking one of the buttons.';
         return;
     }
-    if (comment.trim() === '') {
-        errorDiv.textContent = 'Please provide a comment.';
+    if (!comment || comment.trim() === '') {
+        if(errorDiv) errorDiv.textContent = 'Please provide a comment.';
         return;
     }
 
     try {
-        // The API endpoint expects productName for this route
-        const response = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}/reviews`, {
+        // Step 1: Fetch the product by name to get its actual _id
+        console.log('[Review] Fetching product by name:', productNameForLookup);
+        const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productNameForLookup)}`);
+        if (!productResponse.ok) {
+            const err = await productResponse.json().catch(() => ({ message: 'Failed to fetch product before adding review.' }));
+            console.error('[Review] Error fetching product for review:', err.message);
+            if(errorDiv) errorDiv.textContent = `Error finding product: ${err.message}`;
+            return;
+        }
+        const productData = await productResponse.json();
+        if (!productData.data || !productData.data._id) {
+            console.error('[Review] Product data or ID missing after fetch.');
+            if(errorDiv) errorDiv.textContent = 'Could not retrieve product ID.';
+            return;
+        }
+        const actualProductId = productData.data._id;
+        const originalProductName = productData.data.name; // Use the name from the fetched product for re-rendering
+        console.log('[Review] Got product ID:', actualProductId, 'for product name:', originalProductName);
+
+        // Step 2: Submit the review using the actualProductId
+        const reviewResponse = await fetch(`${API_BASE_URL}/products/${actualProductId}/reviews`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ rating, comment }),
-             credentials: 'include' // Authenticated users only
+            credentials: 'include' 
         });
 
-        const data = await response.json();
+        const reviewSubmitData = await reviewResponse.json();
 
-        if (response.ok) {
-            console.log('Review added successfully:', data.data);
+        if (reviewResponse.ok) {
+            console.log('[Review] Review added successfully:', reviewSubmitData.data);
             alert('Review added successfully!');
-            // Re-render the product detail page to show the new review
-            // The product name is data.data.name from the response (updated product)
-            renderProductDetailPage(data.data.name); 
+            renderProductDetailPage(originalProductName); // Re-render with original name to keep URL consistent
         } else {
-             console.error('Add review failed:', data.message);
-            errorDiv.textContent = data.message || 'Failed to add review.';
-            if (response.status === 401) {
+            console.error('[Review] Add review failed:', reviewSubmitData.message);
+            if(errorDiv) errorDiv.textContent = reviewSubmitData.message || 'Failed to add review.';
+            if (reviewResponse.status === 401) {
                 alert('You must be logged in to add a review.');
                 window.location.hash = '#/login';
             }
         }
     } catch (error) {
-        console.error('Add review error:', error);
-        errorDiv.textContent = 'An error occurred while adding the review.';
+        console.error('[Review] General error in handleAddReview:', error);
+        if(errorDiv) errorDiv.textContent = 'An error occurred while adding the review.';
     }
 }
 
@@ -1338,4 +1314,50 @@ if (currentPath.includes('/checkout-success') && orderIdFromUrl) {
 } else {
    // If no specific redirect parameters, render the normal page based on hash
     renderPage(); // Initial page render happens here now
+}
+
+// Make sure handleCheckout is defined
+async function handleCheckout(event) {
+    event.preventDefault();
+    const shippingAddress = document.getElementById('shippingAddress').value;
+    const errorDiv = document.getElementById('checkoutError');
+    if(errorDiv) errorDiv.textContent = '';
+
+    if (shippingAddress.trim() === '') {
+        if(errorDiv) errorDiv.textContent = 'Please enter a shipping address.';
+        return;
+    }
+
+    const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
+    if (!cartCheckResponse.ok) {
+        if(errorDiv) errorDiv.textContent = 'Could not retrieve cart details for checkout.';
+        console.error('[Checkout] Failed to fetch cart for checkout');
+        return;
+    }
+    const cartData = await cartCheckResponse.json();
+    if (!cartData.data || cartData.data.length === 0) {
+        if(errorDiv) errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: shippingAddress }), // Backend will calculate final costs
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (response.ok && data.sessionUrl) {
+            console.log('[Checkout] Order created, redirecting to Stripe:', data.orderId);
+            alert('Redirecting to payment...');
+            window.location.href = data.sessionUrl;
+        } else {
+            console.error('[Checkout] Checkout failed:', data.message || 'No session URL received');
+            if(errorDiv) errorDiv.textContent = data.message || 'Checkout failed. Please try again or contact support.';
+        }
+    } catch (error) {
+        console.error('[Checkout] Checkout error:', error);
+        if(errorDiv) errorDiv.textContent = 'An error occurred during checkout.';
+    }
 }

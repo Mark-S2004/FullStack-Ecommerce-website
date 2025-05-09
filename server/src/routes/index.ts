@@ -3,28 +3,30 @@ import authRoute from './auth.route';
 import usersRoute from './users.route';
 import orderRoute from './order.route';
 import webhookRoute from './webhook.route';
-import { ProductRoute } from './product.route'; // Exporting the class
+import { ProductRoute } from './product.route'; // Corrected import: singular and import class
 import cartRoute from './cart.route';
 import reviewsRoute from './reviews.route';
 import { Routes } from '@interfaces/routes.interface';
 
-// Define an array of route configurations or direct route objects
-// For classes like ProductRoute, we export the class itself or a factory.
-// For simple routes (objects with path & router), we use them directly.
+// Instantiate ProductRoute
+const productRouteInstance = new ProductRoute();
 
-const routeConfigs = [
+// Define an array of route objects with their path, router, and authentication requirement
+const routes: (Routes & { needsAuth?: boolean })[] = [
     // Routes that do NOT require authentication
-    { route: authRoute, needsAuth: false },
-    { route: webhookRoute, needsAuth: false, isWebhook: true }, // Mark webhook for separate handling
-    { routeClass: ProductRoute, needsAuth: false }, // Exporting class for instantiation in app.ts
+    { path: authRoute.path, router: authRoute.router, needsAuth: false },
+    { path: webhookRoute.path, router: webhookRoute.router, needsAuth: false },
+    // Use the instantiated product route for productsRoute
+    { path: productRouteInstance.path, router: productRouteInstance.router, needsAuth: false }, // Make products public
 
     // Routes that DO require authentication
     // Note: Specific methods within a router might still require auth if middleware is applied inside the router file
     // But applying authRequiredMiddleware here means *all* methods on this route need auth
-    { route: usersRoute, needsAuth: true }, // Users (likely admin)
-    { route: orderRoute, needsAuth: true }, // Orders (customer/admin)
-    { route: cartRoute, needsAuth: true }, // Cart (customer)
-    { route: reviewsRoute, needsAuth: true }, // Reviews (customer)
+    { path: usersRoute.path, router: usersRoute.router, needsAuth: true }, // Users (likely admin)
+    { path: orderRoute.path, router: orderRoute.router, needsAuth: true }, // Orders (customer/admin)
+    { path: cartRoute.path, router: cartRoute.router, needsAuth: true }, // Cart (customer)
+    { path: reviewsRoute.path, router: reviewsRoute.router, needsAuth: true }, // Reviews (customer)
 ];
 
-export default routeConfigs;
+// Filter out the webhook route here as it's mounted separately in app.ts
+export default routes.filter(route => route.path !== webhookRoute.path); // Compare paths for filtering
