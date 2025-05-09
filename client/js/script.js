@@ -585,6 +585,13 @@ async function renderProductDetailPage(productName) {
          // Add event listener to the Add Review form (if it exists)
          const addReviewForm = document.getElementById('addReviewForm');
          if (addReviewForm) {
+             // Add hidden input for product ID to make review submission more reliable
+             const productIdInput = document.createElement('input');
+             productIdInput.type = 'hidden';
+             productIdInput.id = 'productId';
+             productIdInput.value = product._id;
+             addReviewForm.appendChild(productIdInput);
+             
              addReviewForm.addEventListener('submit', (e) => handleAddReview(e, product.name));
          }
 
@@ -1358,23 +1365,34 @@ async function handleAddReview(event, productNameForLookup) {
     }
 
     try {
-        // First, get the product data to retrieve the product ID
-        const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productNameForLookup)}`, { 
-            credentials: 'include' 
-        });
+        // Get the hidden product ID from the form or the product detail data directly
+        const productIdInput = document.getElementById('productId');
+        let productId;
         
-        if (!productResponse.ok) {
-            if(errorDiv) errorDiv.textContent = 'Failed to find product. Please try again.';
-            return;
+        if (productIdInput && productIdInput.value) {
+            // Use value from hidden input if available
+            productId = productIdInput.value;
+            console.log('[Review] Using product ID from form:', productId);
+        } else {
+            // Otherwise, fetch product ID by name
+            console.log('[Review] Fetching product ID for name:', productNameForLookup);
+            const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productNameForLookup)}`, { 
+                credentials: 'include' 
+            });
+            
+            if (!productResponse.ok) {
+                if(errorDiv) errorDiv.textContent = 'Failed to find product. Please try again.';
+                return;
+            }
+            
+            const productData = await productResponse.json();
+            productId = productData.data._id;
         }
         
-        const productData = await productResponse.json();
-        const productId = productData.data._id;
-        
-        console.log('[Review] Submitting review for product:', productNameForLookup, 'ID:', productId);
+        console.log('[Review] Submitting review for product ID:', productId);
         console.log('[Review] Review details - Rating:', rating, 'Comment:', comment);
         
-        // Submit the review using product ID instead of name
+        // Submit the review using product ID
         const reviewResponse = await fetch(`${API_BASE_URL}/products/id/${productId}/reviews`, {
             method: 'POST',
             headers: {

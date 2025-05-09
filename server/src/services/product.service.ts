@@ -130,32 +130,46 @@ class ProductService {
 
   // Add review by product ID instead of name
   public async addReviewById(productId: string, userId: string, reviewData: { rating: number; comment: string }): Promise<Product> {
-    const product = await this.findProductById(productId);
-    if (!product) throw new HttpException(404, 'Product not found');
+    console.log('[DEBUG] addReviewById called with productId:', productId, 'type:', typeof productId);
+    
+    try {
+      const product = await this.findProductById(productId);
+      if (!product) {
+        console.log('[DEBUG] Product not found for ID:', productId);
+        throw new HttpException(404, 'Product not found');
+      }
+      
+      console.log('[DEBUG] Product found:', product.name, 'ID:', product._id);
 
-    const alreadyReviewed = product.reviews.some(review => review.user.toString() === userId.toString());
-    if (alreadyReviewed) {
-      throw new HttpException(400, 'You have already reviewed this product');
+      const alreadyReviewed = product.reviews.some(review => review.user.toString() === userId.toString());
+      if (alreadyReviewed) {
+        console.log('[DEBUG] User already reviewed this product. User ID:', userId);
+        throw new HttpException(400, 'You have already reviewed this product');
+      }
+
+      const review = {
+        user: userId,
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        createdAt: new Date(),
+      };
+      
+      console.log('[DEBUG] Adding review:', review);
+
+      product.reviews.push(review);
+      product.reviewCount = product.reviews.length;
+      product.totalRating = product.reviews.reduce((acc, item) => item.rating + acc, 0);
+
+      console.log('[DEBUG] About to save product. Product ID:', product._id, 'Reviews:', product.reviews.length);
+
+      await product.save();
+      console.log('[DEBUG] Product saved successfully with new review');
+      
+      return product;
+    } catch (error) {
+      console.error('[DEBUG] Error in addReviewById:', error.message, error.stack);
+      throw error;
     }
-
-    const review = {
-      user: userId,
-      rating: reviewData.rating,
-      comment: reviewData.comment,
-      createdAt: new Date(),
-    };
-
-    product.reviews.push(review);
-    product.reviewCount = product.reviews.length;
-    product.totalRating = product.reviews.reduce((acc, item) => item.rating + acc, 0);
-
-    // --- BEGIN DIAGNOSTIC LOG ---
-    console.log('[Service/addReviewById] About to save product. Product ID:', product._id, 'Type:', typeof product._id);
-    console.log('[Service/addReviewById] Product object (partial):', { name: product.name, category: product.category, _id: product._id });
-    // --- END DIAGNOSTIC LOG ---
-
-    await product.save();
-    return product;
   }
 
   // Simple review deletion by Admin
