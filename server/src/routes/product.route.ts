@@ -16,48 +16,48 @@ export class ProductRoute implements Routes {
   }
 
   private initializeRoutes() {
-    // GET /api/products (Public, optional filter)
-    this.router.get(`${this.path}`, this.productController.getProducts);
+    // GET /products (Public, optional filter)
+    this.router.get('/', this.productController.getProducts);
 
-    // GET /api/products/meta/categories (Public)
-    this.router.get(`${this.path}/meta/categories`, this.productController.getProductCategories);
+    // GET /products/meta/categories (Public)
+    this.router.get('/meta/categories', this.productController.getProductCategories);
 
-    // GET /api/products/:name (Public)
-    this.router.get(`${this.path}/:name`, this.productController.getProductByName);
+    // GET /products/:name (Public)
+    this.router.get('/:name', this.productController.getProductByName);
 
-    // POST /api/products (Admin only)
+    // POST /products (Admin only)
     this.router.post(
-      `${this.path}`,
+      '/',
       adminRequiredMiddleware,
       validationMiddleware(CreateProductDto, 'body'),
       this.productController.createProduct,
     );
 
-    // PUT /api/products/:name (Admin only)
+    // PUT /products/:name (Admin only)
     this.router.put(
-      `${this.path}/:name`,
+      '/:name',
       adminRequiredMiddleware,
       validationMiddleware(CreateProductDto, 'body', true),
       this.productController.updateProduct,
     );
 
-    // DELETE /api/products/:name (Admin only)
-    this.router.delete(`${this.path}/:name`, adminRequiredMiddleware, this.productController.deleteProduct);
+    // DELETE /products/:name (Admin only)
+    this.router.delete('/:name', adminRequiredMiddleware, this.productController.deleteProduct);
 
     // --- Review Routes ---
 
-    // POST /api/products/:name/reviews (Customer only)
-    this.router.post(`${this.path}/:name/reviews`, authRequiredMiddleware, this.productController.addReview);
+    // POST /products/:name/reviews (Customer only)
+    this.router.post('/:name/reviews', authRequiredMiddleware, this.productController.addReview);
 
-    // DELETE /api/products/:name/reviews/:reviewId (Admin only)
-    this.router.delete(`${this.path}/:name/reviews/:reviewId`, adminRequiredMiddleware, this.productController.deleteReview);
+    // DELETE /products/:name/reviews/:reviewId (Admin only)
+    this.router.delete('/:name/reviews/:reviewId', adminRequiredMiddleware, this.productController.deleteReview);
 
     // --- Discount Routes (Admin only) ---
 
-    // POST /api/products/:name/discount (Admin only)
-    this.router.post(`${this.path}/:name/discount`, adminRequiredMiddleware, this.productController.applyDiscount);
+    // POST /products/:name/discount (Admin only)
+    this.router.post('/:name/discount', adminRequiredMiddleware, this.productController.applyDiscount);
 
-    // DELETE /api/products/:name/discount (Admin only)
-    this.router.delete(`${this.path}/:name/discount`, adminRequiredMiddleware, this.productController.removeDiscount);
+    // DELETE /products/:name/discount (Admin only)
+    this.router.delete('/:name/discount', adminRequiredMiddleware, this.productController.removeDiscount);
   }
 } 
