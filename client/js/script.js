@@ -85,6 +85,7 @@ function handleAuthContainerClick(e) {
         const logoutButton = document.getElementById('logoutButton');
         if (logoutButton) {
             logoutButton.classList.add('disabled');
+            logoutButton.setAttribute('disabled', 'true');
             logoutButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Logging out...';
         }
         
@@ -101,12 +102,20 @@ async function handleLogout() {
     try {
         console.log('Logout requested');
         
-        // Debug the state of the DOM and event
-        console.log('DOM state at logout:', {
-            logoutButton: document.getElementById('logoutButton'),
-            dropdownVisible: document.querySelector('.dropdown-menu.show'),
-            authContainer: document.getElementById('authLinksContainer')
-        });
+        // Disable logoutButton to prevent multiple clicks
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.classList.add('disabled');
+            logoutButton.setAttribute('disabled', 'true');
+            logoutButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Logging out...';
+        }
+        
+        // Remove all event listeners from the auth container to prevent multiple calls
+        const authContainer = document.getElementById('authLinksContainer');
+        if (authContainer) {
+            const clone = authContainer.cloneNode(true);
+            authContainer.parentNode.replaceChild(clone, authContainer);
+        }
         
         const response = await fetch(`${API_BASE_URL}/auth/logout`, { 
             method: 'POST', 
@@ -115,11 +124,15 @@ async function handleLogout() {
         
         if (response.ok) {
             console.log('Logout successful');
-            // No need for alert, just redirect and update UI
-            window.location.hash = '#/login'; 
             
             // Clear any stored user data
             window.currentUserRole = null;
+            
+            // Show one alert message then redirect
+            alert('You have been logged out successfully.');
+            
+            // Use direct URL change instead of hash change to ensure clean state
+            window.location = '#/login';
             
             // Force update auth UI after logout
             setTimeout(() => {
@@ -664,31 +677,63 @@ async function renderCartPage() {
        const cartItems = data.data; // Assuming API returns cart items in 'data'
 
        const cartItemsDiv = document.getElementById('cartItems');
-       cartItemsDiv.innerHTML = ''; // Clear loading message
+       cartItemsDiv.innerHTML = '';
 
        if (cartItems && cartItems.length > 0) {
             let subtotal = 0;
-           cartItems.forEach(item => {
+            
+            // Fetch all product details in parallel for efficiency
+            const productDetailsPromises = cartItems.map(item => 
+                fetch(`${API_BASE_URL}/products/id/${item.product}`)
+                    .then(res => res.ok ? res.json() : { data: null })
+                    .then(data => ({ productData: data.data, cartItem: item }))
+                    .catch(err => {
+                        console.error(`Error fetching product ${item.product}:`, err);
+                        return { productData: null, cartItem: item };
+                    })
+            );
+            
+            const productResults = await Promise.all(productDetailsPromises);
+            
+           for (const result of productResults) {
+                const item = result.cartItem;
+                const product = result.productData;
                 const itemTotal = item.price * item.qty;
                 subtotal += itemTotal;
-               // NOTE: item.product here is likely just the product ID string.
-               // To display product name, you would need to fetch product details or
-               // modify the backend /api/cart endpoint to populate the product data.
+                
+                // Fallback values if product details couldn't be loaded
+                const productName = product ? product.name : "Product";
+                const productImage = product ? product.imageUrl : "https://via.placeholder.com/100x100?text=Product";
+                
                cartItemsDiv.innerHTML += `
                    <div class="card mb-3">
                        <div class="card-body">
-                           <h5 class="card-title">Product ID: ${item.product}</h5> <!-- Enhance later -->
-                           <p class="card-text">Price: $${item.price.toFixed(2)}</p>
-                           <div class="input-group mb-3" style="width: 150px;">
-                               <button class="btn btn-outline-secondary update-qty-btn" type="button" data-product-id="${item.product}" data-delta="-1">-</button>
-                               <input type="number" class="form-control text-center cart-qty-input" value="${item.qty}" min="1" data-product-id="${item.product}">
-                               <button class="btn btn-outline-secondary update-qty-btn" type="button" data-product-id="${item.product}" data-delta="1">+</button>
+                           <div class="row align-items-center">
+                               <div class="col-md-2 col-sm-3 mb-2 mb-md-0">
+                                   <img src="${productImage}" alt="${productName}" class="img-fluid rounded" style="max-height: 80px;">
+                               </div>
+                               <div class="col-md-4 col-sm-9 mb-2 mb-md-0">
+                                   <h5 class="card-title">${productName}</h5>
+                                   <p class="card-text">Price: $${item.price.toFixed(2)}</p>
+                               </div>
+                               <div class="col-md-3 col-sm-6">
+                                   <div class="input-group mb-3" style="width: 150px;">
+                                       <button class="btn btn-outline-secondary update-qty-btn" type="button" data-product-id="${item.product}" data-delta="-1">-</button>
+                                       <input type="number" class="form-control text-center cart-qty-input" value="${item.qty}" min="1" data-product-id="${item.product}">
+                                       <button class="btn btn-outline-secondary update-qty-btn" type="button" data-product-id="${item.product}" data-delta="1">+</button>
+                                   </div>
+                               </div>
+                               <div class="col-md-2 col-sm-6 text-end">
+                                   <p class="fw-bold">$${itemTotal.toFixed(2)}</p>
+                               </div>
+                               <div class="col-md-1 col-sm-12 text-md-end">
+                                   <button class="btn btn-sm btn-danger remove-from-cart-btn" data-product-id="${item.product}">×</button>
+                               </div>
                            </div>
-                            <button class="btn btn-danger remove-from-cart-btn" data-product-id="${item.product}">Remove</button>
                        </div>
                    </div>
                `;
-           });
+           }
 
             // Add event listeners for the quantity buttons and input changes
            document.querySelectorAll('.update-qty-btn').forEach(button => {
@@ -912,7 +957,7 @@ async function renderOrderHistoryPage(userId) {
     // Show loading message
     appDiv.innerHTML = '<h2>My Orders</h2><div id="orderList">Loading orders...</div>';
 
-     // Check if user is logged in (already done in renderPage, but defensive)
+    // Check if user is logged in (already done in renderPage, but defensive)
     const user = await checkAuth();
     if (!user) {
         renderLoginMessage('Please log in to view your orders.');
@@ -922,59 +967,115 @@ async function renderOrderHistoryPage(userId) {
     try {
         // Fetch orders for the current user from the backend API (requires authentication)
         const response = await fetch(`${API_BASE_URL}/orders/customer`, { credentials: 'include' });
-         if (!response.ok) {
-              // Handle authentication required specifically for order history
+        if (!response.ok) {
+            // Handle authentication required specifically for order history
             if (response.status === 401) {
-                 renderLoginMessage('Please log in to view your orders.');
-                 return;
+                renderLoginMessage('Please log in to view your orders.');
+                return;
             }
-              throw new Error(`Failed to fetch orders: ${response.statusText}`);
-          }
+            throw new Error(`Failed to fetch orders: ${response.statusText}`);
+        }
         const data = await response.json();
         const orders = data.data; // Assuming API returns orders in 'data'
 
         const orderListDiv = document.getElementById('orderList');
-        orderListDiv.innerHTML = ''; // Clear loading message
+        orderListDiv.innerHTML = '';
 
         // Check if orders were returned
         if (orders && orders.length > 0) {
+            // First, collect all unique product IDs across all orders
+            const allProductIds = new Set();
+            orders.forEach(order => {
+                order.items.forEach(item => {
+                    allProductIds.add(item.product);
+                });
+            });
+            
+            // Fetch all product details in one go for efficiency
+            const productDetailsMap = {};
+            await Promise.all(Array.from(allProductIds).map(async (productId) => {
+                try {
+                    const productResponse = await fetch(`${API_BASE_URL}/products/id/${productId}`);
+                    if (productResponse.ok) {
+                        const productData = await productResponse.json();
+                        productDetailsMap[productId] = productData.data;
+                    }
+                } catch (error) {
+                    console.error(`Error fetching product ${productId}:`, error);
+                }
+            }));
+            
             // Iterate through orders and create HTML for each
             orders.forEach(order => {
-                let itemsHtml = '<ul>';
+                let itemsHtml = '<ul class="list-group">';
                 // List items in the order
                 order.items.forEach(item => {
-                    // Again, product details are not populated here. Displaying ID.
-                    itemsHtml += `<li>Product ID: ${item.product} (Qty: ${item.qty}, Price: $${item.price.toFixed(2)})</li>`;
+                    // Get product name from the map, or use ID if not found
+                    const product = productDetailsMap[item.product];
+                    const productName = product ? product.name : `Unknown Product (ID: ${item.product})`;
+                    
+                    itemsHtml += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold">${productName}</span>
+                                <br><small>Quantity: ${item.qty}</small>
+                            </div>
+                            <span>$${item.price.toFixed(2)}</span>
+                        </li>
+                    `;
                 });
                 itemsHtml += '</ul>';
 
+                // Format date nicely with options
+                const orderDate = new Date(order.createdAt);
+                const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const formattedDate = orderDate.toLocaleDateString(undefined, dateOptions);
+
                 // Display order details
                 orderListDiv.innerHTML += `
-                    <div class="card mb-3">
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between">
+                            <h5 class="mb-0">Order #${order._id}</h5>
+                            <span class="badge ${getStatusBadgeClass(order.status)}">${order.status}</span>
+                        </div>
                         <div class="card-body">
-                            <h5 class="card-title">Order #${order._id}</h5>
-                            <p class="card-text">Status: <strong>${order.status}</strong></p>
-                            <p class="card-text">Total: $${order.total.toFixed(2)}</p>
-                            <p class="card-text">Shipping Address: ${order.shippingAddress}</p>
-                            <p class="card-text">Items:</p>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Date:</strong> ${formattedDate}</p>
+                                    <p class="mb-1"><strong>Shipping Address:</strong> ${order.shippingAddress}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Subtotal:</strong> $${(order.total - order.shippingCost - order.tax).toFixed(2)}</p>
+                                    <p class="mb-1"><strong>Shipping:</strong> $${order.shippingCost.toFixed(2)}</p>
+                                    <p class="mb-1"><strong>Tax:</strong> $${order.tax.toFixed(2)}</p>
+                                    <p class="mb-0"><strong>Total:</strong> $${order.total.toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <h6>Items:</h6>
                             ${itemsHtml}
-                            <small>Ordered on: ${new Date(order.createdAt).toLocaleDateString()}</small>
-                            <!-- Optional: Button to view detailed order information -->
-                            <!-- <button class="btn btn-sm btn-info view-order-details" data-order-id="${order._id}">Details</button> -->
                         </div>
                     </div>
                 `;
             });
-             // Add event listeners for any buttons added above (e.g., view details)
-            // document.querySelectorAll('.view-order-details').forEach(...)
         } else {
             // Display message if no orders found
-            orderListDiv.innerHTML = '<p>You have no orders yet.</p>';
+            orderListDiv.innerHTML = '<div class="alert alert-info">You have no orders yet.</div>';
         }
-
     } catch (error) {
         console.error('Error fetching order history:', error);
         appDiv.innerHTML = '<p class="text-danger">Failed to load order history.</p>';
+    }
+}
+
+// Helper function to get the appropriate badge class based on order status
+function getStatusBadgeClass(status) {
+    switch(status) {
+        case 'Pending': return 'bg-warning text-dark';
+        case 'Confirmed': return 'bg-info text-dark';
+        case 'Shipped': return 'bg-primary';
+        case 'Delivered': return 'bg-success';
+        case 'Cancelled': return 'bg-danger';
+        default: return 'bg-secondary';
     }
 }
 
@@ -1003,11 +1104,11 @@ async function renderAdminPage(adminPath, editProductName = null) {
     if (typeof window.AdminUsers === 'undefined' || 
         typeof window.AdminProducts === 'undefined' || 
         typeof window.AdminOrders === 'undefined') {
-        console.error('Admin module not loaded. Make sure admin.js is included in your HTML.');
+        console.error('Admin modules not loaded. Make sure the admin module files from the js/admin/ directory are included in your HTML.');
         adminContentDiv.innerHTML = `
             <div class="alert alert-danger">
                 <h4>Admin Module Missing</h4>
-                <p>The required admin.js file could not be loaded. Please check your network connection or contact support.</p>
+                <p>The required admin module files could not be loaded. Please check your network connection or contact support.</p>
             </div>
         `;
                  return;
@@ -1249,12 +1350,24 @@ async function handleAddReview(event, productNameForLookup) {
     }
 
     try {
-        // Important: We'll submit directly to the product name endpoint which is the format the backend expects
-        console.log('[Review] Submitting review for product:', productNameForLookup);
+        // First, get the product data to retrieve the product ID
+        const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productNameForLookup)}`, { 
+            credentials: 'include' 
+        });
+        
+        if (!productResponse.ok) {
+            if(errorDiv) errorDiv.textContent = 'Failed to find product. Please try again.';
+            return;
+        }
+        
+        const productData = await productResponse.json();
+        const productId = productData.data._id;
+        
+        console.log('[Review] Submitting review for product:', productNameForLookup, 'ID:', productId);
         console.log('[Review] Review details - Rating:', rating, 'Comment:', comment);
         
-        // Submit the review directly to the /:name/reviews endpoint
-        const reviewResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productNameForLookup)}/reviews`, {
+        // Submit the review using product ID
+        const reviewResponse = await fetch(`${API_BASE_URL}/products/${productId}/reviews`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

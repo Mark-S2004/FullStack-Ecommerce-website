@@ -56,27 +56,40 @@ export const create = async (userId: string, cart: OrderItem[], address: string)
         product_data: {
           name: product.name,
         },
-        // Stripe unit_amount should be the price of the item itself.
-        // Tax and shipping are part of the overall order total managed by our system.
-        // If Stripe is to calculate tax/shipping, it needs different setup (tax_rates, shipping_options).
         unit_amount: Math.round(item.price * 100), // Use item.price from cart, which is product's base price
       },
       quantity: item.qty,
     })),
-    // The success_url and cancel_url are already updated
+    // Add shipping and tax as separate line items for better transparency
+    shipping_options: [
+      {
+        shipping_rate_data: {
+          display_name: 'Shipping fee',
+          type: 'fixed_amount',
+          fixed_amount: {
+            amount: Math.round(shippingCost * 100),
+            currency: 'usd',
+          },
+        },
+      },
+    ],
+    // Add tax details
+    tax_rates: [
+      {
+        display_name: 'VAT (14%)',
+        inclusive: false,
+        percentage: 14,
+      },
+    ],
     success_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-success?orderId=${order._id}`,
     cancel_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-cancel`,
     metadata: {
       orderId: order._id.toString(),
+      total: total.toFixed(2),
+      subtotal: subtotal.toFixed(2),
+      shipping: shippingCost.toFixed(2),
+      tax: tax.toFixed(2)
     },
-    // To pass the total amount if line_items don't sum up to it (e.g. due to server-calculated tax/shipping):
-    // This isn't the standard way for Checkout with line_items, usually you'd add tax/shipping as separate line items or use Stripe Tax.
-    // However, if we want to ensure Stripe charges the *exact* server-calculated total and line_items are just descriptive:
-    // We might need to create a Price object for the *total amount* if using PaymentIntents directly, 
-    // or ensure line_items correctly sum up, or use a single line_item representing the total.
-    // For now, line_items are based on product prices. The Order Total includes tax/shipping.
-    // Stripe may show subtotal of line items and then allow adding tax/shipping at its end if not configured here.
-    // Let's ensure the order.total is the source of truth for what the user should pay.
   });
 
   return { order, sessionUrl: session.url };
