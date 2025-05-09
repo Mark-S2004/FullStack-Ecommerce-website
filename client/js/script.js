@@ -2040,7 +2040,8 @@ async function handleCheckout(event) {
         const response = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: shippingAddress }),
+            // Ensure ONLY address is sent, as per DTO
+            body: JSON.stringify({ address: shippingAddress }), 
             credentials: 'include'
         });
         
