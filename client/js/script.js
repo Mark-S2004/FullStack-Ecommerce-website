@@ -225,6 +225,13 @@ async function renderPage() {
             } else {
                 renderLoginMessage('Please log in to view your orders.');
             }
+        } else if (hash === '#/profile') {
+            const user = await checkAuth();
+            if (user) {
+                renderUserProfilePage(user);
+            } else {
+                renderLoginMessage('Please log in to view your profile.');
+            }
         } else if (hash.startsWith('#/admin')) {
             const user = await checkAuth();
             if (user && user.role === 'admin') {
@@ -607,20 +614,20 @@ async function renderProductDetailPage(productName) {
         if (cartItemQuantity > 0) {
             cartInteractionHtml = `
                 <div class="cart-quantity-control">
-                    <div class="input-group">
-                        <button class="btn btn-outline-secondary decrement-quantity" 
+                    <div class="input-group mb-3">
+                        <button class="btn btn-outline-primary decrement-quantity" 
                             data-product-id="${product._id}" 
                             ${cartItemQuantity <= 1 ? 'disabled' : ''}>−</button>
                         <input type="number" class="form-control text-center product-quantity" 
-                            value="${cartItemQuantity}" min="0" max="${product.stock}" readonly>
-                        <button class="btn btn-outline-secondary increment-quantity" 
+                            value="${cartItemQuantity}" min="1" max="${product.stock}" readonly>
+                        <button class="btn btn-outline-primary increment-quantity" 
                             data-product-id="${product._id}"
                             ${cartItemQuantity >= product.stock ? 'disabled' : ''}>+</button>
                     </div>
-                    <div class="mt-2">
-                        <button class="btn btn-danger w-100 remove-from-cart" 
-                            data-product-id="${product._id}">Remove from Cart</button>
-                    </div>
+                    <button class="btn btn-danger w-100 remove-from-cart" 
+                        data-product-id="${product._id}">
+                        <i class="fas fa-trash-alt me-1"></i>Remove from Cart
+                    </button>
                 </div>
             `;
         } else {
@@ -628,6 +635,7 @@ async function renderProductDetailPage(productName) {
                 <button class="btn btn-primary add-to-cart-btn" 
                     data-product-name="${product.name}" 
                     ${product.stock <= 0 ? 'disabled' : ''}>
+                    <i class="fas fa-shopping-cart me-1"></i>
                     ${product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
                 </button>
             `;
@@ -636,24 +644,22 @@ async function renderProductDetailPage(productName) {
         // For product details page, update price display
         let priceDetailHtml = `$${product.price.toFixed(2)}`;
         if (product.discountPercentage && product.discountPercentage > 0 && product.originalPrice) {
-            priceDetailHtml = `<span class="text-danger">$${product.price.toFixed(2)}</span> <small class="text-muted text-decoration-line-through">$${product.originalPrice.toFixed(2)}</small>`;
+            priceDetailHtml = `<span class="text-danger fs-4">$${product.price.toFixed(2)}</span> 
+                              <span class="text-muted text-decoration-line-through ms-2">$${product.originalPrice.toFixed(2)}</span>
+                              <span class="badge bg-danger ms-2">-${product.discountPercentage}%</span>`;
         }
 
         // Render the product details
         appDiv.innerHTML = `
             <div class="row product-detail">
                 <div class="col-md-5">
-                    <img src="${product.imageUrl || 'https://via.placeholder.com/400?text=Product+Image'}" class="img-fluid" alt="${product.name}">
+                    <img src="${product.imageUrl || 'https://via.placeholder.com/400?text=Product+Image'}" class="img-fluid rounded mb-3" alt="${product.name}">
                 </div>
                 <div class="col-md-7">
                     <h2>${product.name}</h2>
                     <p class="text-muted">${product.category}</p>
-                    <div class="fs-4 mb-3">
-                        ${product.discountPercentage > 0 ? 
-                            `<span class="text-decoration-line-through text-muted me-2">$${product.originalPrice.toFixed(2)}</span>
-                             <span class="text-danger fw-bold">$${product.price.toFixed(2)}</span>
-                             <span class="badge bg-danger ms-2">-${product.discountPercentage}%</span>` 
-                           : `<span class="fw-bold">$${product.price.toFixed(2)}</span>`}
+                    <div class="mb-3">
+                        ${priceDetailHtml}
                     </div>
                     <p>${product.description}</p>
                     
@@ -665,7 +671,9 @@ async function renderProductDetailPage(productName) {
                                 : `<span class="text-danger"><i class="fas fa-times-circle"></i> Out of Stock</span>`}
                     </div>
                     
-                    ${cartInteractionHtml}
+                    <div id="cartControls">
+                        ${cartInteractionHtml}
+                    </div>
                 </div>
             </div>
             
@@ -684,7 +692,24 @@ async function renderProductDetailPage(productName) {
         // Add event listener to the "Add to Cart" button (if it exists)
         const addToCartBtn = appDiv.querySelector('.add-to-cart-btn');
         if (addToCartBtn) {
-            addToCartBtn.addEventListener('click', handleAddToCart);
+            addToCartBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                // Show processing state
+                const originalText = addToCartBtn.innerHTML;
+                addToCartBtn.disabled = true;
+                addToCartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+                
+                try {
+                    await handleAddToCart(e);
+                    
+                    // Refresh the product page to show updated cart controls
+                    renderProductDetailPage(productName);
+                } catch (error) {
+                    console.error('Error adding to cart:', error);
+                    addToCartBtn.disabled = false;
+                    addToCartBtn.innerHTML = originalText;
+                }
+            });
         }
         
         // Add event listeners for the cart quantity controls
@@ -700,6 +725,10 @@ async function renderProductDetailPage(productName) {
                 
                 if (newQty <= product.stock) {
                     try {
+                        // Disable buttons during update
+                        incrementBtn.disabled = true;
+                        decrementBtn.disabled = true;
+                        
                         const response = await fetch(`${API_BASE_URL}/cart`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
@@ -709,18 +738,19 @@ async function renderProductDetailPage(productName) {
                         
                         if (response.ok) {
                             quantityInput.value = newQty;
-                            // Disable increment button if at max stock
-                            if (newQty >= product.stock) {
-                                incrementBtn.setAttribute('disabled', 'true');
-                            }
-                            // Enable decrement button
-                            decrementBtn.removeAttribute('disabled');
+                            // Enable buttons based on new quantity
+                            decrementBtn.disabled = false;
+                            incrementBtn.disabled = newQty >= product.stock;
                         } else {
                             console.error('Failed to update cart');
+                            alert('Failed to update quantity');
                         }
                     } catch (error) {
                         console.error('Error updating cart:', error);
+                        alert('Error updating quantity');
                     }
+                } else {
+                    alert(`Sorry, only ${product.stock} items available in stock.`);
                 }
             });
         }
@@ -730,6 +760,10 @@ async function renderProductDetailPage(productName) {
                 const productId = e.target.dataset.productId;
                 const quantityInput = appDiv.querySelector('.product-quantity');
                 const newQty = parseInt(quantityInput.value) - 1;
+                
+                // Disable buttons during update
+                incrementBtn.disabled = true;
+                decrementBtn.disabled = true;
                 
                 if (newQty >= 1) {
                     try {
@@ -742,17 +776,38 @@ async function renderProductDetailPage(productName) {
                         
                         if (response.ok) {
                             quantityInput.value = newQty;
-                            // Enable increment button
-                            incrementBtn.removeAttribute('disabled');
-                            // Disable decrement button if at 1
-                            if (newQty <= 1) {
-                                decrementBtn.setAttribute('disabled', 'true');
-                            }
+                            // Enable increment button since we decreased
+                            incrementBtn.disabled = false;
+                            // Disable decrement button if we're at 1
+                            decrementBtn.disabled = newQty <= 1;
                         } else {
                             console.error('Failed to update cart');
+                            alert('Failed to update quantity');
                         }
                     } catch (error) {
                         console.error('Error updating cart:', error);
+                        alert('Error updating quantity');
+                    }
+                } else if (newQty === 0) {
+                    // If quantity would be 0, remove from cart entirely
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
+                            method: 'DELETE',
+                            credentials: 'include'
+                        });
+                        
+                        if (response.ok) {
+                            // Refresh product page to show "Add to Cart" button
+                            renderProductDetailPage(productName);
+                        } else {
+                            console.error('Failed to remove from cart');
+                            alert('Failed to remove from cart');
+                            decrementBtn.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error('Error removing from cart:', error);
+                        alert('Error removing from cart');
+                        decrementBtn.disabled = false;
                     }
                 }
             });
@@ -760,7 +815,11 @@ async function renderProductDetailPage(productName) {
         
         if (removeBtn) {
             removeBtn.addEventListener('click', async (e) => {
-                const productId = e.target.dataset.productId;
+                const productId = e.target.closest('.remove-from-cart').dataset.productId;
+                
+                // Disable the button during processing
+                removeBtn.disabled = true;
+                removeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
                 
                 try {
                     const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
@@ -769,13 +828,19 @@ async function renderProductDetailPage(productName) {
                     });
                     
                     if (response.ok) {
-                        // Refresh the page to show "Add to Cart" button again
+                        // Refresh the page to show "Add to Cart" button
                         renderProductDetailPage(productName);
                     } else {
                         console.error('Failed to remove from cart');
+                        alert('Failed to remove from cart');
+                        removeBtn.disabled = false;
+                        removeBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Remove from Cart';
                     }
                 } catch (error) {
                     console.error('Error removing from cart:', error);
+                    alert('Error removing from cart');
+                    removeBtn.disabled = false;
+                    removeBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Remove from Cart';
                 }
             });
         }
@@ -1710,48 +1775,52 @@ async function handleCheckout(event) {
         return;
     }
 
-    const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
-    if (!cartCheckResponse.ok) {
-        if(errorDiv) errorDiv.textContent = 'Could not retrieve cart details for checkout.';
-        console.error('[Checkout] Failed to fetch cart for checkout');
-        return;
-    }
-    const cartData = await cartCheckResponse.json();
-    if (!cartData.data || cartData.data.length === 0) {
-        if(errorDiv) errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
-         return;
-     }
-
-    // Calculate shipping based on address
-    let shippingCost = 75; // Default
-    const addressLower = shippingAddress.toLowerCase();
-    if (addressLower.includes('cairo')) {
-        shippingCost = 50;
-    } else if (addressLower.includes('alexandria')) {
-        shippingCost = 100;
-    }
-    
-    // Calculate subtotal
-    const subtotal = cartData.data.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const tax = subtotal * 0.14; // 14% VAT
-    const total = subtotal + shippingCost + tax;
-
-    console.log('[Checkout] Order summary:', {
-        subtotal: subtotal,
-        shipping: shippingCost,
-        tax: tax,
-        total: total,
-        address: shippingAddress
-    });
+    // Show processing indicator
+    const submitButton = event.target.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
     try {
+        const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
+        if (!cartCheckResponse.ok) {
+            if(errorDiv) errorDiv.textContent = 'Could not retrieve cart details for checkout.';
+            console.error('[Checkout] Failed to fetch cart for checkout');
+            return;
+        }
+        const cartData = await cartCheckResponse.json();
+        if (!cartData.data || cartData.data.length === 0) {
+            if(errorDiv) errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
+            return;
+        }
+
+        // Calculate shipping based on address
+        let shippingCost = 75; // Default
+        const addressLower = shippingAddress.toLowerCase();
+        if (addressLower.includes('cairo')) {
+            shippingCost = 50;
+        } else if (addressLower.includes('alexandria')) {
+            shippingCost = 100;
+        }
+        
+        // Calculate subtotal
+        const subtotal = cartData.data.reduce((sum, item) => sum + item.price * item.qty, 0);
+        const tax = subtotal * 0.14; // 14% VAT
+        const total = subtotal + shippingCost + tax;
+
+        console.log('[Checkout] Order summary:', {
+            subtotal: subtotal,
+            shipping: shippingCost,
+            tax: tax,
+            total: total,
+            address: shippingAddress
+        });
+
         // Send only the address to the backend; let the server calculate shipping, tax, and total
         const response = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                address: shippingAddress
-            }),
+            body: JSON.stringify({ address: shippingAddress }),
             credentials: 'include'
         });
         
@@ -1759,26 +1828,39 @@ async function handleCheckout(event) {
             const errorData = await response.json().catch(() => ({ message: 'Unknown error occurred' }));
             console.error('[Checkout] Checkout failed:', errorData.message);
             if(errorDiv) errorDiv.textContent = errorData.message || 'Checkout failed. Please try again or contact support.';
+            
+            // Reset button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
             return;
         }
         
         const data = await response.json();
         if (data.sessionUrl) {
             console.log('[Checkout] Order created, redirecting to Stripe:', data.orderId);
-            alert('Redirecting to payment...');
             
             // Store order details in sessionStorage before redirect (helps with recovery)
             sessionStorage.setItem('pendingOrderId', data.orderId);
             sessionStorage.setItem('pendingOrderTotal', total.toFixed(2));
             
+            // Alert user before redirect
+            alert('Redirecting to payment gateway...');
             window.location.href = data.sessionUrl;
-         } else {
+        } else {
             console.error('[Checkout] Checkout failed: No session URL received');
             if(errorDiv) errorDiv.textContent = 'Could not initialize payment. Please try again or contact support.';
-         }
-     } catch (error) {
+            
+            // Reset button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    } catch (error) {
         console.error('[Checkout] Checkout error:', error);
         if(errorDiv) errorDiv.textContent = 'An error occurred during checkout.';
+        
+        // Reset button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
     }
 }
 
@@ -1855,3 +1937,236 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
 
 // Expose API_BASE_URL to the window for admin.js to access
 window.API_BASE_URL = API_BASE_URL;
+
+// Renders user profile page with editable fields
+async function renderUserProfilePage(user) {
+    appDiv.innerHTML = '<h2>Your Profile</h2><div id="profileContainer">Loading profile data...</div>';
+    
+    try {
+        // Get latest user data
+        const response = await fetch(`${API_BASE_URL}/auth/me`, { 
+            credentials: 'include' 
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch user data');
+        }
+        
+        const userData = await response.json();
+        
+        // Create the profile form
+        const profileContainer = document.getElementById('profileContainer');
+        profileContainer.innerHTML = `
+            <div class="row">
+                <div class="col-md-8 mx-auto">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-user-circle me-2"></i>Profile Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="profileForm" class="needs-validation" novalidate>
+                                <div class="mb-3">
+                                    <label for="profileName" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="profileName" value="${userData.name || ''}" required>
+                                    <div class="invalid-feedback">Please provide your name.</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="profileEmail" class="form-label">Email address</label>
+                                    <input type="email" class="form-control" id="profileEmail" value="${userData.email}" required>
+                                    <div class="invalid-feedback">Please provide a valid email address.</div>
+                                </div>
+                                <hr>
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="currentPassword">
+                                    <div class="form-text">Leave password fields empty if you don't want to change your password.</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="newPassword">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirmPassword">
+                                    <div class="invalid-feedback" id="passwordMismatch">Passwords don't match.</div>
+                                </div>
+                                <div id="profileError" class="alert alert-danger d-none"></div>
+                                <div id="profileSuccess" class="alert alert-success d-none"></div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>Save Changes
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-shopping-bag me-2"></i>Quick Links</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="#/orders" class="btn btn-outline-primary">
+                                    <i class="fas fa-box me-2"></i>View Your Orders
+                                </a>
+                                <a href="#/cart" class="btn btn-outline-primary">
+                                    <i class="fas fa-shopping-cart me-2"></i>View Your Cart
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add event listener for form submission
+        const profileForm = document.getElementById('profileForm');
+        if (profileForm) {
+            profileForm.addEventListener('submit', handleUpdateProfile);
+        }
+        
+        // Add password confirmation validation
+        const newPasswordInput = document.getElementById('newPassword');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        
+        if (newPasswordInput && confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('input', function() {
+                if (newPasswordInput.value && this.value && this.value !== newPasswordInput.value) {
+                    this.setCustomValidity('Passwords do not match');
+                    document.getElementById('passwordMismatch').style.display = 'block';
+                } else {
+                    this.setCustomValidity('');
+                    document.getElementById('passwordMismatch').style.display = 'none';
+                }
+            });
+            
+            newPasswordInput.addEventListener('input', function() {
+                if (confirmPasswordInput.value) {
+                    if (this.value !== confirmPasswordInput.value) {
+                        confirmPasswordInput.setCustomValidity('Passwords do not match');
+                        document.getElementById('passwordMismatch').style.display = 'block';
+                    } else {
+                        confirmPasswordInput.setCustomValidity('');
+                        document.getElementById('passwordMismatch').style.display = 'none';
+                    }
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error rendering profile page:', error);
+        appDiv.innerHTML = '<div class="alert alert-danger">Failed to load profile data. Please try again later.</div>';
+    }
+}
+
+// Handle profile update form submission
+async function handleUpdateProfile(event) {
+    event.preventDefault();
+    
+    const nameInput = document.getElementById('profileName');
+    const emailInput = document.getElementById('profileEmail');
+    const currentPasswordInput = document.getElementById('currentPassword');
+    const newPasswordInput = document.getElementById('newPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const errorDiv = document.getElementById('profileError');
+    const successDiv = document.getElementById('profileSuccess');
+    
+    // Reset alerts
+    errorDiv.classList.add('d-none');
+    errorDiv.textContent = '';
+    successDiv.classList.add('d-none');
+    successDiv.textContent = '';
+    
+    // Form validation
+    if (!nameInput.value.trim()) {
+        errorDiv.textContent = 'Name is required.';
+        errorDiv.classList.remove('d-none');
+        nameInput.focus();
+        return;
+    }
+    
+    if (!emailInput.value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value)) {
+        errorDiv.textContent = 'Please enter a valid email address.';
+        errorDiv.classList.remove('d-none');
+        emailInput.focus();
+        return;
+    }
+    
+    // Check password fields
+    if (newPasswordInput.value || confirmPasswordInput.value) {
+        if (!currentPasswordInput.value) {
+            errorDiv.textContent = 'Current password is required to set a new password.';
+            errorDiv.classList.remove('d-none');
+            currentPasswordInput.focus();
+            return;
+        }
+        
+        if (newPasswordInput.value !== confirmPasswordInput.value) {
+            errorDiv.textContent = 'New password and confirmation do not match.';
+            errorDiv.classList.remove('d-none');
+            newPasswordInput.focus();
+            return;
+        }
+        
+        if (newPasswordInput.value.length < 6) {
+            errorDiv.textContent = 'New password must be at least 6 characters long.';
+            errorDiv.classList.remove('d-none');
+            newPasswordInput.focus();
+            return;
+        }
+    }
+    
+    // Prepare update data
+    const updateData = {
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim()
+    };
+    
+    // Add password data if provided
+    if (newPasswordInput.value) {
+        updateData.currentPassword = currentPasswordInput.value;
+        updateData.password = newPasswordInput.value;
+    }
+    
+    // Disable form during submission
+    const submitButton = event.target.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/profile`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData),
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Unknown error occurred' }));
+            throw new Error(errorData.message || 'Failed to update profile');
+        }
+        
+        // Display success message
+        successDiv.textContent = 'Profile updated successfully!';
+        successDiv.classList.remove('d-none');
+        
+        // Clear password fields
+        currentPasswordInput.value = '';
+        newPasswordInput.value = '';
+        confirmPasswordInput.value = '';
+        
+        // Update auth UI to reflect name change if applicable
+        await updateAuthUI();
+        
+    } catch (error) {
+        console.error('Profile update error:', error);
+        errorDiv.textContent = error.message || 'An error occurred while updating your profile.';
+        errorDiv.classList.remove('d-none');
+    } finally {
+        // Re-enable form
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+    }
+}
