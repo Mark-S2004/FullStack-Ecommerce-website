@@ -130,45 +130,64 @@ class ProductService {
 
   // Add review by product ID instead of name
   public async addReviewById(productId: string, userId: string, reviewData: { rating: number; comment: string }): Promise<Product> {
-    console.log('[DEBUG] addReviewById called with productId:', productId, 'type:', typeof productId);
-    
     try {
-      const product = await this.findProductById(productId);
+      console.log('[DEBUG] addReviewById called with:', { productId, userId });
+      
+      // Validate input
+      if (!productId || !userId) {
+        throw new HttpException(400, "Product ID and user ID are required");
+      }
+      
+      // Find the product by ID
+      const product = await this.products.findById(productId);
       if (!product) {
         console.log('[DEBUG] Product not found for ID:', productId);
-        throw new HttpException(404, 'Product not found');
+        throw new HttpException(404, "Product not found");
       }
       
       console.log('[DEBUG] Product found:', product.name, 'ID:', product._id);
-
-      const alreadyReviewed = product.reviews.some(review => review.user.toString() === userId.toString());
+      
+      // Check if user already reviewed this product
+      const alreadyReviewed = product.reviews && product.reviews.some(review => 
+        review.user && review.user.toString() === userId.toString()
+      );
+      
       if (alreadyReviewed) {
-        console.log('[DEBUG] User already reviewed this product. User ID:', userId);
-        throw new HttpException(400, 'You have already reviewed this product');
+        console.log('[DEBUG] User already reviewed this product');
+        throw new HttpException(400, "You have already reviewed this product");
       }
-
+      
+      // Create the review object
       const review = {
         user: userId,
         rating: reviewData.rating,
         comment: reviewData.comment,
-        createdAt: new Date(),
+        createdAt: new Date()
       };
       
-      console.log('[DEBUG] Adding review:', review);
-
+      // Initialize reviews array if it doesn't exist
+      if (!product.reviews) {
+        product.reviews = [];
+      }
+      
+      // Add the review
       product.reviews.push(review);
+      
+      // Update review stats
       product.reviewCount = product.reviews.length;
       product.totalRating = product.reviews.reduce((acc, item) => item.rating + acc, 0);
-
-      console.log('[DEBUG] About to save product. Product ID:', product._id, 'Reviews:', product.reviews.length);
-
+      
+      // Save the updated product
       await product.save();
-      console.log('[DEBUG] Product saved successfully with new review');
+      console.log('[DEBUG] Product updated with review');
       
       return product;
     } catch (error) {
-      console.error('[DEBUG] Error in addReviewById:', error.message, error.stack);
-      throw error;
+      console.error('[DEBUG] Error in addReviewById:', error);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(500, `Error adding review: ${error.message}`);
     }
   }
 

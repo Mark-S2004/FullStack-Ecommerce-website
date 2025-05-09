@@ -187,53 +187,62 @@ async function renderPage() {
     if(appDiv) appDiv.innerHTML = ''; // Clear main content area
     await updateAuthUI(); // Update navbar based on auth state
 
-    if (hash === '#/') {
-        renderHomePage();
-    } else if (hash === '#/login') {
-        renderLoginForm();
-    } else if (hash === '#/register') {
-        renderRegisterForm();
-    } else if (hash === '#/products') {
-        // Check for query params in hash for products page for direct navigation with filters
-        const params = new URLSearchParams(hash.split('?')[1] || '');
-        renderProductsPage({ 
-            category: params.get('category') || '', 
-            search: params.get('search') || '' 
-        });
-    } else if (hash.startsWith('#/products/')) {
-        const parts = hash.split('/');
-        const productName = decodeURIComponent(parts[parts.length - 1]); // Decode product name
-         if (productName) {
-            renderProductDetailPage(productName);
-         } else {
-             renderNotFound();
-         }
-    } else if (hash === '#/cart') {
-        renderCartPage();
-    } else if (hash === '#/checkout') {
-        renderCheckoutPage();
-    } else if (hash === '#/orders') {
-         const user = await checkAuth();
-         if (user) {
-             renderOrderHistoryPage(user._id);
-         } else {
-             renderLoginMessage('Please log in to view your orders.');
-         }
-    } else if (hash.startsWith('#/admin')) {
-         const user = await checkAuth();
-         if (user && user.role === 'admin') {
-             const adminPath = hash.substring('#/admin'.length);
-             // Decode product names if they appear in edit paths
-             const editMatch = adminPath.match(/^\/products\/edit\/(.+)$/);
-             const editProductName = editMatch ? decodeURIComponent(editMatch[1]) : null;
-
-             renderAdminPage(adminPath, editProductName);
-         } else {
-             renderAccessDenied();
-         }
+    // Show loading indicator while page is loading
+    if (hash !== '#/' && hash !== '#/login' && hash !== '#/register') {
+        appDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" role="status"></div><p>Loading...</p></div>';
     }
-     else {
-        renderNotFound();
+
+    try {
+        if (hash === '#/') {
+            renderHomePage();
+        } else if (hash === '#/login') {
+            renderLoginForm();
+        } else if (hash === '#/register') {
+            renderRegisterForm();
+        } else if (hash === '#/products') {
+            // Check for query params in hash for products page for direct navigation with filters
+            const params = new URLSearchParams(hash.split('?')[1] || '');
+            renderProductsPage({ 
+                category: params.get('category') || '', 
+                search: params.get('search') || '' 
+            });
+        } else if (hash.startsWith('#/products/')) {
+            const parts = hash.split('/');
+            const productName = decodeURIComponent(parts[parts.length - 1]); // Decode product name
+            if (productName) {
+                renderProductDetailPage(productName);
+            } else {
+                renderNotFound();
+            }
+        } else if (hash === '#/cart') {
+            renderCartPage();
+        } else if (hash === '#/checkout') {
+            renderCheckoutPage();
+        } else if (hash === '#/orders') {
+            const user = await checkAuth();
+            if (user) {
+                renderOrderHistoryPage(user._id);
+            } else {
+                renderLoginMessage('Please log in to view your orders.');
+            }
+        } else if (hash.startsWith('#/admin')) {
+            const user = await checkAuth();
+            if (user && user.role === 'admin') {
+                const adminPath = hash.substring('#/admin'.length);
+                // Decode product names if they appear in edit paths
+                const editMatch = adminPath.match(/^\/products\/edit\/(.+)$/);
+                const editProductName = editMatch ? decodeURIComponent(editMatch[1]) : null;
+
+                renderAdminPage(adminPath, editProductName);
+            } else {
+                renderAccessDenied();
+            }
+        } else {
+            renderNotFound();
+        }
+    } catch (error) {
+        console.error('Error rendering page:', error);
+        appDiv.innerHTML = '<div class="alert alert-danger">An error occurred while loading the page. Please try again later.</div>';
     }
 }
 
@@ -477,192 +486,346 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
 
 // Renders the detail page for a single product
 async function renderProductDetailPage(productName) {
-     // Show a loading message initially
-     appDiv.innerHTML = `<h2>${productName}</h2><div>Loading product details...</div>`;
+    // Show loading indicator
+    appDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" role="status"></div><p>Loading product...</p></div>';
+    
     try {
-        // Fetch the specific product details by name
-        // This endpoint is assumed to be accessible without authentication
+        // Fetch the product data from the API
         const response = await fetch(`${API_BASE_URL}/products/${productName}`);
-         if (!response.ok) {
-             // If product not found (e.g., 409 or 404 from backend), throw an error
-             throw new Error('Product not found');
-         }
-        const data = await response.json();
-        const product = data.data;
-
-        // Build HTML for reviews
-        let reviewsHtml = '';
-        if (product.reviews && product.reviews.length > 0) {
-            reviewsHtml = '<h5>Reviews:</h5><ul class="list-group list-group-flush">';
-            reviewsHtml += product.reviews.map(review => {
-                 // Get user role to conditionally show delete button
-                 const currentUserRole = window.currentUserRole || 'customer'; // Get role stored globally (or default)
-                 const deleteButtonHtml = currentUserRole === 'admin'
-                     ? `<button class="btn btn-sm btn-danger ms-2 delete-review-btn" data-product-name="${product.name}" data-review-id="${review._id}">Delete</button>`
-                     : '';
-
-                 return `
-                    <li class="list-group-item d-flex justify-content-between align-items-start">
-                        <div>
-                        <strong>Rating: ${review.rating}/5</strong>
-                            <p class="mb-1">${review.comment}</p>
-                            <small class="text-muted">By User ${review.user} - ${new Date(review.createdAt).toLocaleDateString()}</small>
-                        </div>
-                        ${deleteButtonHtml}
-                    </li>
-                `;
-            }).join('');
-            reviewsHtml += '</ul>';
-        } else {
-            reviewsHtml = '<p>No reviews yet.</p>';
+        if (!response.ok) {
+            appDiv.innerHTML = '<div class="alert alert-danger">Product not found.</div>';
+            return;
         }
+        
+        const result = await response.json();
+        const product = result.data;
 
-        // Check if the user is logged in to decide whether to show the review form
-        const user = await checkAuth();
-        const addReviewFormHtml = user ? `
-            <h5 class="mt-4">Add a Review</h5>
-            <form id="addReviewForm">
-                <div class="mb-3">
-                    <label class="form-label">Rating:</label>
-                    <!-- Rating buttons are now the primary input -->
-                    <div id="reviewRatingButtons" class="btn-group">
-                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="1">1</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="2">2</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="3">3</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="4">4</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="5">5</button>
+        // Check if the product is already in the user's cart
+        let cartItem = null;
+        let cartItemQuantity = 0;
+        
+        try {
+            const cartResponse = await fetch(`${API_BASE_URL}/cart`, { 
+                credentials: 'include'
+            });
+            if (cartResponse.ok) {
+                const cartData = await cartResponse.json();
+                cartItem = cartData.data.find(item => item.product === product._id);
+                if (cartItem) {
+                    cartItemQuantity = cartItem.qty;
+                }
+            }
+        } catch (error) {
+            console.error('Error checking cart:', error);
+        }
+        
+        // Generate the HTML for product details
+        const reviewsHtml = product.reviews && product.reviews.length > 0
+            ? product.reviews.map(review => {
+                const date = new Date(review.createdAt).toLocaleDateString();
+                const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
+                const isCurrentUserReview = review.user === (window.user?._id);
+                
+                return `
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-warning fs-5">${stars}</div>
+                                <div class="text-muted small">Posted on ${date}</div>
+                            </div>
+                            ${isCurrentUserReview ? `
+                                <button class="btn btn-sm btn-outline-danger delete-review-btn" 
+                                    data-product="${product._id}" 
+                                    data-review="${review._id}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <p class="mt-2">${review.comment}</p>
                     </div>
-                    <!-- Hidden input to store the rating value, will be set by JS -->
-                    <input type="hidden" id="reviewRating" name="reviewRating" required>
-                    <div id="ratingError" class="text-danger mt-1"></div>
+                </div>`;
+            }).join('')
+            : '<p>No reviews yet. Be the first to review this product!</p>';
+            
+        // Generate the review form HTML if the user is logged in
+        let addReviewFormHtml = '';
+        if (window.user) {
+            // Check if the user has already reviewed this product
+            const userReview = product.reviews && product.reviews.find(review => review.user === window.user._id);
+            
+            if (userReview) {
+                addReviewFormHtml = `
+                    <div class="card mt-4">
+                        <div class="card-header">Your Review</div>
+                        <div class="card-body">
+                            <p>You've already reviewed this product. You gave it ${userReview.rating} stars.</p>
+                            <p>${userReview.comment}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                addReviewFormHtml = `
+                    <div class="card mt-4">
+                        <div class="card-header">Write a Review</div>
+                        <div class="card-body">
+                            <form id="addReviewForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Rating</label>
+                                    <div class="rating-buttons">
+                                        <button type="button" class="btn btn-outline-warning rating-btn" data-rating="1">1 ★</button>
+                                        <button type="button" class="btn btn-outline-warning rating-btn" data-rating="2">2 ★</button>
+                                        <button type="button" class="btn btn-outline-warning rating-btn" data-rating="3">3 ★</button>
+                                        <button type="button" class="btn btn-outline-warning rating-btn" data-rating="4">4 ★</button>
+                                        <button type="button" class="btn btn-outline-warning rating-btn" data-rating="5">5 ★</button>
+                                    </div>
+                                    <input type="hidden" id="reviewRating" required>
+                                    <div id="ratingError" class="text-danger"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="reviewComment" class="form-label">Your Review</label>
+                                    <textarea class="form-control" id="reviewComment" rows="3" required></textarea>
+                                </div>
+                                <div id="reviewError" class="text-danger mb-2"></div>
+                                <button type="submit" class="btn btn-primary">Submit Review</button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            addReviewFormHtml = `
+                <div class="alert alert-info mt-4">
+                    <a href="#/login">Log in</a> to write a review.
                 </div>
-                <div class="mb-3">
-                    <label for="reviewComment" class="form-label">Comment</label>
-                    <input type="text" class="form-control" id="reviewComment" required 
-                           placeholder="Enter your review here">
+            `;
+        }
+        
+        // Create cart interaction HTML based on whether item is in cart or not
+        let cartInteractionHtml = '';
+        
+        if (cartItemQuantity > 0) {
+            cartInteractionHtml = `
+                <div class="cart-quantity-control">
+                    <div class="input-group">
+                        <button class="btn btn-outline-secondary decrement-quantity" 
+                            data-product-id="${product._id}" 
+                            ${cartItemQuantity <= 1 ? 'disabled' : ''}>−</button>
+                        <input type="number" class="form-control text-center product-quantity" 
+                            value="${cartItemQuantity}" min="0" max="${product.stock}" readonly>
+                        <button class="btn btn-outline-secondary increment-quantity" 
+                            data-product-id="${product._id}"
+                            ${cartItemQuantity >= product.stock ? 'disabled' : ''}>+</button>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-danger w-100 remove-from-cart" 
+                            data-product-id="${product._id}">Remove from Cart</button>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Submit Review</button>
-                <div id="reviewError" class="text-danger mt-2"></div> <!-- General form error -->
-            </form>
-        ` : '<p class="mt-4">Please log in to leave a review.</p>';
+            `;
+        } else {
+            cartInteractionHtml = `
+                <button class="btn btn-primary add-to-cart-btn" 
+                    data-product-name="${product.name}" 
+                    ${product.stock <= 0 ? 'disabled' : ''}>
+                    ${product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
+                </button>
+            `;
+        }
 
         // For product details page, update price display
         let priceDetailHtml = `$${product.price.toFixed(2)}`;
         if (product.discountPercentage && product.discountPercentage > 0 && product.originalPrice) {
-            priceDetailHtml = `<span class="h3 text-danger">$${product.price.toFixed(2)}</span> <small class="text-muted text-decoration-line-through h5">$${product.originalPrice.toFixed(2)}</small>`;
+            priceDetailHtml = `<span class="text-danger">$${product.price.toFixed(2)}</span> <small class="text-muted text-decoration-line-through">$${product.originalPrice.toFixed(2)}</small>`;
         }
 
-        // Populate the appDiv with product details and reviews
+        // Render the product details
         appDiv.innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <img src="${product.imageUrl || 'https://placehold.co/250x150?text=No+Image'}" class="img-fluid rounded mb-3" alt="${product.name}">
+            <div class="row product-detail">
+                <div class="col-md-5">
+                    <img src="${product.imageUrl || 'https://via.placeholder.com/400?text=Product+Image'}" class="img-fluid" alt="${product.name}">
                 </div>
-                <div class="col-md-6">
-            <h2>${product.name}</h2>
-                    <p class="lead">${product.description}</p>
-                    <p class="h4">${priceDetailHtml}</p>
-                    <p><strong>Category:</strong> ${product.category}</p>
-                    <p><strong>Stock:</strong> ${product.stock > 0 ? product.stock + ' available' : 'Out of stock'}</p>
-                    ${product.stock > 0 ? '<button class="btn btn-primary btn-lg add-to-cart-btn" data-product-name="' + product.name + '">Add to Cart</button>' : '<button class="btn btn-secondary btn-lg" disabled>Out of Stock</button>'}
+                <div class="col-md-7">
+                    <h2>${product.name}</h2>
+                    <p class="text-muted">${product.category}</p>
+                    <div class="fs-4 mb-3">
+                        ${product.discountPercentage > 0 ? 
+                            `<span class="text-decoration-line-through text-muted me-2">$${product.originalPrice.toFixed(2)}</span>
+                             <span class="text-danger fw-bold">$${product.price.toFixed(2)}</span>
+                             <span class="badge bg-danger ms-2">-${product.discountPercentage}%</span>` 
+                           : `<span class="fw-bold">$${product.price.toFixed(2)}</span>`}
+                    </div>
+                    <p>${product.description}</p>
+                    
+                    <div class="stock-info mb-3">
+                        ${product.stock > 10 
+                            ? `<span class="text-success"><i class="fas fa-check-circle"></i> In Stock (${product.stock} available)</span>` 
+                            : product.stock > 0 
+                                ? `<span class="text-warning"><i class="fas fa-exclamation-circle"></i> Low Stock (Only ${product.stock} left)</span>` 
+                                : `<span class="text-danger"><i class="fas fa-times-circle"></i> Out of Stock</span>`}
+                    </div>
+                    
+                    ${cartInteractionHtml}
                 </div>
             </div>
-            <hr class="my-4">
-            <div id="reviewsSection">
-            ${reviewsHtml}
-            </div>
-            <div id="addReviewSection" class="mt-4">
-            ${addReviewFormHtml}
+            
+            <div class="row mt-5">
+                <div class="col-md-8">
+                    <h3>Reviews</h3>
+                    <div class="reviews-container">
+                        ${reviewsHtml}
+                    </div>
+                    
+                    ${addReviewFormHtml}
+                </div>
             </div>
         `;
 
-         // Add event listener to the "Add to Cart" button (if it exists)
-         const addToCartBtn = appDiv.querySelector('.add-to-cart-btn');
-         if (addToCartBtn) {
-             addToCartBtn.addEventListener('click', handleAddToCart);
-         }
-
-         // Add event listener to the Add Review form (if it exists)
-         const addReviewForm = document.getElementById('addReviewForm');
-         if (addReviewForm) {
-             // Add hidden input for product ID to make review submission more reliable
-             const productIdInput = document.createElement('input');
-             productIdInput.type = 'hidden';
-             productIdInput.id = 'productId';
-             productIdInput.value = product._id;
-             addReviewForm.appendChild(productIdInput);
-             
-             addReviewForm.addEventListener('submit', (e) => handleAddReview(e, product.name));
-         }
-
-         // Add event listeners for delete review buttons (if any)
-         document.querySelectorAll('.delete-review-btn').forEach(button => {
-             button.addEventListener('click', handleDeleteReview);
-         });
-
-        // Add debugging for review form
-        setTimeout(() => {
-            debugReviewForm(); // This will log found elements and their basic state
-            
-            // Add listeners for the rating buttons (this part is for rating selection)
-            document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const selectedRating = this.getAttribute('data-rating');
-                    const hiddenRatingInput = document.getElementById('reviewRating');
-                    if (hiddenRatingInput) {
-                        hiddenRatingInput.value = selectedRating;
-                        console.log('[ReviewForm] Set hidden rating input to:', selectedRating);
+        // Add event listener to the "Add to Cart" button (if it exists)
+        const addToCartBtn = appDiv.querySelector('.add-to-cart-btn');
+        if (addToCartBtn) {
+            addToCartBtn.addEventListener('click', handleAddToCart);
+        }
+        
+        // Add event listeners for the cart quantity controls
+        const incrementBtn = appDiv.querySelector('.increment-quantity');
+        const decrementBtn = appDiv.querySelector('.decrement-quantity');
+        const removeBtn = appDiv.querySelector('.remove-from-cart');
+        
+        if (incrementBtn) {
+            incrementBtn.addEventListener('click', async (e) => {
+                const productId = e.target.dataset.productId;
+                const quantityInput = appDiv.querySelector('.product-quantity');
+                const newQty = parseInt(quantityInput.value) + 1;
+                
+                if (newQty <= product.stock) {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/cart`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ productId, quantity: newQty }),
+                            credentials: 'include'
+                        });
+                        
+                        if (response.ok) {
+                            quantityInput.value = newQty;
+                            // Disable increment button if at max stock
+                            if (newQty >= product.stock) {
+                                incrementBtn.setAttribute('disabled', 'true');
+                            }
+                            // Enable decrement button
+                            decrementBtn.removeAttribute('disabled');
+                        } else {
+                            console.error('Failed to update cart');
+                        }
+                    } catch (error) {
+                        console.error('Error updating cart:', error);
                     }
-                    document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(b => {
-                        b.classList.remove('active', 'btn-primary');
-                        b.classList.add('btn-outline-primary');
+                }
+            });
+        }
+        
+        if (decrementBtn) {
+            decrementBtn.addEventListener('click', async (e) => {
+                const productId = e.target.dataset.productId;
+                const quantityInput = appDiv.querySelector('.product-quantity');
+                const newQty = parseInt(quantityInput.value) - 1;
+                
+                if (newQty >= 1) {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/cart`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ productId, quantity: newQty }),
+                            credentials: 'include'
+                        });
+                        
+                        if (response.ok) {
+                            quantityInput.value = newQty;
+                            // Enable increment button
+                            incrementBtn.removeAttribute('disabled');
+                            // Disable decrement button if at 1
+                            if (newQty <= 1) {
+                                decrementBtn.setAttribute('disabled', 'true');
+                            }
+                        } else {
+                            console.error('Failed to update cart');
+                        }
+                    } catch (error) {
+                        console.error('Error updating cart:', error);
+                    }
+                }
+            });
+        }
+        
+        if (removeBtn) {
+            removeBtn.addEventListener('click', async (e) => {
+                const productId = e.target.dataset.productId;
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
                     });
-                    this.classList.add('active', 'btn-primary');
-                    this.classList.remove('btn-outline-primary');
                     
-                    const ratingErrorDiv = document.getElementById('ratingError');
-                    if(ratingErrorDiv) ratingErrorDiv.textContent = '';
+                    if (response.ok) {
+                        // Refresh the page to show "Add to Cart" button again
+                        renderProductDetailPage(productName);
+                    } else {
+                        console.error('Failed to remove from cart');
+                    }
+                } catch (error) {
+                    console.error('Error removing from cart:', error);
+                }
+            });
+        }
+
+        // Add event listener to the Add Review form (if it exists)
+        const addReviewForm = document.getElementById('addReviewForm');
+        if (addReviewForm) {
+            // Add hidden input for product ID to make review submission more reliable
+            const productIdInput = document.createElement('input');
+            productIdInput.type = 'hidden';
+            productIdInput.id = 'productId';
+            productIdInput.value = product._id;
+            addReviewForm.appendChild(productIdInput);
+            
+            // Set up rating buttons
+            const ratingButtons = addReviewForm.querySelectorAll('.rating-btn');
+            const ratingInput = document.getElementById('reviewRating');
+            
+            ratingButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    ratingButtons.forEach(btn => btn.classList.remove('active', 'btn-warning'));
+                    btn.classList.add('btn-outline-warning');
+                    
+                    // Add active class to clicked button
+                    this.classList.remove('btn-outline-warning');
+                    this.classList.add('active', 'btn-warning');
+                    
+                    // Set the rating value in the hidden input
+                    ratingInput.value = this.dataset.rating;
+                    
+                    // Clear any rating error
+                    const ratingError = document.getElementById('ratingError');
+                    if (ratingError) ratingError.textContent = '';
                 });
             });
-
-            // Simplified interaction check for the comment input
-            const commentInput = document.getElementById('reviewComment');
-            if (commentInput) {
-                commentInput.addEventListener('focus', () => {
-                    console.log('[ReviewForm] Comment input focused.');
-                });
-                commentInput.addEventListener('input', (e) => {
-                    console.log('[ReviewForm] Comment input value:', e.target.value);
-                });
-            }
-
-        }, 500); // Delay to ensure DOM is ready
-
-    } catch (error) {
-        // Handle errors (e.g., product not found)
-        console.error('Error fetching product details:', error);
-        appDiv.innerHTML = '<p class="text-danger">Failed to load product details. Product not found.</p>';
-    }
-}
-
-// Simplified debugReviewForm
-function debugReviewForm() {
-    console.log('=== REVIEW FORM DEBUG (Simplified) ===');
-    const form = document.getElementById('addReviewForm');
-    const hiddenRatingInput = document.getElementById('reviewRating'); // The hidden one
-    const commentInput = document.getElementById('reviewComment');
-    
-    console.log('[ReviewFormDebug] Form found:', !!form);
-    console.log('[ReviewFormDebug] Hidden Rating input found:', !!hiddenRatingInput, hiddenRatingInput ? `Value: ${hiddenRatingInput.value}` : '');
-    console.log('[ReviewFormDebug] Comment input found:', !!commentInput);
-    
-    if (commentInput) {
-        console.log('[ReviewFormDebug] Comment input attributes:', {
-            disabled: commentInput.disabled,
-            readOnly: commentInput.readOnly,
-            style: commentInput.style.cssText,
-            value: commentInput.value
+            
+            // Handle form submission
+            addReviewForm.addEventListener('submit', (event) => handleAddReview(event, productName));
+        }
+        
+        // Add event listeners to delete review buttons
+        const deleteReviewBtns = document.querySelectorAll('.delete-review-btn');
+        deleteReviewBtns.forEach(button => {
+            button.addEventListener('click', handleDeleteReview);
         });
+        
+    } catch (error) {
+        console.error('Error rendering product detail:', error);
+        appDiv.innerHTML = '<div class="alert alert-danger">Error loading product details. Please try again later.</div>';
     }
 }
 

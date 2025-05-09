@@ -161,7 +161,6 @@ window.AdminOrders = {
                             <td>${order._id}</td>
                             <td>${user.name}<br><small>${user.email}</small></td>
                             <td>${formattedDate}</td>
-                            <td>$${order.total.toFixed(2)}</td>
                             <td>
                                 <select class="form-select form-select-sm order-status-select" data-order-id="${order._id}">
                                     <option value="Pending" ${order.status === 'Pending' ? 'selected' : ''}>Pending</option>
@@ -254,116 +253,147 @@ window.AdminOrders = {
     // Handles viewing details for a specific order
     async handleViewDetails(orderId) {
         try {
+            console.log('Fetching order details for ID:', orderId);
+            
+            // Check if orderId is valid
+            if (!orderId || typeof orderId !== 'string') {
+                throw new Error('Invalid order ID');
+            }
+            
+            // First try the specific order endpoint
             const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, { 
                 credentials: 'include' 
             });
             
             if (!response.ok) {
-                throw new Error('Failed to fetch order details');
+                // If specific endpoint fails, try to find the order in the full orders list
+                console.log('Failed to fetch from specific endpoint, trying to get from all orders');
+                const allOrdersResponse = await fetch(`${API_BASE_URL}/orders`, { 
+                    credentials: 'include' 
+                });
+                
+                if (!allOrdersResponse.ok) {
+                    throw new Error('Failed to fetch orders');
+                }
+                
+                const allOrdersData = await allOrdersResponse.json();
+                const allOrders = allOrdersData.data;
+                const order = allOrders.find(o => o._id === orderId);
+                
+                if (!order) {
+                    throw new Error('Order not found');
+                }
+                
+                // Continue with found order
+                displayOrderDetails(order);
+            } else {
+                const orderData = await response.json();
+                const order = orderData.data;
+                displayOrderDetails(order);
             }
             
-            const orderData = await response.json();
-            const order = orderData.data;
-            
-            // Fetch product details for each item
-            const productIds = order.items.map(item => item.product);
-            const productDetailsPromises = productIds.map(async (productId) => {
-                try {
-                    const productResponse = await fetch(`${API_BASE_URL}/products/id/${productId}`);
-                    if (productResponse.ok) {
-                        const productData = await productResponse.json();
-                        return productData.data;
+            // Helper function to display order details
+            async function displayOrderDetails(order) {
+                // Fetch product details for each item
+                const productIds = order.items.map(item => item.product);
+                const productDetailsPromises = productIds.map(async (productId) => {
+                    try {
+                        const productResponse = await fetch(`${API_BASE_URL}/products/id/${productId}`);
+                        if (productResponse.ok) {
+                            const productData = await productResponse.json();
+                            return productData.data;
+                        }
+                        return null;
+                    } catch (error) {
+                        console.error(`Error fetching product ${productId}:`, error);
+                        return null;
                     }
-                    return null;
-                } catch (error) {
-                    console.error(`Error fetching product ${productId}:`, error);
-                    return null;
+                });
+                
+                const productDetails = await Promise.all(productDetailsPromises);
+                const productMap = productDetails.reduce((acc, product) => {
+                    if (product) {
+                        acc[product._id] = product;
+                    }
+                    return acc;
+                }, {});
+                
+                // Create order details modal
+                const modalId = 'orderDetailsModal';
+                let modalDiv = document.getElementById(modalId);
+                
+                if (!modalDiv) {
+                    modalDiv = document.createElement('div');
+                    modalDiv.id = modalId;
+                    modalDiv.className = 'modal fade';
+                    modalDiv.tabIndex = '-1';
+                    document.body.appendChild(modalDiv);
                 }
-            });
-            
-            const productDetails = await Promise.all(productDetailsPromises);
-            const productMap = productDetails.reduce((acc, product) => {
-                if (product) {
-                    acc[product._id] = product;
-                }
-                return acc;
-            }, {});
-            
-            // Create order details modal
-            const modalId = 'orderDetailsModal';
-            let modalDiv = document.getElementById(modalId);
-            
-            if (!modalDiv) {
-                modalDiv = document.createElement('div');
-                modalDiv.id = modalId;
-                modalDiv.className = 'modal fade';
-                modalDiv.tabIndex = '-1';
-                document.body.appendChild(modalDiv);
-            }
-            
-            // Order date formatting
-            const orderDate = new Date(order.createdAt);
-            const formattedDate = orderDate.toLocaleString();
-            
-            // Generate modal HTML
-            modalDiv.innerHTML = `
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Order Details: #${order._id}</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <p><strong>Date:</strong> ${formattedDate}</p>
-                                    <p><strong>Status:</strong> ${order.status}</p>
-                                    <p><strong>Shipping Address:</strong> ${order.shippingAddress}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>Subtotal:</strong> $${(order.total - order.shippingCost - order.tax).toFixed(2)}</p>
-                                    <p><strong>Shipping:</strong> $${order.shippingCost.toFixed(2)}</p>
-                                    <p><strong>Tax:</strong> $${order.tax.toFixed(2)}</p>
-                                    <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
-                                </div>
+                
+                // Order date formatting
+                const orderDate = new Date(order.createdAt);
+                const formattedDate = orderDate.toLocaleString();
+                
+                // Generate modal HTML
+                modalDiv.innerHTML = `
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Order Details: #${order._id}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
-                            
-                            <h6 class="mb-3">Order Items:</h6>
-                            <table class="table table-striped table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Quantity</th>
-                                        <th>Price</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${order.items.map(item => {
-                                        const product = productMap[item.product];
-                                        const productName = product ? product.name : `Product ID: ${item.product}`;
-                                        return `
-                                            <tr>
-                                                <td>${productName}</td>
-                                                <td>${item.qty}</td>
-                                                <td>$${item.price.toFixed(2)}</td>
-                                                <td>$${(item.price * item.qty).toFixed(2)}</td>
-                                            </tr>
-                                        `;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <div class="modal-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <p><strong>Date:</strong> ${formattedDate}</p>
+                                        <p><strong>Status:</strong> ${order.status}</p>
+                                        <p><strong>Shipping Address:</strong> ${order.shippingAddress}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Subtotal:</strong> $${(order.total - order.shippingCost - order.tax).toFixed(2)}</p>
+                                        <p><strong>Shipping:</strong> $${order.shippingCost.toFixed(2)}</p>
+                                        <p><strong>Tax:</strong> $${order.tax.toFixed(2)}</p>
+                                        <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
+                                    </div>
+                                </div>
+                                
+                                <h6 class="mb-3">Order Items:</h6>
+                                <table class="table table-striped table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Quantity</th>
+                                            <th>Price</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${order.items.map(item => {
+                                            const product = productMap[item.product];
+                                            const productName = product ? product.name : `Product ID: ${item.product}`;
+                                            return `
+                                                <tr>
+                                                    <td>${productName}</td>
+                                                    <td>${item.qty}</td>
+                                                    <td>$${item.price.toFixed(2)}</td>
+                                                    <td>$${(item.price * item.qty).toFixed(2)}</td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            
-            // Show the modal
-            const modal = new bootstrap.Modal(modalDiv);
-            modal.show();
+                `;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(modalDiv);
+                modal.show();
+            }
             
         } catch (error) {
             console.error('Error viewing order details:', error);
