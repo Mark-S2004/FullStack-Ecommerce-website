@@ -827,7 +827,7 @@ async function renderCheckoutPage() {
             <button type="submit" class="btn btn-success">Place Order & Pay</button>
             <div id="checkoutError" class="text-danger mt-2"></div>
         </form>
-        <p class="mt-3"><a href="#/cart">Return to Cart</a></p>
+         <p class="mt-3"><a href="#/cart">Return to Cart</a></p>
     `;
 
     const shippingAddressInput = document.getElementById('shippingAddress');
@@ -1105,8 +1105,8 @@ async function handleAddToCart(event) {
         console.log('[Cart] Fetching product data for product name:', productName);
         const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}`, {
             credentials: 'include'
-        });
-        
+       });
+
         if (!productResponse.ok) {
             const errorText = await productResponse.text();
             console.error('[Cart] Failed to fetch product data. Status:', productResponse.status, 'Response:', errorText);
@@ -1120,18 +1120,18 @@ async function handleAddToCart(event) {
         if (!productData || !productData.data || typeof productData.data._id === 'undefined') {
             console.error('[Cart] CRITICAL: Product data or product ID is missing or undefined.', productData);
             alert('Error: Product information is incomplete. Cannot add to cart.');
-            return;
-        }
-        
+        return;
+    }
+
         const productIdFromServer = productData.data._id;
         console.log('[Cart] Retrieved product ID from server:', productIdFromServer, 'Type:', typeof productIdFromServer);
 
         if (typeof productIdFromServer !== 'string' || productIdFromServer.trim() === '') {
             console.error('[Cart] CRITICAL: productIdFromServer is not a valid string or is empty. Value:', productIdFromServer);
             alert('Error: Product ID is invalid. Cannot add to cart.');
-            return;
-        }
-        
+        return;
+    }
+
         const productIdString = productIdFromServer.trim(); // Ensure it's trimmed
         
         console.log('[Cart] Final productId being sent to cart API:', productIdString, 'Type:', typeof productIdString);

@@ -34,12 +34,12 @@ class App {
     this.port = PORT || 3000;
     
     console.log('▶️  [App] constructor start');
-  this.connectToDatabase();
-  console.log('▶️  [App] after connectToDatabase');
-  this.initializeMiddlewares();
-  console.log('▶️  [App] after initializeMiddlewares');
-  this.initializeRoutes(allRoutes);
-  console.log('▶️  [App] after initializeRoutes');
+    this.connectToDatabase();
+    console.log('▶️  [App] after connectToDatabase');
+    this.initializeMiddlewares();
+    console.log('▶️  [App] after initializeMiddlewares');
+    this.initializeRoutes(allRoutes);
+    console.log('▶️  [App] after initializeRoutes');
     
     this.initializeSwagger();
     this.initializeErrorHandling();
