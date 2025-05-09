@@ -1,53 +1,151 @@
-import { HttpException } from '../exceptions/HttpException';
-import productModel from '../models/products.model';
-import { Product } from '../interfaces/products.interface';
-import { CreateProductDto } from '../dtos/products.dto'; // Assuming you might use this elsewhere
+import { HttpException } from '@exceptions/HttpException';
+import productModel from '@models/products.model';
+import { Product } from '@interfaces/products.interface';
+import { CreateProductDto } from '@dtos/products.dto';
 
-export const findAllProduct = async (query: any = {}): Promise<Product[]> => {
-  let conditions: any = {};
-  if (query.name) {
-    conditions.name = { $regex: query.name, $options: 'i' };
-  }
-  if (query.category) {
-    conditions.category = query.category;
-  }
-  if (query.gender) {
-    conditions.gender = query.gender;
-  }
-  if (query.minPrice) {
-    conditions.price = { ...(conditions.price || {}), $gte: parseFloat(query.minPrice) };
-  }
-  if (query.maxPrice) {
-    conditions.price = { ...(conditions.price || {}), $lte: parseFloat(query.maxPrice) };
+class ProductService {
+  public products = productModel;
+
+  public async findAllProduct(category?: string): Promise<Product[]> {
+    const query = category ? { category: category } : {};
+    const products: Product[] = await this.products.find(query);
+    return products;
   }
 
-  const products: Product[] = await productModel.find(conditions).populate('reviews');
-  return products;
-};
+  public async findProductByName(productName: string): Promise<Product> {
+    const findProduct: Product = await this.products.findOne({ name: productName });
+    if (!findProduct) throw new HttpException(409, "Product doesn't exist");
 
-export const findProductByName = async (productName: string): Promise<Product> => {
-  const findProduct: Product | null = await productModel.findOne({ name: productName }).populate('reviews');
-  if (!findProduct) throw new HttpException(404, "Product doesn't exist");
-  return findProduct;
-};
+    return findProduct;
+  }
 
-export const createProduct = async (productData: CreateProductDto): Promise<Product> => {
-  const createProductData: Product = await productModel.create(productData);
-  return createProductData;
-};
+  public async createProduct(productData: CreateProductDto): Promise<Product> {
+    const findProduct: Product = await this.products.findOne({ name: productData.name });
+    if (findProduct) throw new HttpException(409, `This name ${productData.name} already exists`);
 
-export const updateProduct = async (productName: string, productData: CreateProductDto): Promise<Product> => {
-  const updateProductByName: Product | null = await productModel.findOneAndUpdate(
-    { name: productName },
-    productData,
-    { new: true, runValidators: true }
-  );
-  if (!updateProductByName) throw new HttpException(404, "Product doesn't exist");
-  return updateProductByName;
-};
+    // Set originalPrice if not already set (e.g., by discount logic)
+    const dataToCreate: any = { ...productData };
+    if (typeof dataToCreate.originalPrice === 'undefined') {
+      dataToCreate.originalPrice = productData.price;
+    }
+    if (typeof dataToCreate.discountPercentage === 'undefined') {
+        dataToCreate.discountPercentage = 0;
+    }
 
-export const deleteProductData = async (productName: string): Promise<Product> => {
-  const deleteProductByName: Product | null = await productModel.findOneAndDelete({ name: productName });
-  if (!deleteProductByName) throw new HttpException(404, "Product doesn't exist");
-  return deleteProductByName;
-}; 
+    const createProductData: Product = await this.products.create(dataToCreate);
+    return createProductData;
+  }
+
+  public async updateProduct(productName: string, productData: CreateProductDto): Promise<Product> {
+    if (productData.name !== productName) {
+      const findProductWithNewName: Product = await this.products.findOne({ name: productData.name });
+      if (findProductWithNewName && findProductWithNewName.name !== productName) {
+        throw new HttpException(409, `Product name ${productData.name} already exists`);
+      }
+    }
+
+    // When updating, ensure originalPrice is handled correctly if price is changed directly
+    // For simplicity, we assume direct price updates might reset discount implicitly
+    // or admin uses discount functions.
+    const updateData: any = { ...productData };
+    if (productData.price !== undefined && (productData.discountPercentage === undefined || productData.discountPercentage === 0)) {
+        // If price is changed and no discount, assume it's the new base price
+        updateData.originalPrice = productData.price;
+        updateData.discountPercentage = 0;
+    }
+
+    const updateProductByName: Product = await this.products.findOneAndUpdate({ name: productName }, { $set: updateData }, { new: true });
+    if (!updateProductByName) throw new HttpException(409, "Product doesn't exist");
+    return updateProductByName;
+  }
+
+  public async deleteProduct(productName: string): Promise<Product> {
+    const deleteProductByName: Product = await this.products.findOneAndDelete({ name: productName });
+    if (!deleteProductByName) throw new HttpException(409, "Product doesn't exist");
+
+    return deleteProductByName;
+  }
+
+  public async addReview(productName: string, userId: string, reviewData: { rating: number; comment: string }): Promise<Product> {
+    const product = await this.findProductByName(productName);
+    if (!product) throw new HttpException(404, 'Product not found');
+
+    const alreadyReviewed = product.reviews.some(review => review.user.toString() === userId.toString());
+    if (alreadyReviewed) {
+      throw new HttpException(400, 'You have already reviewed this product');
+    }
+
+    const review = {
+      user: userId,
+      rating: reviewData.rating,
+      comment: reviewData.comment,
+      createdAt: new Date(),
+    };
+
+    product.reviews.push(review);
+    product.reviewCount = product.reviews.length;
+    product.totalRating = product.reviews.reduce((acc, item) => item.rating + acc, 0);
+
+    await product.save();
+    return product;
+  }
+
+  // Simple review deletion by Admin
+  public async deleteReview(productName: string, reviewId: string): Promise<Product> {
+    const product = await this.findProductByName(productName);
+    if (!product) throw new HttpException(404, 'Product not found');
+
+    const reviewIndex = product.reviews.findIndex(review => review._id.toString() === reviewId);
+    if (reviewIndex === -1) {
+      throw new HttpException(404, 'Review not found on this product');
+    }
+
+    // Remove the review
+    product.reviews.splice(reviewIndex, 1);
+
+    // Recalculate review count and total rating
+    product.reviewCount = product.reviews.length;
+    product.totalRating = product.reviews.reduce((acc, item) => item.rating + acc, 0);
+
+    await product.save();
+    return product;
+  }
+
+  // --- Discount Methods (Admin only) ---
+  public async applyDiscount(productName: string, discountPercentage: number): Promise<Product> {
+    if (discountPercentage < 0 || discountPercentage > 100) {
+      throw new HttpException(400, 'Discount percentage must be between 0 and 100');
+    }
+    const product = await this.findProductByName(productName);
+    if (!product) throw new HttpException(404, 'Product not found');
+
+    // Ensure originalPrice is set, if not, use current price
+    if (typeof product.originalPrice !== 'number' || product.originalPrice <= 0) {
+        product.originalPrice = product.price;
+    }
+
+    product.discountPercentage = discountPercentage;
+    product.price = product.originalPrice * (1 - discountPercentage / 100);
+
+    await product.save();
+    return product;
+  }
+
+  public async removeDiscount(productName: string): Promise<Product> {
+    const product = await this.findProductByName(productName);
+    if (!product) throw new HttpException(404, 'Product not found');
+
+    if (typeof product.originalPrice === 'number' && product.originalPrice > 0) {
+      product.price = product.originalPrice;
+    }
+    // Else, if originalPrice is not set, we can't revert. Price remains as is.
+    // This scenario should ideally be prevented by setting originalPrice on product creation/update.
+
+    product.discountPercentage = 0;
+
+    await product.save();
+    return product;
+  }
+}
+
+export default ProductService; 

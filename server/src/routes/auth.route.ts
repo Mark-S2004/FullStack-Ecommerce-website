@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { CreateUserDto, loginUserDto } from '../dtos/users.dto';
-import validationMiddleware from '../middlewares/validation.middleware';
-import * as authController from '../controllers/auth.controller';
-import { RequestWithUser } from '../interfaces/auth.interface'; // Import RequestWithUser
+import { CreateUserDto, loginUserDto } from '@dtos/users.dto';
+import validationMiddleware from '@middlewares/validation.middleware';
+import * as authController from '@controllers/auth.controller';
+import { RequestWithUser } from '@/interfaces/auth.interface'; // Import RequestWithUser
 
 const path = '/auth'; // This is the base path this router will be mounted at in app.ts
 const router = Router(); // Create the router

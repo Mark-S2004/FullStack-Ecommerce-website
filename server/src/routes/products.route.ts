@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import * as productsController from '../controllers/products.controller';
-import { CreateProductDto } from '../dtos/products.dto';
-import validationMiddleware from '../middlewares/validation.middleware';
+import * as productsController from '@controllers/products.controller';
+import { CreateProductDto } from '@dtos/products.dto';
+import validationMiddleware from '@middlewares/validation.middleware';
 
 const path = '/products'; // Base path for product routes
 const router = Router(); // Create the router

@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
-import { CreateProductDto } from '../dtos/products.dto';
-import { Product } from '../interfaces/products.interface';
-import * as productService from '../services/products.service';
+import { CreateProductDto } from '@dtos/products.dto';
+import { Product } from '@interfaces/products.interface';
+import * as productService from '@services/products.service';
 
 export const getProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {

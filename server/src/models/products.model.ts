@@ -1,5 +1,5 @@
 import { model, Schema, Document } from 'mongoose';
-import { Product } from '../interfaces/products.interface';
+import { Product } from '@interfaces/products.interface';
 
 const reviewSchema: Schema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -22,21 +22,30 @@ const productSchema: Schema = new Schema({
   },
   category: {
     type: String,
-    trim: true,
-    index: true,
-  },
-  gender: {
-    type: String,
-    trim: true,
+    required: true,
     index: true,
   },
   price: {
     type: Number,
     required: true,
   },
+  originalPrice: {
+    type: Number,
+  },
+  discountPercentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100,
+  },
   stock: {
     type: Number,
-    required: false,
+    required: true,
+    default: 0,
+  },
+  imageUrl: {
+    type: String,
+    default: 'https://via.placeholder.com/250x150.png?text=No+Image',
   },
   reviews: [reviewSchema],
   totalRating: { type: Number, default: 0 },

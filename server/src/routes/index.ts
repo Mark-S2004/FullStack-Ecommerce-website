@@ -1,44 +1,28 @@
-// server/src/routes/index.ts
-import { Routes } from '../interfaces/routes.interface';
+// server/src/routes/index.ts (Updated)
+import authRoute from './auth.route';
+import usersRoute from './users.route';
+import orderRoute from './order.route';
+import webhookRoute from './webhook.route';
+import productsRoute from './products.route'; // This will be public for GET
+import cartRoute from './cart.route';
+import reviewsRoute from './reviews.route';
+import { Routes } from '@interfaces/routes.interface';
 
-// Import the route configuration objects directly
-// import indexRouteConfig from './index.route'; // Removed, as it likely doesn't exist
-import authRouteConfig from './auth.route';
-import usersRouteConfig from './users.route';
-import productRouteConfig from './products.route';
-import orderRouteConfig from './order.route';
-import cartRouteConfig from './cart.route';
-import reviewRouteConfig from './review.route'; // Admin review route
-import reviewsRouteConfig from './reviews.route'; // Customer review route (likely POST under products)
-import webhookRouteConfig from './webhook.route';
-import discountRouteConfig from './discount.route'; // Import discount route
-
-// Define the array of routes for generic mounting in app.ts
+// Define an array of route objects with their path, router, and authentication requirement
 const routes: (Routes & { needsAuth?: boolean })[] = [
-  // Public routes
-  // { ...indexRouteConfig, needsAuth: false }, // Removed
-  { ...authRouteConfig, needsAuth: false },
-  { ...productRouteConfig, needsAuth: false }, // GET is public, others need checks internally
-  { ...webhookRouteConfig, needsAuth: false }, // Special handling in app.ts
+    // Routes that do NOT require authentication
+    { path: authRoute.path, router: authRoute.router, needsAuth: false },
+    { path: webhookRoute.path, router: webhookRoute.router, needsAuth: false },
+    { path: productsRoute.path, router: productsRoute.router, needsAuth: false }, // Make products public
 
-  // Authenticated routes
-  { ...usersRouteConfig, needsAuth: true }, // Admin check likely internal
-  { ...orderRouteConfig, needsAuth: true },
-  { ...cartRouteConfig, needsAuth: true },
-  { ...reviewsRouteConfig, needsAuth: true }, // Customer POST review
-  { ...reviewRouteConfig, needsAuth: true }, // Admin GET/DELETE reviews (admin check internal)
-  { ...discountRouteConfig, needsAuth: true }, // Admin discount routes (admin check internal)
+    // Routes that DO require authentication
+    // Note: Specific methods within a router might still require auth if middleware is applied inside the router file
+    // But applying authRequiredMiddleware here means *all* methods on this route need auth
+    { path: usersRoute.path, router: usersRoute.router, needsAuth: true }, // Users (likely admin)
+    { path: orderRoute.path, router: orderRoute.router, needsAuth: true }, // Orders (customer/admin)
+    { path: cartRoute.path, router: cartRoute.router, needsAuth: true }, // Cart (customer)
+    { path: reviewsRoute.path, router: reviewsRoute.router, needsAuth: true }, // Reviews (customer)
 ];
 
-// Filter out the webhook route as it's mounted separately in app.ts
-const filteredRoutes = routes.filter(route => route.path !== webhookRouteConfig.path);
-
-// Default export contains all routes EXCEPT the webhook route
-export default filteredRoutes;
-
-// Export the webhook route config object for app.ts special handling
-export const webhookRoute = webhookRouteConfig;
-
-// NOTE: Ensure app.ts uses `import routes from '@routes/index'` for the main array
-// and `import { webhookRoute } from '@routes/index'` for the webhook.
-// The check in app.ts should be against `webhookRoute`.
+// Filter out the webhook route here as it's mounted separately in app.ts
+export default routes.filter(route => route !== webhookRoute);

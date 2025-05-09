@@ -1,27 +1,17 @@
 import { Review } from './reviews.interface';
 
 export interface Product {
-  _id?: string; // Usually string when coming from Mongoose
+  _id?: string; // Mongoose assigns _id
   name: string;
   description: string;
+  category: string;
   price: number;
+  originalPrice?: number;       // Optional: Stores price before discount
+  discountPercentage?: number;  // Optional: Discount in percentage (0-100)
   stock: number;
-  category?: string; // Optional or required based on model
-  gender?: string;   // Optional or required based on model
-  images?: string[];
-  reviews?: Review[]; // Assuming Review interface is defined elsewhere or here
-  // For populated reviews with average rating etc.
+  imageUrl?: string;
+  reviews?: Review[];
   reviewCount?: number;
   totalRating?: number;
-  createdAt?: Date;
-  updatedAt?: Date;
+  // If using virtuals for averageRating, ensure they are handled if needed client-side
 }
-
-// You might also want a Review sub-interface if not defined globally
-// interface Review {
-//   _id?: string;
-//   user: string; // or ObjectId, or populated User object
-//   rating: number;
-//   comment: string;
-//   createdAt?: Date;
-// }

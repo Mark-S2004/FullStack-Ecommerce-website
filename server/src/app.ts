@@ -9,18 +9,19 @@ import morgan from 'morgan';
 import { connect, set, disconnect } from 'mongoose';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import { HttpException } from './exceptions/HttpException';
-import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from './config';
-import { dbConnection } from './databases';
-import { Routes } from './interfaces/routes.interface';
-import errorMiddleware from './middlewares/error.middleware';
+import { HttpException } from '@exceptions/HttpException';
+import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS } from '@config';
+import { dbConnection } from '@databases';
+import { Routes } from '@interfaces/routes.interface';
+import errorMiddleware from '@middlewares/error.middleware';
 // Non-blocking auth (parses token but does not enforce)
-import authMiddleware from './middlewares/auth.middleware';
+import authMiddleware from '@middlewares/auth.middleware';
 // Blocking auth (requires valid user)
-import authRequiredMiddleware from './middlewares/authRequired.middleware';
-import { logger, stream } from './utils/logger';
-import routesArray from './routes/index'; // Default export (array of routes, excluding webhook)
-import { webhookRoute } from './routes/index'; // Named export (webhook route object)
+import authRequiredMiddleware from '@middlewares/authRequired.middleware';
+import { logger, stream } from '@utils/logger';
+import allRoutes from '@routes/index';
+// Import your Stripe webhook route directly for raw body handling
+import webhookRoute from '@routes/index'; // <-- Use default import based on error message
 
 class App {
   public app: express.Application;
@@ -32,13 +33,9 @@ class App {
     this.env = NODE_ENV || 'development';
     this.port = PORT || 3000;
 
-    console.log('Environment:', this.env);
-    console.log('Port:', this.port);
-    console.log('Database URI:', dbConnection.url);
-    
     this.connectToDatabase();
     this.initializeMiddlewares();
-    this.initializeRoutes(routesArray);
+    this.initializeRoutes(allRoutes);
     this.initializeSwagger();
     this.initializeErrorHandling();
   }
@@ -78,9 +75,8 @@ class App {
     // Mount Stripe webhook BEFORE body parsing to capture raw body
     if (webhookRoute && webhookRoute.path && webhookRoute.router) {
       this.app.use('/api' + webhookRoute.path, webhookRoute.router);
-      console.log('Webhook route mounted at:', '/api' + webhookRoute.path);
     } else {
-      console.warn('Webhook route object not found or incorrectly defined, skipping.');
+      console.warn('Webhook route not found or incorrectly defined, skipping.');
     }
 
     // Standard body parsers for JSON and URL-encoded
@@ -98,48 +94,24 @@ class App {
    * Mount application routes under /api,
    * applying authRequiredMiddleware to routes flagged with needsAuth
    */
-  private initializeRoutes(routesToMount: (Routes & { needsAuth?: boolean })[]) {
-    try {
-      if (!Array.isArray(routesToMount)) {
-        console.error('routesToMount is not an array:', routesToMount);
-        return;
+  private initializeRoutes(routes: (Routes & { needsAuth?: boolean })[]) {
+    routes.forEach(route => {
+      const routeMiddlewares: express.RequestHandler[] = [];
+
+      if (route.needsAuth) {
+        routeMiddlewares.push(authRequiredMiddleware);
       }
 
-      console.log(`Mounting ${routesToMount.length} routes...`);
-      
-      routesToMount.forEach(route => {
-        try {
-          if (!route) {
-            console.error('Route is undefined');
-            return;
-          }
-          
-          const routeMiddlewares: express.RequestHandler[] = [];
+      // Avoid re-mounting the webhook route
+      if (route !== webhookRoute) {
+        this.app.use('/api' + (route.path || '/'), ...routeMiddlewares, route.router);
+      }
+    });
 
-          if (route.needsAuth) {
-            routeMiddlewares.push(authRequiredMiddleware);
-          }
-
-          // Avoid re-mounting the webhook route by comparing paths or specific object reference
-          if (webhookRoute && route.path === webhookRoute.path) {
-            // Skip mounting the webhook route here as it was mounted separately
-            console.log(`Skipping webhook route mounting: ${route.path}`);
-          } else {
-            console.log(`Mounting route: ${route.path || '/'}`);
-            this.app.use('/api' + (route.path || '/'), ...routeMiddlewares, route.router);
-          }
-        } catch (err) {
-          console.error('Error mounting route:', route?.path, err);
-        }
-      });
-
-      // 404 for unmatched /api routes
-      this.app.use('/api', (req, res, next) => {
-        next(new HttpException(404, `API endpoint not found: ${req.method} ${req.originalUrl}`));
-      });
-    } catch (err) {
-      console.error('Error initializing routes:', err);
-    }
+    // 404 for unmatched /api routes
+    this.app.use('/api', (req, res, next) => {
+      next(new HttpException(404, `API endpoint not found: ${req.method} ${req.originalUrl}`));
+    });
   }
 
   /**
@@ -185,16 +157,13 @@ class App {
   private async connectToDatabase() {
     if (this.env !== 'production') {
       set('debug', true);
-      // Fix the deprecation warning
-      set('strictQuery', false);
     }
 
     try {
-      console.log('Connecting to MongoDB with URL:', dbConnection.url);
       await connect(dbConnection.url);
-      console.log('Database connected successfully');
+      logger.info('Database connected');
     } catch (error) {
-      console.error('Failed to connect to database. Error details:', error);
+      logger.error('Failed to connect to database:', error);
       // In production, you might exit the process here
       // process.exit(1);
     }

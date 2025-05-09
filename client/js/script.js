@@ -20,6 +20,7 @@ const API_BASE_URL = 'http://localhost:3000/api';
 // Also update userEmailSpan in updateAuthUI to potentially show name instead of email
 async function updateAuthUI() {
     const user = await checkAuth(); // Fetch user data from backend
+    window.currentUserRole = user ? user.role : null; // Store role globally
 
     if (user) {
         // User is logged in
@@ -137,17 +138,6 @@ async function renderPage() {
          } else {
              renderLoginMessage('Please log in to view your orders.');
          }
-    } else if (hash === '#/admin/users') {
-        AdminUsers.renderList(appDiv);
-    } else if (hash === '#/admin/reviews') {
-        AdminReviews.renderList(appDiv);
-    } else if (hash === '#/admin/discounts') {
-        AdminDiscounts.renderList(appDiv);
-    } else if (hash === '#/admin/discounts/new') {
-        AdminDiscounts.renderForm(appDiv);
-    } else if (hash.startsWith('#/admin/discounts/edit/')) {
-        const discountId = hash.split('/')[4];
-        AdminDiscounts.renderForm(appDiv, discountId);
     } else if (hash.startsWith('#/admin')) {
          const user = await checkAuth();
          if (user && user.role === 'admin') {
@@ -252,71 +242,41 @@ function renderRegisterForm() {
      // }
 }
 
-// Renders the list of products 
-async function renderProductsPage(filters = {}) {
-    appDiv.innerHTML = '<h2>Our Products</h2>';
-
-    // Build filter query string
-    const queryParams = new URLSearchParams();
-    if (filters.name) queryParams.append('name', filters.name);
-    if (filters.category) queryParams.append('category', filters.category);
-    if (filters.gender) queryParams.append('gender', filters.gender);
-    const queryString = queryParams.toString();
-
-    // Add search and filter form
-    // Define some example categories/genders - in a real app, these might come from an API
-    const exampleCategories = ['T-Shirts', 'Jeans', 'Dresses', 'Shoes', 'Accessories'];
-    const exampleGenders = ['Men', 'Women', 'Unisex'];
-
-    const filterFormHtml = `
-        <form id="productFilterForm" class="mb-4 p-3 border rounded">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="productSearchInput" class="form-label">Search by Name</label>
-                    <input type="text" id="productSearchInput" class="form-control" placeholder="Product name..." value="${filters.name || ''}">
-                </div>
-                <div class="col-md-3">
-                    <label for="categoryFilter" class="form-label">Category</label>
-                    <select id="categoryFilter" class="form-select">
-                        <option value="">All Categories</option>
-                        ${exampleCategories.map(cat => `<option value="${cat}" ${filters.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="genderFilter" class="form-label">Gender</label>
-                    <select id="genderFilter" class="form-select">
-                        <option value="">All Genders</option>
-                        ${exampleGenders.map(gen => `<option value="${gen}" ${filters.gender === gen ? 'selected' : ''}>${gen}</option>`).join('')}
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
-                </div>
-            </div>
-        </form>
+// Renders the list of products
+async function renderProductsPage(categoryFilter = '') {
+    // Add filter controls above the list
+    const filterHtml = `
+        <div class="mb-3">
+            <label for="categoryFilter" class="form-label">Filter by Category:</label>
+            <select class="form-select" id="categoryFilter">
+                <option value="">All</option>
+                <option value="Men" ${categoryFilter === 'Men' ? 'selected' : ''}>Men</option>
+                <option value="Women" ${categoryFilter === 'Women' ? 'selected' : ''}>Women</option>
+                <option value="Kids" ${categoryFilter === 'Kids' ? 'selected' : ''}>Kids</option>
+                <option value="Accessories" ${categoryFilter === 'Accessories' ? 'selected' : ''}>Accessories</option>
+                <!-- Add more categories as needed -->
+            </select>
+        </div>
     `;
-    appDiv.innerHTML += filterFormHtml;
 
-    const productsListDiv = document.createElement('div');
-    productsListDiv.id = 'productsList';
-    productsListDiv.className = 'row';
-    productsListDiv.innerHTML = '<p>Loading products...</p>';
-    appDiv.appendChild(productsListDiv);
+    appDiv.innerHTML = `<h2>Products</h2>${filterHtml}<div id="productsList" class="row">Loading products...</div>`;
 
-    document.getElementById('productFilterForm').addEventListener('submit', (event) => {
-        event.preventDefault();
-        const name = document.getElementById('productSearchInput').value;
-        const category = document.getElementById('categoryFilter').value;
-        const gender = document.getElementById('genderFilter').value;
-        renderProductsPage({ name, category, gender });
-    });
+    // Add event listener to the filter dropdown AFTER it's added to the DOM
+    const categorySelect = document.getElementById('categoryFilter');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', (event) => {
+            // Re-render the page with the new filter value
+            renderProductsPage(event.target.value);
+        });
+    }
 
     try {
-        let fetchUrl = `${API_BASE_URL}/products`;
-        if (queryString) {
-            fetchUrl += `?${queryString}`;
-        }
-        const response = await fetch(fetchUrl);
+        // Construct API URL with category filter if provided
+        const apiUrl = categoryFilter
+            ? `${API_BASE_URL}/products?category=${encodeURIComponent(categoryFilter)}`
+            : `${API_BASE_URL}/products`;
+
+        const response = await fetch(apiUrl);
          if (!response.ok) {
              throw new Error(`Failed to fetch products: ${response.statusText}`);
          }
@@ -328,19 +288,24 @@ async function renderProductsPage(filters = {}) {
 
         if (products && products.length > 0) {
             products.forEach(product => {
-                 // Use a working placeholder image URL or remove img if not needed
+                let priceHtml = `$${product.price.toFixed(2)}`;
+                if (product.discountPercentage && product.discountPercentage > 0 && product.originalPrice) {
+                    priceHtml = `<span class="text-danger">$${product.price.toFixed(2)}</span> <small class="text-muted text-decoration-line-through">$${product.originalPrice.toFixed(2)}</small>`;
+                }
+
                 productsListDiv.innerHTML += `
                     <div class="col-md-4 col-sm-6 mb-4">
                         <div class="card h-100">
-                             <img src="https://via.placeholder.com/250x150" class="card-img-top" alt="Product Image Placeholder"> <!-- Using a reliable placeholder -->
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">${product.name}</h5>
-                                <p class="card-text flex-grow-1">${product.description.substring(0, 100)}...</p>
-                                <p class="card-text"><strong>$${product.price.toFixed(2)}</strong></p>
-                                <div class="mt-auto">
-                                    <a href="#/products/${product.name}" class="btn btn-secondary me-1">View Details</a>
-                                     <button class="btn btn-primary add-to-cart-btn" data-product-id="${product._id}" data-product-price="${product.price}">Add to Cart</button>
+                            <a href="#/products/${encodeURIComponent(product.name)}" class="text-decoration-none text-dark">
+                                <img src="${product.imageUrl || 'https://via.placeholder.com/250x150.png?text=No+Image'}" class="card-img-top" alt="${product.name}" style="height: 200px; object-fit: cover;">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">${product.name}</h5>
+                                    <p class="card-text flex-grow-1">${product.description.substring(0, 100)}...</p>
+                                    <p class="card-text fw-bold">${priceHtml}</p>
                                 </div>
+                            </a>
+                            <div class="card-footer bg-transparent border-top-0">
+                                <button class="btn btn-primary w-100 add-to-cart-btn" data-product-name="${product.name}">Add to Cart</button>
                             </div>
                         </div>
                     </div>
@@ -377,20 +342,22 @@ async function renderProductDetailPage(productName) {
         // Build HTML for reviews
         let reviewsHtml = '';
         if (product.reviews && product.reviews.length > 0) {
-            reviewsHtml = '<h5>Reviews:</h5><ul class="list-group">';
-            // Iterate through reviews
+            reviewsHtml = '<h5>Reviews:</h5><ul class="list-group list-group-flush">';
             reviewsHtml += product.reviews.map(review => {
-                 // Note: Displaying 'User ID' because the review model stores user as ObjectId
-                 // To display user names, you would need to modify the backend service to
-                 // 'populate' the 'user' field in the review objects when fetching the product.
+                 // Get user role to conditionally show delete button
+                 const currentUserRole = window.currentUserRole || 'customer'; // Get role stored globally (or default)
+                 const deleteButtonHtml = currentUserRole === 'admin'
+                     ? `<button class="btn btn-sm btn-danger ms-2 delete-review-btn" data-product-name="${product.name}" data-review-id="${review._id}">Delete</button>`
+                     : '';
+
                  return `
-                    <li class="list-group-item">
-                        <strong>Rating: ${review.rating}/5</strong>
-                        <p>${review.comment}</p>
-                        <small>By User ${review.user} - ${new Date(review.createdAt).toLocaleDateString()}</small>
-                         <!-- Add Edit/Delete buttons for reviews here, with logic to check if current user owns the review -->
-                         <!-- Example: <button class="btn btn-sm btn-warning edit-review-btn" data-review-id="${review._id}">Edit</button> -->
-                         <!-- Example: <button class="btn btn-sm btn-danger delete-review-btn" data-review-id="${review._id}">Delete</button> -->
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>Rating: ${review.rating}/5</strong>
+                            <p class="mb-1">${review.comment}</p>
+                            <small class="text-muted">By User ${review.user} - ${new Date(review.createdAt).toLocaleDateString()}</small>
+                        </div>
+                        ${deleteButtonHtml}
                     </li>
                 `;
             }).join('');
@@ -417,19 +384,34 @@ async function renderProductDetailPage(productName) {
             </form>
         ` : '<p class="mt-4">Please log in to leave a review.</p>';
 
+        // For product details page, update price display
+        let priceDetailHtml = `$${product.price.toFixed(2)}`;
+        if (product.discountPercentage && product.discountPercentage > 0 && product.originalPrice) {
+            priceDetailHtml = `<span class="h3 text-danger">$${product.price.toFixed(2)}</span> <small class="text-muted text-decoration-line-through h5">$${product.originalPrice.toFixed(2)}</small>`;
+        }
 
         // Populate the appDiv with product details and reviews
         appDiv.innerHTML = `
-            <h2>${product.name}</h2>
-            <p><strong>Price: $${product.price.toFixed(2)}</strong></p>
-            <p>Stock: ${product.stock}</p>
-            <p>${product.description}</p>
-            <!-- Add to Cart button (same as on products page) -->
-            <button class="btn btn-primary add-to-cart-btn" data-product-id="${product._id}" data-product-price="${product.price}">Add to Cart</button>
-
-            <hr class="mt-4"> <!-- Separator -->
-            ${reviewsHtml}
-            ${addReviewFormHtml}
+            <div class="row">
+                <div class="col-md-6">
+                    <img src="${product.imageUrl || 'https://via.placeholder.com/400x300.png?text=No+Image'}" class="img-fluid rounded mb-3" alt="${product.name}">
+                </div>
+                <div class="col-md-6">
+                    <h2>${product.name}</h2>
+                    <p class="lead">${product.description}</p>
+                    <p class="h4">${priceDetailHtml}</p>
+                    <p><strong>Category:</strong> ${product.category}</p>
+                    <p><strong>Stock:</strong> ${product.stock > 0 ? product.stock + ' available' : 'Out of stock'}</p>
+                    ${product.stock > 0 ? '<button class="btn btn-primary btn-lg add-to-cart-btn" data-product-name="' + product.name + '">Add to Cart</button>' : '<button class="btn btn-secondary btn-lg" disabled>Out of Stock</button>'}
+                </div>
+            </div>
+            <hr class="my-4">
+            <div id="reviewsSection">
+                ${reviewsHtml} 
+            </div>
+            <div id="addReviewSection" class="mt-4">
+                ${addReviewFormHtml}
+            </div>
         `;
 
          // Add event listener to the "Add to Cart" button (if it exists)
@@ -444,10 +426,10 @@ async function renderProductDetailPage(productName) {
              addReviewForm.addEventListener('submit', (e) => handleAddReview(e, product._id));
          }
 
-         // Add event listeners for edit/delete review buttons if implemented later
-         // document.querySelectorAll('.edit-review-btn').forEach(...)
-         // document.querySelectorAll('.delete-review-btn').forEach(...)
-
+         // Add event listeners for delete review buttons (if any)
+         document.querySelectorAll('.delete-review-btn').forEach(button => {
+             button.addEventListener('click', handleDeleteReview);
+         });
 
     } catch (error) {
         // Handle errors (e.g., product not found)
@@ -468,7 +450,7 @@ async function renderCartPage() {
     }
 
    try {
-       // Fetch the user object which now includes cart and discount details
+       // Fetch the user's cart from the backend API (requires authentication)
        const response = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
         if (!response.ok) {
             // Handle authentication required specifically for cart page
@@ -478,9 +460,8 @@ async function renderCartPage() {
             }
             throw new Error(`Failed to fetch cart: ${response.statusText}`);
         }
-       const userData = await response.json();
-       const userWithCart = userData.data; // Assuming backend sends user object in 'data'
-       const cartItems = userWithCart.cart;
+       const data = await response.json();
+       const cartItems = data.data; // Assuming API returns cart items in 'data'
 
        const cartItemsDiv = document.getElementById('cartItems');
        cartItemsDiv.innerHTML = ''; // Clear loading message
@@ -490,18 +471,20 @@ async function renderCartPage() {
            cartItems.forEach(item => {
                 const itemTotal = item.price * item.qty;
                 subtotal += itemTotal;
-               // The product field should now be populated with product details
+               // NOTE: item.product here is likely just the product ID string.
+               // To display product name, you would need to fetch product details or
+               // modify the backend /api/cart endpoint to populate the product data.
                cartItemsDiv.innerHTML += `
                    <div class="card mb-3">
                        <div class="card-body">
-                           <h5 class="card-title">${item.product ? item.product.name : 'Product not found'}</h5>
-                           <p class="card-text">Price: $${item.price.toFixed(2)}</p> <!-- This price is from the cart item, which is good -->
+                           <h5 class="card-title">Product ID: ${item.product}</h5> <!-- Enhance later -->
+                           <p class="card-text">Price: $${item.price.toFixed(2)}</p>
                            <div class="input-group mb-3" style="width: 150px;">
-                               <button class="btn btn-outline-secondary update-qty-btn" type="button" data-product-id="${item.product._id}" data-delta="-1">-</button>
-                               <input type="number" class="form-control text-center cart-qty-input" value="${item.qty}" min="1" data-product-id="${item.product._id}">
-                               <button class="btn btn-outline-secondary update-qty-btn" type="button" data-product-id="${item.product._id}" data-delta="1">+</button>
+                               <button class="btn btn-outline-secondary update-qty-btn" type="button" data-product-id="${item.product}" data-delta="-1">-</button>
+                               <input type="number" class="form-control text-center cart-qty-input" value="${item.qty}" min="1" data-product-id="${item.product}">
+                               <button class="btn btn-outline-secondary update-qty-btn" type="button" data-product-id="${item.product}" data-delta="1">+</button>
                            </div>
-                            <button class="btn btn-danger remove-from-cart-btn" data-product-id="${item.product._id}">Remove</button>
+                            <button class="btn btn-danger remove-from-cart-btn" data-product-id="${item.product}">Remove</button>
                        </div>
                    </div>
                `;
@@ -518,45 +501,10 @@ async function renderCartPage() {
                 button.addEventListener('click', handleRemoveFromCart);
             });
 
-            let discountSectionHtml = `
-             <div class="mt-3">
-                 <form id="applyDiscountForm" class="input-group">
-                     <input type="text" id="discountCodeInput" class="form-control" placeholder="Enter discount code">
-                     <button type="submit" class="btn btn-primary">Apply Discount</button>
-                 </form>
-                 <div id="discountMessage" class="mt-2"></div>
-             </div>
-            `;
-
-            if (userWithCart.appliedDiscountCode) {
-                discountSectionHtml = `
-                 <div class="mt-3">
-                     <p>Applied Discount: <strong>${userWithCart.appliedDiscountCode}</strong> (-$${(userWithCart.discountAmount / 100).toFixed(2)}) 
-                         <button class="btn btn-sm btn-outline-danger ms-2" id="removeDiscountBtn">Remove</button>
-                     </p>
-                 </div>
-                `;
-            }
-
             document.getElementById('cartSummary').innerHTML = `
-                <h4>Order Summary</h4>
-                <p>Subtotal: $${(userWithCart.cartSubtotal / 100).toFixed(2)}</p>
-                ${userWithCart.appliedDiscountCode ? 
-                  `<p>Discount (${userWithCart.appliedDiscountCode}): -$${(userWithCart.discountAmount / 100).toFixed(2)}</p>
-                   <p><strong>Total After Discount: $${(userWithCart.cartTotalAfterDiscount / 100).toFixed(2)}</strong></p>` : ''}
-                <!-- Shipping and Tax will be finalized at checkout -->
-                <a href="#/checkout" class="btn btn-success mt-3 ${(!cartItems || cartItems.length === 0) ? 'disabled' : ''}">Proceed to Checkout</a>
+                <h4>Subtotal: $${subtotal.toFixed(2)}</h4>
+                <a href="#/checkout" class="btn btn-success mt-3">Proceed to Checkout</a>
             `;
-            cartItemsDiv.insertAdjacentHTML('afterend', discountSectionHtml); // Add discount form/info after items
-
-            const applyForm = document.getElementById('applyDiscountForm');
-            if (applyForm) {
-                applyForm.addEventListener('submit', handleApplyDiscount);
-            }
-            const removeBtn = document.getElementById('removeDiscountBtn');
-            if (removeBtn) {
-                removeBtn.addEventListener('click', handleRemoveDiscount);
-            }
 
        } else {
            cartItemsDiv.innerHTML = '<p>Your cart is empty.</p>';
@@ -674,20 +622,28 @@ async function renderCheckoutPage() {
         return;
     }
 
-    // Fetch user/cart data which includes all discount fields and totals
-    const cartResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
-    if (!cartResponse.ok) { /* error handling */ return; }
-    const userCartData = (await cartResponse.json()).data;
+    // Fetch the current cart to display summary and ensure it's not empty
+    const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
+     if (!cartCheckResponse.ok) {
+          appDiv.innerHTML = '<p class="text-danger">Failed to load cart for checkout.</p>';
+          console.error('Failed to fetch cart for checkout');
+          return;
+      }
+     const cartData = await cartCheckResponse.json();
+     const cartItems = cartData.data;
 
-    if (!userCartData.cart || userCartData.cart.length === 0) { /* handle empty cart */ return; }
+    if (!cartItems || cartItems.length === 0) {
+         appDiv.innerHTML = '<h2>Checkout</h2><p>Your cart is empty. Please add items before checking out.</p><p><a href="#/products">Browse Products</a></p>';
+         return;
+     }
 
-    const { cart, cartSubtotal, appliedDiscountCode, discountAmount, cartTotalAfterDiscount } = userCartData;
-
-    // Estimate/calculate shipping and tax for display (backend re-calculates on order creation)
-    const shippingFeeDisplay = 500; // Cents, example same as backend
-    const taxRateDisplay = 0.10; // Example same as backend
-    const taxAmountDisplay = Math.round((cartTotalAfterDiscount + shippingFeeDisplay) * taxRateDisplay);
-    const grandTotalDisplay = cartTotalAfterDiscount + shippingFeeDisplay + taxAmountDisplay;
+    // Calculate subtotal, shipping, tax, and total based on cart items (can be done on frontend or fetched from backend)
+    // For simplicity, let's assume backend handles this accurately during order creation.
+    const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+    // Note: Shipping and Tax calculation logic exists in the backend service.
+    // You might want to create a backend endpoint (e.g., GET /api/cart/summary) to fetch
+    // the calculated shipping, tax, and total before displaying the checkout page.
+    // For this basic example, we'll just show the subtotal here.
 
     // Display checkout form and cart summary
     appDiv.innerHTML = `
@@ -697,17 +653,15 @@ async function renderCheckoutPage() {
             <div class="card-body">
                 <h5 class="card-title">Order Summary</h5>
                 <ul class="list-group list-group-flush">
-                   ${cart.map(item => `<li class="list-group-item">${item.qty} x ${item.product.name} - $${(item.price * item.qty / 100).toFixed(2)}</li>`).join('')}
+                   ${cartItems.map(item => `
+                        <li class="list-group-item">${item.qty} x Product ID: ${item.product} - $${(item.price * item.qty).toFixed(2)}</li>
+                   `).join('')}
                 </ul>
-                <hr>
-                <p>Subtotal: $${(cartSubtotal / 100).toFixed(2)}</p>
-                ${appliedDiscountCode ? 
-                  `<p>Discount (${appliedDiscountCode}): -$${(discountAmount / 100).toFixed(2)}</p>
-                   <p>Total After Discount: $${(cartTotalAfterDiscount / 100).toFixed(2)}</p>` : ''}
-                <p>Shipping: $${(shippingFeeDisplay / 100).toFixed(2)}</p>
-                <p>Tax (Est.): $${(taxAmountDisplay / 100).toFixed(2)}</p>
-                <hr>
-                <h5>Grand Total (Est.): $${(grandTotalDisplay / 100).toFixed(2)}</h5>
+                <h6 class="mt-3">Subtotal: $${subtotal.toFixed(2)}</h6>
+                <!-- Ideally, fetch and display shipping and tax from backend summary endpoint -->
+                <!-- <h6 class="mt-1">Shipping: $...</h6> -->
+                <!-- <h6 class="mt-1">Tax: $...</h6> -->
+                <!-- <h4>Total: $...</h4> -->
             </div>
         </div>
 
@@ -766,7 +720,8 @@ async function renderOrderHistoryPage(userId) {
                 let itemsHtml = '<ul>';
                 // List items in the order
                 order.items.forEach(item => {
-                    itemsHtml += `<li>${item.qty} x ${item.product ? item.product.name : 'Product ID: ' + item.product} (Price: $${item.price.toFixed(2)})</li>`;
+                    // Again, product details are not populated here. Displaying ID.
+                    itemsHtml += `<li>Product ID: ${item.product} (Qty: ${item.qty}, Price: $${item.price.toFixed(2)})</li>`;
                 });
                 itemsHtml += '</ul>';
 
@@ -776,16 +731,13 @@ async function renderOrderHistoryPage(userId) {
                         <div class="card-body">
                             <h5 class="card-title">Order #${order._id}</h5>
                             <p class="card-text">Status: <strong>${order.status}</strong></p>
-                            <p>Subtotal: $${(order.subtotal / 100).toFixed(2)}</p>
-                            ${order.discountCode ? 
-                              `<p>Discount (${order.discountCode}): -$${(order.discountAmount / 100).toFixed(2)}</p>
-                               <p>Total After Discount: $${(order.totalAfterDiscount / 100).toFixed(2)}</p>` : ''}
-                            <p>Shipping: $${(order.shippingFee / 100).toFixed(2)}</p>
-                            <p>Tax: $${(order.taxAmount / 100).toFixed(2)}</p>
-                            <p><strong>Grand Total: $${(order.grandTotal / 100).toFixed(2)}</strong></p>
+                            <p class="card-text">Total: $${order.total.toFixed(2)}</p>
                             <p class="card-text">Shipping Address: ${order.shippingAddress}</p>
-                            <p class="card-text">Items:</p>${itemsHtml}
+                            <p class="card-text">Items:</p>
+                            ${itemsHtml}
                             <small>Ordered on: ${new Date(order.createdAt).toLocaleDateString()}</small>
+                            <!-- Optional: Button to view detailed order information -->
+                            <!-- <button class="btn btn-sm btn-info view-order-details" data-order-id="${order._id}">Details</button> -->
                         </div>
                     </div>
                 `;
@@ -812,8 +764,6 @@ async function renderAdminPage(adminPath, editProductName = null) {
            <li class="nav-item"><a class="nav-link ${adminPath === '/users' ? 'active' : ''} nav-link" href="#/admin/users">Manage Users</a></li>
            <li class="nav-item"><a class="nav-link ${adminPath.startsWith('/products') ? 'active' : ''} nav-link" href="#/admin/products">Manage Products</a></li>
            <li class="nav-item"><a class="nav-link ${adminPath === '/orders' ? 'active' : ''} nav-link" href="#/admin/orders">Manage Orders</a></li>
-           <li class="nav-item"><a class="nav-link ${adminPath === '/reviews' ? 'active' : ''} nav-link" href="#/admin/reviews">Manage Reviews</a></li>
-           <li class="nav-item"><a class="nav-link ${adminPath.startsWith('/discounts') ? 'active' : ''} nav-link" href="#/admin/discounts">Manage Discounts</a></li>
        </ul>
        <div id="adminContent">
            <!-- Admin content loads here -->
@@ -823,8 +773,8 @@ async function renderAdminPage(adminPath, editProductName = null) {
     const adminContentDiv = document.getElementById('adminContent');
     if (!adminContentDiv) {
         console.error('Could not find adminContent div');
-        return;
-    }
+                 return;
+             }
 
     // Delegate rendering to namespaced functions
     // Ensure the namespaces (AdminUsers, etc.) are available (check browser console if errors)
@@ -839,14 +789,6 @@ async function renderAdminPage(adminPath, editProductName = null) {
             AdminProducts.renderEditForm(adminContentDiv, editProductName);
         } else if (adminPath === '/orders') {
             AdminOrders.renderList(adminContentDiv);
-        } else if (adminPath === '/reviews') {
-            AdminReviews.renderList(adminContentDiv);
-        } else if (adminPath === '/discounts') {
-            AdminDiscounts.renderList(adminContentDiv);
-        } else if (adminPath === '/discounts/new') {
-            AdminDiscounts.renderForm(adminContentDiv);
-        } else if (adminPath.startsWith('/discounts/edit/') && editProductName) {
-            AdminDiscounts.renderForm(adminContentDiv, editProductName);
         } else {
             adminContentDiv.innerHTML = '<p>Welcome to the Admin Dashboard.</p>';
         }
@@ -1202,6 +1144,38 @@ async function handleAddReview(event, productId) {
     }
 }
 
+// --- Add new handler function for deleting reviews ---
+
+async function handleDeleteReview(event) {
+    const button = event.target;
+    const productName = button.dataset.productName;
+    const reviewId = button.dataset.reviewId;
+
+    if (!confirm(`Are you sure you want to delete review ${reviewId} for product ${productName}?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}/reviews/${reviewId}`, {
+            method: 'DELETE',
+            credentials: 'include' // Requires admin auth on backend
+        });
+
+        if (response.ok) {
+            alert('Review deleted successfully!');
+            // Re-render the product detail page to reflect the change
+            renderProductDetailPage(productName);
+        } else {
+            const errorData = await response.json();
+            alert(`Failed to delete review: ${errorData.message || 'Unknown error'}`);
+            if (response.status === 401 || response.status === 403) renderAccessDenied();
+        }
+    } catch (error) {
+        console.error('Delete review error:', error);
+        alert('An error occurred while deleting the review.');
+    }
+}
+
 // --- Stripe Redirect Handling ---
 const urlParams = new URLSearchParams(window.location.search);
 const orderIdFromUrl = urlParams.get('orderId');
@@ -1246,70 +1220,6 @@ if (currentPath.includes('/checkout-success') && orderIdFromUrl) {
 } else if (currentPath.includes('/checkout-cancel')) {
     handleCheckoutRedirect(null, false);
 } else {
-    // If no specific redirect parameters, render the normal page based on hash
+   // If no specific redirect parameters, render the normal page based on hash
     renderPage(); // Initial page render happens here now
-}
-
-async function handleApplyDiscount(event) {
-    event.preventDefault();
-    const codeInput = document.getElementById('discountCodeInput');
-    const discountCode = codeInput.value.trim().toUpperCase();
-    const messageDiv = document.getElementById('discountMessage');
-    messageDiv.textContent = '';
-
-    if (!discountCode) {
-        messageDiv.textContent = 'Please enter a discount code.';
-        messageDiv.className = 'text-danger mt-2';
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/cart/discount`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ discountCode }),
-            credentials: 'include'
-        });
-        const result = await response.json();
-        if (response.ok) {
-            messageDiv.textContent = result.message || 'Discount applied!';
-            messageDiv.className = 'text-success mt-2';
-            renderCartPage(); // Re-render to show updated totals and discount info
-        } else {
-            throw new Error(result.message || 'Failed to apply discount');
-        }
-    } catch (error) {
-        messageDiv.textContent = error.message;
-        messageDiv.className = 'text-danger mt-2';
-        console.error('Error applying discount:', error);
-    }
-}
-
-async function handleRemoveDiscount() {
-    const messageDiv = document.getElementById('discountMessage') || document.createElement('div'); // Ensure it exists
-     if(!document.getElementById('discountMessage')) { // if it was created, append it after the cart summary or similar
-        const cartSummary = document.getElementById('cartSummary');
-        if(cartSummary) cartSummary.parentNode.insertBefore(messageDiv, cartSummary.nextSibling);
-        messageDiv.id = 'discountMessage';
-    }
-    messageDiv.textContent = '';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/cart/discount`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-        const result = await response.json();
-        if (response.ok) {
-            messageDiv.textContent = result.message || 'Discount removed!';
-            messageDiv.className = 'text-success mt-2';
-            renderCartPage(); // Re-render cart
-        } else {
-            throw new Error(result.message || 'Failed to remove discount');
-        }
-    } catch (error) {
-        messageDiv.textContent = error.message;
-        messageDiv.className = 'text-danger mt-2';
-        console.error('Error removing discount:', error);
-    }
 }

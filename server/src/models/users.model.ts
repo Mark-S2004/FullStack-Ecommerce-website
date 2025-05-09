@@ -1,6 +1,6 @@
 import { model, Schema, Document } from 'mongoose';
-import { User } from '../interfaces/users.interface';
-import { EUserRole } from '../interfaces/users.interface';
+import { User } from '@interfaces/users.interface';
+import { EUserRole } from '@interfaces/users.interface';
 
 const userSchema: Schema = new Schema({
   name: {
@@ -33,10 +33,6 @@ const userSchema: Schema = new Schema({
       price: { type: Number, required: true, default: 0 },
     },
   ],
-  cartSubtotal: { type: Number, default: 0 },
-  appliedDiscountCode: { type: String, trim: true },
-  discountAmount: { type: Number, default: 0 },
-  cartTotalAfterDiscount: { type: Number, default: 0 },
 });
 
 const userModel = model<User & Document>('User', userSchema);
