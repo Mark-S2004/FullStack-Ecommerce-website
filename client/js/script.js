@@ -30,6 +30,13 @@ async function updateAuthUI() {
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdownLink">
                     <li><span class="dropdown-item-text"><small>Role: ${user.role}</small></span></li>
                     <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#/profile">
+                        <i class="fas fa-user me-1"></i>View Profile
+                    </a></li>
+                    <li><a class="dropdown-item" href="#/orders">
+                        <i class="fas fa-box me-1"></i>Order History
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" id="logoutButton">
                         <i class="fas fa-sign-out-alt me-1"></i>Logout
                     </a></li>
@@ -450,6 +457,20 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
         const data = await response.json();
         const products = data.data;
 
+        // Fetch user's cart to check if products are already in cart
+        let cartItems = [];
+        try {
+            const cartResponse = await fetch(`${API_BASE_URL}/cart`, { 
+                credentials: 'include' 
+            });
+            if (cartResponse.ok) {
+                const cartData = await cartResponse.json();
+                cartItems = cartData.data || [];
+            }
+        } catch (error) {
+            console.error('Error fetching cart:', error);
+        }
+
         const productsListDiv = document.getElementById('productsList');
         productsListDiv.innerHTML = ''; 
 
@@ -458,6 +479,35 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
                 let priceHtml = `$${product.price.toFixed(2)}`;
                 if (product.discountPercentage && product.discountPercentage > 0 && product.originalPrice) {
                     priceHtml = `<span class="text-danger">$${product.price.toFixed(2)}</span> <small class="text-muted text-decoration-line-through">$${product.originalPrice.toFixed(2)}</small>`;
+                }
+
+                // Check if product is in cart
+                const cartItem = cartItems.find(item => item.product === product._id);
+                const cartQuantity = cartItem ? cartItem.qty : 0;
+
+                // Create cart control HTML based on cart status
+                let cartControlHtml = '';
+                if (cartQuantity > 0) {
+                    cartControlHtml = `
+                        <div class="input-group cart-quantity-control">
+                            <button class="btn btn-outline-primary btn-sm decrement-quantity" 
+                                data-product-id="${product._id}" 
+                                ${cartQuantity <= 1 ? 'disabled' : ''}>−</button>
+                            <input type="number" class="form-control form-control-sm text-center product-quantity" 
+                                value="${cartQuantity}" min="1" max="${product.stock}" readonly style="width: 40px;">
+                            <button class="btn btn-outline-primary btn-sm increment-quantity" 
+                                data-product-id="${product._id}"
+                                ${cartQuantity >= product.stock ? 'disabled' : ''}>+</button>
+                        </div>
+                    `;
+                } else {
+                    cartControlHtml = `
+                        <button class="btn btn-primary btn-sm w-100 add-to-cart-btn" 
+                            data-product-name="${product.name}" 
+                            ${product.stock <= 0 ? 'disabled' : ''}>
+                            <i class="fas fa-cart-plus me-1"></i>Add
+                        </button>
+                    `;
                 }
 
                 productsListDiv.innerHTML += `
@@ -472,14 +522,121 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
                                 </div>
                             </a>
                             <div class="card-footer bg-transparent border-top-0">
-                                <button class="btn btn-primary w-100 add-to-cart-btn" data-product-name="${product.name}">Add to Cart</button>
+                                ${cartControlHtml}
                             </div>
                         </div>
                     </div>
                 `;
             });
+
+            // Add event listeners for cart controls
             document.querySelectorAll('.add-to-cart-btn').forEach(button => {
-                button.addEventListener('click', handleAddToCart);
+                button.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const originalText = button.innerHTML;
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+                    
+                    try {
+                        await handleAddToCart(e);
+                        // Refresh the page to show updated cart controls
+                        renderProductsPage({ category: categoryFilter, search: searchTerm });
+                    } catch (error) {
+                        console.error('Error adding to cart:', error);
+                        button.disabled = false;
+                        button.innerHTML = originalText;
+                    }
+                });
+            });
+
+            // Add handlers for quantity controls
+            document.querySelectorAll('.increment-quantity').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const productId = e.target.dataset.productId;
+                    const quantityInput = e.target.closest('.cart-quantity-control').querySelector('.product-quantity');
+                    const newQty = parseInt(quantityInput.value) + 1;
+                    
+                    // Find the product to check its stock
+                    const product = products.find(p => p._id === productId);
+                    const maxStock = product ? product.stock : 0;
+                    
+                    if (newQty <= maxStock) {
+                        try {
+                            // Disable buttons during update
+                            e.target.disabled = true;
+                            
+                            const response = await fetch(`${API_BASE_URL}/cart`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ productId, quantity: newQty }),
+                                credentials: 'include'
+                            });
+                            
+                            if (response.ok) {
+                                // Refresh the list to reflect changes
+                                renderProductsPage({ category: categoryFilter, search: searchTerm });
+                            } else {
+                                console.error('Failed to update cart');
+                                alert('Failed to update quantity');
+                            }
+                        } catch (error) {
+                            console.error('Error updating cart:', error);
+                            alert('Error updating quantity');
+                        }
+                    } else {
+                        alert(`Sorry, only ${maxStock} items available in stock.`);
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.decrement-quantity').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const productId = e.target.dataset.productId;
+                    const quantityInput = e.target.closest('.cart-quantity-control').querySelector('.product-quantity');
+                    const newQty = parseInt(quantityInput.value) - 1;
+                    
+                    try {
+                        // Disable button during update
+                        e.target.disabled = true;
+                        
+                        if (newQty >= 1) {
+                            const response = await fetch(`${API_BASE_URL}/cart`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ productId, quantity: newQty }),
+                                credentials: 'include'
+                            });
+                            
+                            if (response.ok) {
+                                // Refresh the list to reflect changes
+                                renderProductsPage({ category: categoryFilter, search: searchTerm });
+                            } else {
+                                console.error('Failed to update cart');
+                                alert('Failed to update quantity');
+                                e.target.disabled = false;
+                            }
+                        } else {
+                            // If quantity would be 0, remove from cart entirely
+                            const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
+                                method: 'DELETE',
+                                credentials: 'include'
+                            });
+                            
+                            if (response.ok) {
+                                // Refresh the list to show "Add to Cart" button
+                                renderProductsPage({ category: categoryFilter, search: searchTerm });
+                            } else {
+                                console.error('Failed to remove from cart');
+                                alert('Failed to remove from cart');
+                                e.target.disabled = false;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error updating cart:', error);
+                        alert('Error updating cart');
+                        e.target.disabled = false;
+                    }
+                });
             });
         } else {
             productsListDiv.innerHTML = '<p>No products found matching your criteria.</p>';
@@ -1623,6 +1780,15 @@ async function handleAddReview(event, productNameForLookup) {
     }
 
     try {
+        // Check if user is authenticated
+        const user = await checkAuth();
+        if (!user) {
+            if(errorDiv) errorDiv.textContent = 'You must be logged in to add a review.';
+            alert('You must be logged in to add a review.');
+            window.location.hash = '#/login';
+            return;
+        }
+
         // Get the hidden product ID from the form or the product detail data directly
         const productIdInput = document.getElementById('productId');
         let productId;
@@ -1645,6 +1811,12 @@ async function handleAddReview(event, productNameForLookup) {
             
             const productData = await productResponse.json();
             productId = productData.data._id;
+            console.log('[Review] Retrieved product ID:', productId);
+        }
+        
+        if (!productId) {
+            if(errorDiv) errorDiv.textContent = 'Could not determine product ID. Please try again.';
+            return;
         }
         
         console.log('[Review] Submitting review for product ID:', productId);
@@ -1816,11 +1988,15 @@ async function handleCheckout(event) {
         address: shippingAddress
     });
 
-        // Send only the address to the backend; let the server calculate shipping, tax, and total
+        // Send the address, shipping cost, and tax to the backend
         const response = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: shippingAddress }),
+            body: JSON.stringify({ 
+                address: shippingAddress,
+                shippingCost: shippingCost,
+                tax: tax
+            }),
             credentials: 'include'
         });
         
