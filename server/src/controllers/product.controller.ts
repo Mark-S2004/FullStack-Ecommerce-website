@@ -20,9 +20,28 @@ export class ProductController {
   public getProducts = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const category = req.query.category as string; // Get category from query param
-      const findAllProductsData: Product[] = await this.productService.findAllProduct(category); // Pass category to service
+      const search = req.query.search as string; // Get search term from query param
+      
+      let findAllProductsData: Product[];
+      
+      if (search) {
+        // If there's a search parameter, use search method
+        findAllProductsData = await this.productService.searchProducts(search);
+      } else {
+        // Otherwise use regular category filtering
+        findAllProductsData = await this.productService.findAllProduct(category);
+      }
 
       res.status(200).json({ data: findAllProductsData, message: 'findAll' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getCategories = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const categories = await this.productService.getAllCategories();
+      res.status(200).json({ data: categories, message: 'categories' });
     } catch (error) {
       next(error);
     }

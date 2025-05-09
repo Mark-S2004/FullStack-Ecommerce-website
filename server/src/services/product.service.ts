@@ -12,6 +12,24 @@ class ProductService {
     return products;
   }
 
+  public async searchProducts(searchTerm: string): Promise<Product[]> {
+    // Create a case-insensitive regex search
+    const regex = new RegExp(searchTerm, 'i');
+    const products: Product[] = await this.products.find({
+      $or: [
+        { name: regex },
+        { description: regex }
+      ]
+    });
+    return products;
+  }
+
+  public async getAllCategories(): Promise<string[]> {
+    // Get distinct categories from products
+    const categories: string[] = await this.products.distinct('category');
+    return categories.filter(cat => cat && cat.trim() !== '');
+  }
+
   public async findProductByName(productName: string): Promise<Product> {
     const findProduct: Product = await this.products.findOne({ name: productName });
     if (!findProduct) throw new HttpException(409, "Product doesn't exist");

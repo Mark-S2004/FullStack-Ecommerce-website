@@ -117,41 +117,46 @@ async function renderPage() {
         renderLoginForm();
     } else if (hash === '#/register') {
         renderRegisterForm();
-    } else if (hash === '#/products') {
-        renderProductsPage();
-    } else if (hash.startsWith('#/products/')) {
-        const parts = hash.split('/');
-        const productName = decodeURIComponent(parts[parts.length - 1]); // Decode product name
-         if (productName) {
-            renderProductDetailPage(productName);
-         } else {
-             renderNotFound();
-         }
+    } else if (hash.startsWith('#/products')) {
+        // Check if there are query parameters for category or search
+        const queryString = hash.split('?')[1] || '';
+        const params = new URLSearchParams(queryString);
+        const category = params.get('category') || '';
+        const search = params.get('search') || '';
+        
+        if (hash === '#/products' || hash.startsWith('#/products?')) {
+            renderProductsPage(category, search);
+        } else {
+            const parts = hash.split('/');
+            const productName = decodeURIComponent(parts[parts.length - 1].split('?')[0]); // Remove query params if any
+            if (productName) {
+                renderProductDetailPage(productName);
+            } else {
+                renderNotFound();
+            }
+        }
     } else if (hash === '#/cart') {
         renderCartPage();
     } else if (hash === '#/checkout') {
         renderCheckoutPage();
     } else if (hash === '#/orders') {
-         const user = await checkAuth();
-         if (user) {
-             renderOrderHistoryPage(user._id);
-         } else {
-             renderLoginMessage('Please log in to view your orders.');
-         }
+        const user = await checkAuth();
+        if (user) {
+            renderOrderHistoryPage(user._id);
+        } else {
+            renderLoginMessage('Please log in to view your orders.');
+        }
     } else if (hash.startsWith('#/admin')) {
-         const user = await checkAuth();
-         if (user && user.role === 'admin') {
-             const adminPath = hash.substring('#/admin'.length);
-             // Decode product names if they appear in edit paths
-             const editMatch = adminPath.match(/^\/products\/edit\/(.+)$/);
-             const editProductName = editMatch ? decodeURIComponent(editMatch[1]) : null;
-
-             renderAdminPage(adminPath, editProductName);
-         } else {
-             renderAccessDenied();
-         }
-    }
-     else {
+        const user = await checkAuth();
+        if (user && user.role === 'admin') {
+            const adminPath = hash.substring('#/admin'.length);
+            const editMatch = adminPath.match(/^\/products\/edit\/(.+)$/);
+            const editProductName = editMatch ? decodeURIComponent(editMatch[1]) : null;
+            renderAdminPage(adminPath, editProductName);
+        } else {
+            renderAccessDenied();
+        }
+    } else {
         renderNotFound();
     }
 }
@@ -243,45 +248,105 @@ function renderRegisterForm() {
 }
 
 // Renders the list of products
-async function renderProductsPage(categoryFilter = '') {
-    // Add filter controls above the list
-    const filterHtml = `
-        <div class="mb-3">
-            <label for="categoryFilter" class="form-label">Filter by Category:</label>
-            <select class="form-select" id="categoryFilter">
-                <option value="">All</option>
-                <option value="Men" ${categoryFilter === 'Men' ? 'selected' : ''}>Men</option>
-                <option value="Women" ${categoryFilter === 'Women' ? 'selected' : ''}>Women</option>
-                <option value="Kids" ${categoryFilter === 'Kids' ? 'selected' : ''}>Kids</option>
-                <option value="Accessories" ${categoryFilter === 'Accessories' ? 'selected' : ''}>Accessories</option>
-                <!-- Add more categories as needed -->
-            </select>
+async function renderProductsPage(categoryFilter = '', searchTerm = '') {
+    // Header with search and filter
+    const headerHtml = `
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search products..." value="${searchTerm || ''}">
+                    <button class="btn btn-primary" id="searchButton">Search</button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="categoryFilter" class="form-label">Filter by Category:</label>
+                    <select class="form-select" id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <!-- Categories will be loaded dynamically -->
+                    </select>
+                </div>
+            </div>
         </div>
     `;
 
-    appDiv.innerHTML = `<h2>Products</h2>${filterHtml}<div id="productsList" class="row">Loading products...</div>`;
+    appDiv.innerHTML = `<h2>Products</h2>${headerHtml}<div id="productsList" class="row">Loading products...</div>`;
 
-    // Add event listener to the filter dropdown AFTER it's added to the DOM
-    const categorySelect = document.getElementById('categoryFilter');
-    if (categorySelect) {
-        categorySelect.addEventListener('change', (event) => {
-            // Re-render the page with the new filter value
-            renderProductsPage(event.target.value);
+    // Fetch categories from the server
+    try {
+        const categoriesResponse = await fetch(`${API_BASE_URL}/products/categories`);
+        if (categoriesResponse.ok) {
+            const categoriesData = await categoriesResponse.json();
+            const categories = categoriesData.data;
+            
+            // Populate category dropdown
+            const categorySelect = document.getElementById('categoryFilter');
+            if (categorySelect && categories.length > 0) {
+                // Add options for each category
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    option.selected = category === categoryFilter;
+                    categorySelect.appendChild(option);
+                });
+                
+                // Add event listener for category changes
+                categorySelect.addEventListener('change', (event) => {
+                    const newCategory = event.target.value;
+                    // Preserve search term when changing category
+                    const currentSearch = document.getElementById('searchInput')?.value || '';
+                    renderProductsPage(newCategory, currentSearch);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+    }
+    
+    // Add event listener to search button
+    const searchButton = document.getElementById('searchButton');
+    const searchInput = document.getElementById('searchInput');
+    if (searchButton && searchInput) {
+        searchButton.addEventListener('click', () => {
+            const newSearch = searchInput.value.trim();
+            // Preserve category filter when searching
+            const currentCategory = document.getElementById('categoryFilter')?.value || '';
+            renderProductsPage(currentCategory, newSearch);
+        });
+        
+        // Also trigger search on Enter key
+        searchInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                searchButton.click();
+            }
         });
     }
 
     try {
-        // Construct API URL with category filter if provided
-        const apiUrl = categoryFilter
-            ? `${API_BASE_URL}/products?category=${encodeURIComponent(categoryFilter)}`
-            : `${API_BASE_URL}/products`;
+        // Construct API URL with category filter and/or search
+        let apiUrl = `${API_BASE_URL}/products`;
+        const queryParams = [];
+        
+        if (categoryFilter) {
+            queryParams.push(`category=${encodeURIComponent(categoryFilter)}`);
+        }
+        
+        if (searchTerm) {
+            queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
+        }
+        
+        if (queryParams.length > 0) {
+            apiUrl += `?${queryParams.join('&')}`;
+        }
 
         const response = await fetch(apiUrl);
-         if (!response.ok) {
-             throw new Error(`Failed to fetch products: ${response.statusText}`);
-         }
+        if (!response.ok) {
+            throw new Error(`Failed to fetch products: ${response.statusText}`);
+        }
+        
         const data = await response.json();
-        const products = data.data; // Assuming your API returns data in a 'data' field
+        const products = data.data;
 
         const productsListDiv = document.getElementById('productsList');
         productsListDiv.innerHTML = ''; // Clear the loading message
@@ -311,16 +376,24 @@ async function renderProductsPage(categoryFilter = '') {
                     </div>
                 `;
             });
+            
+            // Add event listeners to the Add to Cart buttons
             document.querySelectorAll('.add-to-cart-btn').forEach(button => {
                 button.addEventListener('click', handleAddToCart);
             });
         } else {
-            productsListDiv.innerHTML = '<p>No products available.</p>';
+            productsListDiv.innerHTML = `
+                <div class="col-12 text-center">
+                    <p>No products found${searchTerm ? ' matching "' + searchTerm + '"' : ''}${categoryFilter ? ' in category "' + categoryFilter + '"' : ''}.</p>
+                </div>
+            `;
         }
-
     } catch (error) {
         console.error('Error fetching products:', error);
-        appDiv.innerHTML = '<p class="text-danger">Failed to load products.</p>';
+        const productsListDiv = document.getElementById('productsList');
+        if (productsListDiv) {
+            productsListDiv.innerHTML = '<p class="text-danger">Failed to load products. Please try again later.</p>';
+        }
     }
 }
 
@@ -373,33 +446,27 @@ async function renderProductDetailPage(productName) {
             <form id="addReviewForm">
                 <div class="mb-3">
                     <label for="reviewRating" class="form-label">Rating (1-5)</label>
-                    <!-- Try using type=text with numeric pattern instead of type=number -->
-                    <input type="text" inputmode="numeric" pattern="[1-5]" 
-                           class="form-control" id="reviewRating" min="1" max="5" required
-                           placeholder="Enter 1-5">
+                    <div class="d-flex align-items-center">
+                        <input type="number" class="form-control" id="reviewRating" min="1" max="5" required style="width: 80px; margin-right: 15px;"
+                               placeholder="1-5">
+                        <div class="btn-group ms-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="1">1</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="2">2</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="3">3</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="4">4</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="5">5</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label for="reviewComment" class="form-label">Comment</label>
-                    <!-- Add explicit tabindex and style to ensure accessibility -->
-                    <textarea class="form-control" id="reviewComment" rows="3" tabindex="0" 
-                              required style="pointer-events: auto; user-select: auto;"
+                    <textarea class="form-control" id="reviewComment" rows="3" 
+                              required style="pointer-events: auto !important;"
                               placeholder="Enter your review here"></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">Submit Review</button>
                 <div id="reviewError" class="text-danger mt-2"></div>
             </form>
-            
-            <!-- Add manual numeric buttons as fallback -->
-            <div class="mt-2 mb-3">
-                <small>Click to set rating: </small>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="1">1</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="2">2</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="3">3</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="4">4</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="5">5</button>
-                </div>
-            </div>
         ` : '<p class="mt-4">Please log in to leave a review.</p>';
 
         // For product details page, update price display
@@ -442,6 +509,41 @@ async function renderProductDetailPage(productName) {
          const addReviewForm = document.getElementById('addReviewForm');
          if (addReviewForm) {
              addReviewForm.addEventListener('submit', (e) => handleAddReview(e, product.name));
+             
+             // Add listeners for the rating buttons
+             document.querySelectorAll('.rating-btn').forEach(btn => {
+                 btn.addEventListener('click', function() {
+                     const rating = this.getAttribute('data-rating');
+                     const ratingInput = document.getElementById('reviewRating');
+                     if (ratingInput) {
+                         ratingInput.value = rating;
+                         
+                         // Update visual selection
+                         document.querySelectorAll('.rating-btn').forEach(b => 
+                             b.classList.remove('btn-primary', 'active'));
+                         this.classList.add('btn-primary', 'active');
+                     }
+                 });
+             });
+             
+             // Make sure the textarea is accessible
+             const reviewComment = document.getElementById('reviewComment');
+             if (reviewComment) {
+                 // Apply multiple direct properties to ensure accessibility
+                 reviewComment.style.pointerEvents = 'auto';
+                 reviewComment.style.userSelect = 'auto';
+                 reviewComment.style.opacity = '1';
+                 reviewComment.disabled = false;
+                 reviewComment.readOnly = false;
+                 
+                 // Force focus when clicking on the comment textarea
+                 reviewComment.addEventListener('click', function() {
+                     this.focus();
+                 });
+                 
+                 // Set initial focus after a short delay
+                 setTimeout(() => reviewComment.focus(), 500);
+             }
          }
 
          // Add event listeners for delete review buttons (if any)
