@@ -2,13 +2,7 @@
 
 // Get references to key DOM elements
 const appDiv = document.getElementById('app');
-const loginLink = document.getElementById('loginLink');
-const registerLink = document.getElementById('registerLink');
-const userInfoSpan = document.getElementById('userInfo');
-const userEmailSpan = document.getElementById('userEmail');
-const userRoleSpan = document.getElementById('userRole');
-const logoutLink = document.getElementById('logoutLink');
-const adminLink = document.querySelector('.admin-link'); // Assuming the li element has this class
+const adminLinkLi = document.querySelector('.admin-link'); // Keep this to show/hide admin main nav link
 
 // IMPORTANT: Set the base URL for your backend API
 // Use http://localhost:3000/api during local development
@@ -17,37 +11,76 @@ const API_BASE_URL = 'http://localhost:3000/api';
 
 // --- Authentication Handling ---
 
-// Also update userEmailSpan in updateAuthUI to potentially show name instead of email
 async function updateAuthUI() {
-    const user = await checkAuth(); // Fetch user data from backend
-    window.currentUserRole = user ? user.role : null; // Store role globally
+    const user = await checkAuth();
+    window.currentUserRole = user ? user.role : null;
+    const authLinksContainer = document.getElementById('authLinksContainer');
+    if (!authLinksContainer) return;
+
+    authLinksContainer.innerHTML = ''; // Clear previous auth links
 
     if (user) {
-        // User is logged in
-        loginLink.style.display = 'none';
-        registerLink.style.display = 'none';
-        userInfoSpan.style.display = 'block'; // Show user info
-        logoutLink.style.display = 'list-item'; // Show logout link (assuming it's an li)
+        // User is logged in: Show user dropdown
+        const userDropdownHtml = `
+            <li class="nav-item dropdown user-dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="userDropdownLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle me-1"></i> ${user.name || user.email}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdownLink">
+                    <li><span class="dropdown-item-text"><small>Role: ${user.role}</small></span></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" id="logoutButton"><i class="fas fa-sign-out-alt"></i>Logout</a></li>
+                </ul>
+            </li>
+        `;
+        authLinksContainer.innerHTML = userDropdownHtml;
 
-        userEmailSpan.textContent = user.name || user.email; // Display user name or email
-        userRoleSpan.textContent = user.role; // Display user role
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    const response = await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+                    if (response.ok) {
+                        alert('Logout successful!');
+                        window.location.hash = '#/login'; 
+                        updateAuthUI(); // Re-render auth section
+                    } else {
+                        alert('Logout failed: ' + (await response.json().message || 'Unknown error'));
+                    }
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    alert('An error occurred during logout.');
+                }
+            });
+        }
 
-        // Show/hide admin link based on role
-        if (user.role === 'admin') {
-            adminLink.classList.remove('d-none'); // Remove Bootstrap's display: none class
-        } else {
-            adminLink.classList.add('d-none'); // Add Bootstrap's display: none class
+        // Show/hide admin main nav link based on role
+        if (adminLinkLi) {
+            if (user.role === 'admin') {
+                adminLinkLi.classList.remove('d-none');
+            } else {
+                adminLinkLi.classList.add('d-none');
+            }
         }
     } else {
-        // User is not logged in
-        loginLink.style.display = 'list-item'; // Show login link
-        registerLink.style.display = 'list-item'; // Show register link
-        userInfoSpan.style.display = 'none'; // Hide user info
-        logoutLink.style.display = 'none'; // Hide logout link
-        adminLink.classList.add('d-none'); // Hide admin link
+        // User is not logged in: Show Login and Register buttons
+        const guestLinksHtml = `
+            <li class="nav-item">
+                <a class="nav-link" href="#/login"><i class="fas fa-sign-in-alt me-1"></i>Login</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#/register"><i class="fas fa-user-plus me-1"></i>Register</a>
+            </li>
+        `;
+        authLinksContainer.innerHTML = guestLinksHtml;
+        
+        // Hide admin main nav link if not logged in
+        if (adminLinkLi) {
+            adminLinkLi.classList.add('d-none');
+        }
     }
 }
-
 
 // Function to check authentication status by calling a protected backend endpoint
 async function checkAuth() {
@@ -72,44 +105,13 @@ async function checkAuth() {
    }
 }
 
-
-// Event handler for user logout
-logoutLink.addEventListener('click', async (e) => {
-    e.preventDefault(); // Prevent default link behavior
-
-    try {
-        // Call the backend's logout endpoint
-        const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-            method: 'POST',
-             // Include credentials to send the cookie to be cleared by backend
-             credentials: 'include'
-        });
-
-        if (response.ok) {
-            console.log('Logout successful');
-            alert('Logout successful!');
-            // Update UI and redirect to login page
-            updateAuthUI();
-            window.location.hash = '#/login';
-        } else {
-             // Handle logout failure (unlikely if backend cleared cookie, but good practice)
-             const errorData = await response.json();
-             alert('Logout failed: ' + (errorData.message || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Logout error:', error);
-        alert('An error occurred during logout.');
-    }
-});
-
-
 // --- Client-Side Routing / Page Rendering ---
 
 // Function to render different pages based on the URL hash
 async function renderPage() {
     const hash = window.location.hash || '#/';
-    appDiv.innerHTML = '';
-    await updateAuthUI();
+    if(appDiv) appDiv.innerHTML = ''; // Clear main content area
+    await updateAuthUI(); // Update navbar based on auth state
 
     if (hash === '#/') {
         renderHomePage();

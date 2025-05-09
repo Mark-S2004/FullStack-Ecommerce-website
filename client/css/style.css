@@ -16,8 +16,8 @@
 }
 
 body {
-    padding-top: 56px; /* Adjust if navbar height changes */
-    background-color: #f8f9fa; /* Light grey background */
+    background-color: #f8f9fa; /* Light gray background for contrast */
+    padding-top: 56px; /* Offset for fixed navbar, adjust if navbar height changes */
 }
 
 #app {
@@ -30,7 +30,7 @@ body {
 }
 
 .navbar {
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); /* Add shadow to navbar */
+    box-shadow: 0 2px 4px rgba(0,0,0,.1); /* Add shadow to navbar */
 }
 
 /* Adjust admin table button spacing if needed */
@@ -42,4 +42,59 @@ body {
 /* Style the user info in navbar */
 #userInfo .navbar-text {
     font-size: 0.9rem;
+}
+
+.main-content-wrapper {
+    display: flex;
+    justify-content: center; /* Center the content area */
+    padding: 20px;
+}
+
+/* Constrained container for the app content */
+#app-container-constrained {
+    max-width: 1200px; /* Adjust as desired, e.g., 960px, 1140px, 1200px */
+    width: 100%;
+    background-color: #ffffff; /* White background for the content area */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+/* Styling for the user dropdown in navbar (to be added by JS) */
+.user-dropdown .dropdown-menu {
+    right: 0; /* Align to the right */
+    left: auto;
+}
+
+.user-dropdown .dropdown-item i {
+    margin-right: 8px;
+}
+
+/* Responsive adjustments for smaller screens if needed */
+@media (max-width: 768px) {
+    #app-container-constrained {
+        margin: 10px;
+        padding: 15px;
+    }
+    .main-content-wrapper {
+        padding: 10px;
+    }
+}
+
+/* Make sure the admin link is properly handled in the navbar */
+.navbar-nav .admin-link a {
+    color: #ffc107; /* Example: yellow color for admin link */
+}
+.navbar-nav .admin-link a:hover {
+    color: #ffdd70;
+}
+
+/* Icon colors in navbar */
+.navbar-dark .navbar-nav .nav-link i {
+    color: rgba(255, 255, 255, 0.75); /* Lighter color for icons on dark navbar */
+}
+
+.navbar-dark .navbar-nav .nav-link:hover i,
+.navbar-dark .navbar-nav .nav-link.active i {
+    color: #ffffff;
 }
