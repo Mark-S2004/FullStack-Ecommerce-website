@@ -882,6 +882,9 @@ async function renderCheckoutPage() {
         return;
     }
 
+    // Show loading message
+    appDiv.innerHTML = '<h2>Checkout</h2><p>Loading your cart...</p>';
+
     // Fetch the current cart to display summary and ensure it's not empty
     const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
      if (!cartCheckResponse.ok) {
@@ -896,6 +899,20 @@ async function renderCheckoutPage() {
          appDiv.innerHTML = '<h2>Checkout</h2><p>Your cart is empty. Please add items before checking out.</p><p><a href="#/products">Browse Products</a></p>';
          return;
      }
+     
+    // Fetch product details for all items in cart
+    const productDetailsMap = {};
+    await Promise.all(cartItems.map(async (item) => {
+        try {
+            const productResponse = await fetch(`${API_BASE_URL}/products/id/${item.product}`);
+            if (productResponse.ok) {
+                const productData = await productResponse.json();
+                productDetailsMap[item.product] = productData.data;
+            }
+        } catch (error) {
+            console.error(`Error fetching product ${item.product}:`, error);
+        }
+    }));
 
     const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
     
@@ -917,9 +934,22 @@ async function renderCheckoutPage() {
             <div class="card-body">
                 <h5 class="card-title">Order Summary</h5>
                 <ul class="list-group list-group-flush" id="checkoutOrderItems">
-                   ${cartItems.map(item => `
-                        <li class="list-group-item">${item.qty} x Product ID: ${item.product} - $${(item.price * item.qty).toFixed(2)}</li>
-                   `).join('')}
+                   ${cartItems.map(item => {
+                        const product = productDetailsMap[item.product];
+                        const productName = product ? product.name : `Unknown Product`;
+                        const imageUrl = product && product.image ? product.image : 'https://via.placeholder.com/50x50?text=Product';
+                        return `
+                            <li class="list-group-item d-flex align-items-center">
+                                <img src="${imageUrl}" alt="${productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px;">
+                                <div class="flex-grow-1">
+                                    <strong>${productName}</strong>
+                                    <div><small>Quantity: ${item.qty} × $${item.price.toFixed(2)}</small></div>
+                                </div>
+                                <div class="text-end">
+                                    <strong>$${(item.price * item.qty).toFixed(2)}</strong>
+                                </div>
+                            </li>`;
+                   }).join('')}
                 </ul>
                 <h6 class="mt-3">Subtotal: <span id="checkoutSubtotal">$${subtotal.toFixed(2)}</span></h6>
                 <h6 class="mt-1">Shipping: <span id="checkoutShipping">$${shippingCost.toFixed(2)}</span></h6>

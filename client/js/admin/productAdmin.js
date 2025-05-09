@@ -135,18 +135,24 @@ window.AdminProducts = {
                         </div>
                         
                         <div class="col-md-4">
-                            <label for="productPrice" class="form-label">Price ($)</label>
-                            <input type="number" class="form-control" id="productPrice" min="0" step="0.01" value="${product ? product.price : ''}" required>
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <label for="productStock" class="form-label">Stock</label>
-                            <input type="number" class="form-control" id="productStock" min="0" step="1" value="${product ? product.stock : '0'}" required>
+                            <label for="productPrice" class="form-label">Original Price ($)</label>
+                            <input type="number" class="form-control" id="productPrice" min="0" step="0.01" value="${product ? (product.originalPrice || product.price) : ''}" required>
                         </div>
                         
                         <div class="col-md-4">
                             <label for="productDiscount" class="form-label">Discount (%)</label>
                             <input type="number" class="form-control" id="productDiscount" min="0" max="100" step="1" value="${product ? (product.discountPercentage || 0) : 0}">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="productPriceAfterDiscount" class="form-label">Final Price ($)</label>
+                            <input type="number" class="form-control" id="productPriceAfterDiscount" readonly value="${product ? product.price : ''}" style="background-color: #f8f9fa;">
+                            <div class="form-text">Calculated automatically from original price and discount</div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="productStock" class="form-label">Stock</label>
+                            <input type="number" class="form-control" id="productStock" min="0" step="1" value="${product ? product.stock : '0'}" required>
                         </div>
                         
                         <div class="col-12">
@@ -196,6 +202,24 @@ window.AdminProducts = {
             e.preventDefault();
             this.handleSubmit(product);
         });
+        
+        // Add event listeners to update final price when original price or discount changes
+        const productPriceInput = document.getElementById('productPrice');
+        const productDiscountInput = document.getElementById('productDiscount');
+        const productPriceAfterDiscountInput = document.getElementById('productPriceAfterDiscount');
+        
+        const updateFinalPrice = () => {
+            const originalPrice = parseFloat(productPriceInput.value) || 0;
+            const discountPercentage = parseFloat(productDiscountInput.value) || 0;
+            const finalPrice = originalPrice * (1 - discountPercentage / 100);
+            productPriceAfterDiscountInput.value = finalPrice.toFixed(2);
+        };
+        
+        productPriceInput.addEventListener('input', updateFinalPrice);
+        productDiscountInput.addEventListener('input', updateFinalPrice);
+        
+        // Calculate initial final price
+        updateFinalPrice();
     },
 
     async handleSubmit(existingProduct) {
@@ -219,18 +243,12 @@ window.AdminProducts = {
                 name: name,
                 description: document.getElementById('productDescription').value,
                 category: category,
-                price: parseFloat(document.getElementById('productPrice').value),
+                originalPrice: parseFloat(document.getElementById('productPrice').value),
+                price: parseFloat(document.getElementById('productPriceAfterDiscount').value),
                 stock: parseInt(document.getElementById('productStock').value, 10),
                 discountPercentage: parseFloat(document.getElementById('productDiscount').value || '0'),
                 imageUrl: document.getElementById('productImageUrl').value || undefined
             };
-            
-            // If discount is applied, add original price
-            if (productData.discountPercentage > 0) {
-                // Calculate what the original price should be
-                const discountFactor = 1 - (productData.discountPercentage / 100);
-                productData.originalPrice = productData.price / discountFactor;
-            }
             
             let url, method;
             if (existingProduct) {
@@ -293,73 +311,104 @@ window.AdminProducts = {
 
     // --- Discount Modal and Handlers ---
     showDiscountModal(productName, currentDiscount) {
-        // Create a modal for discount management
-        const modalId = 'discountModal';
-        let modalDiv = document.getElementById(modalId);
+        const modal = document.createElement('div');
+        modal.classList.add('modal', 'fade');
+        modal.id = 'discountModal';
+        modal.tabIndex = '-1';
+        modal.setAttribute('aria-labelledby', 'discountModalLabel');
+        modal.setAttribute('aria-hidden', 'true');
         
-        // Create the modal if it doesn't exist
-        if (!modalDiv) {
-            modalDiv = document.createElement('div');
-            modalDiv.id = modalId;
-            modalDiv.className = 'modal fade';
-            modalDiv.tabIndex = '-1';
-            modalDiv.setAttribute('aria-labelledby', 'discountModalLabel');
-            modalDiv.setAttribute('aria-hidden', 'true');
-            document.body.appendChild(modalDiv);
-        }
-        
-        // Populate the modal
-        modalDiv.innerHTML = `
+        modal.innerHTML = `
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="discountModalLabel">Manage Discount for "${productName}"</h5>
+                        <h5 class="modal-title" id="discountModalLabel">Manage Discount for ${productName}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form id="discountForm">
-                            <div class="mb-3">
-                                <label for="discountPercentage" class="form-label">Discount Percentage (%)</label>
-                                <input type="number" class="form-control" id="discountPercentage" min="0" max="100" step="1" value="${currentDiscount}" required>
-                                <div class="form-text">Enter a value between 0 and 100. Enter 0 to remove the discount.</div>
+                        <p>Set a percentage discount for this product.</p>
+                        <div class="mb-3">
+                            <label for="discountPercentage" class="form-label">Discount Percentage</label>
+                            <input type="number" class="form-control" id="discountPercentage" min="0" max="100" value="${currentDiscount || 0}">
+                            <div class="form-text">Enter a value between 0 and 100. 0 removes any discount.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="discountPreview" class="form-label">Preview</label>
+                            <div id="discountPreview" class="border p-3 rounded bg-light">
+                                <div id="discountCalculation"></div>
                             </div>
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i> Setting a discount will automatically calculate the new price from the original price.
-                            </div>
-                        </form>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-danger" id="removeDiscountBtn">Remove Discount</button>
+                        <button type="button" class="btn btn-danger me-2" id="removeDiscountBtn" ${!currentDiscount ? 'disabled' : ''}>
+                            Remove Discount
+                        </button>
                         <button type="button" class="btn btn-primary" id="applyDiscountBtn">Apply Discount</button>
                     </div>
                 </div>
             </div>
         `;
         
-        // Initialize and show the modal
-        const modal = new bootstrap.Modal(modalDiv);
-        modal.show();
+        document.body.appendChild(modal);
         
-        // Add event listeners for the buttons
-        document.getElementById('applyDiscountBtn').addEventListener('click', () => {
-            const discountInput = document.getElementById('discountPercentage');
-            const discountPercentage = parseFloat(discountInput.value);
+        // Initialize the Bootstrap modal
+        const modalInstance = new bootstrap.Modal(modal);
+        modalInstance.show();
+        
+        // Fetch product details for the preview
+        fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}`, {
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            const product = data.data;
+            const originalPrice = product.originalPrice || product.price;
             
-            if (isNaN(discountPercentage) || discountPercentage < 0 || discountPercentage > 100) {
-                alert('Please enter a valid discount percentage between 0 and 100.');
-                return;
-            }
+            // Update the preview calculation
+            const updatePreview = () => {
+                const discountPercentage = parseFloat(document.getElementById('discountPercentage').value) || 0;
+                const finalPrice = originalPrice * (1 - discountPercentage / 100);
+                
+                document.getElementById('discountCalculation').innerHTML = `
+                    <p class="mb-1"><strong>Original Price:</strong> $${originalPrice.toFixed(2)}</p>
+                    <p class="mb-1"><strong>Discount:</strong> ${discountPercentage}% (-$${(originalPrice * discountPercentage / 100).toFixed(2)})</p>
+                    <p class="mb-0"><strong>Final Price:</strong> $${finalPrice.toFixed(2)}</p>
+                `;
+                
+                // Update the Apply button state
+                const applyBtn = document.getElementById('applyDiscountBtn');
+                applyBtn.disabled = discountPercentage === currentDiscount;
+                
+                // Update the Remove button state
+                const removeBtn = document.getElementById('removeDiscountBtn');
+                removeBtn.disabled = discountPercentage === 0;
+            };
             
-            if (discountPercentage === 0) {
-                this.handleRemoveDiscount(productName, modal);
-            } else {
+            // Set up event listener for the discount percentage input
+            document.getElementById('discountPercentage').addEventListener('input', updatePreview);
+            
+            // Initialize the preview
+            updatePreview();
+            
+            // Set up event listeners for the buttons
+            document.getElementById('applyDiscountBtn').addEventListener('click', () => {
+                const discountPercentage = parseFloat(document.getElementById('discountPercentage').value) || 0;
                 this.handleApplyDiscount(productName, discountPercentage, modal);
-            }
+            });
+            
+            document.getElementById('removeDiscountBtn').addEventListener('click', () => {
+                this.handleRemoveDiscount(productName, modal);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching product details:', error);
+            document.getElementById('discountPreview').innerHTML = '<div class="alert alert-danger">Error loading product details</div>';
         });
         
-        document.getElementById('removeDiscountBtn').addEventListener('click', () => {
-            this.handleRemoveDiscount(productName, modal);
+        // Clean up the modal when it's hidden
+        modal.addEventListener('hidden.bs.modal', function () {
+            document.body.removeChild(modal);
         });
     },
     
