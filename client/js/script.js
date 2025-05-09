@@ -593,13 +593,37 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
                 button.addEventListener('click', async (e) => {
                     const productId = e.target.dataset.productId;
                     const quantityInput = e.target.closest('.cart-quantity-control').querySelector('.product-quantity');
-                    const newQty = parseInt(quantityInput.value) - 1;
+                    const currentQty = parseInt(quantityInput.value);
+                    const newQty = currentQty - 1;
                     
                     try {
                         // Disable button during update
                         e.target.disabled = true;
                         
-                        if (newQty >= 1) {
+                        // If new quantity would be 0, directly remove from cart
+                        if (newQty === 0) {
+                            // Show "removing" state in the UI
+                            const cardFooter = e.target.closest('.card-footer');
+                            if (cardFooter) {
+                                cardFooter.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Removing...</div>';
+                            }
+                            
+                            // Remove from cart entirely
+                            const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
+                                method: 'DELETE',
+                                credentials: 'include'
+                            });
+                            
+                            if (response.ok) {
+                                // Refresh the list to show "Add to Cart" button
+                                renderProductsPage({ category: categoryFilter, search: searchTerm });
+                            } else {
+                                console.error('Failed to remove from cart');
+                                alert('Failed to remove from cart');
+                                e.target.disabled = false;
+                            }
+                        } else if (newQty >= 1) {
+                            // Just update the quantity
                             const response = await fetch(`${API_BASE_URL}/cart`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
@@ -613,21 +637,6 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
                             } else {
                                 console.error('Failed to update cart');
                                 alert('Failed to update quantity');
-                                e.target.disabled = false;
-                            }
-                        } else {
-                            // If quantity would be 0, remove from cart entirely
-                            const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
-                                method: 'DELETE',
-                                credentials: 'include'
-                            });
-                            
-                            if (response.ok) {
-                                // Refresh the list to show "Add to Cart" button
-                                renderProductsPage({ category: categoryFilter, search: searchTerm });
-                            } else {
-                                console.error('Failed to remove from cart');
-                                alert('Failed to remove from cart');
                                 e.target.disabled = false;
                             }
                         }
@@ -664,6 +673,10 @@ async function renderProductDetailPage(productName) {
         const result = await response.json();
         const product = result.data;
 
+        // Get current user info and store it in window.user
+        const user = await checkAuth();
+        window.user = user; // Set this so review functionality can access it
+
         // Check if the product is already in the user's cart
         let cartItem = null;
         let cartItemQuantity = 0;
@@ -688,7 +701,7 @@ async function renderProductDetailPage(productName) {
             ? product.reviews.map(review => {
                 const date = new Date(review.createdAt).toLocaleDateString();
                 const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
-                const isCurrentUserReview = review.user === (window.user?._id);
+                const isCurrentUserReview = user && review.user === user._id;
 
                  return `
                 <div class="card mb-2">
@@ -714,9 +727,9 @@ async function renderProductDetailPage(productName) {
             
         // Generate the review form HTML if the user is logged in
         let addReviewFormHtml = '';
-        if (window.user) {
+        if (user) {
             // Check if the user has already reviewed this product
-            const userReview = product.reviews && product.reviews.find(review => review.user === window.user._id);
+            const userReview = product.reviews && product.reviews.find(review => review.user === user._id);
             
             if (userReview) {
                 addReviewFormHtml = `
@@ -728,13 +741,13 @@ async function renderProductDetailPage(productName) {
                         </div>
                     </div>
                 `;
-        } else {
+            } else {
                 addReviewFormHtml = `
                     <div class="card mt-4">
                         <div class="card-header">Write a Review</div>
                         <div class="card-body">
-            <form id="addReviewForm">
-                <div class="mb-3">
+                            <form id="addReviewForm">
+                                <div class="mb-3">
                                     <label class="form-label">Rating</label>
                                     <div class="rating-buttons">
                                         <button type="button" class="btn btn-outline-warning rating-btn" data-rating="1">1 ★</button>
@@ -742,17 +755,17 @@ async function renderProductDetailPage(productName) {
                                         <button type="button" class="btn btn-outline-warning rating-btn" data-rating="3">3 ★</button>
                                         <button type="button" class="btn btn-outline-warning rating-btn" data-rating="4">4 ★</button>
                                         <button type="button" class="btn btn-outline-warning rating-btn" data-rating="5">5 ★</button>
-                    </div>
+                                    </div>
                                     <input type="hidden" id="reviewRating" required>
                                     <div id="ratingError" class="text-danger"></div>
-                </div>
-                <div class="mb-3">
+                                </div>
+                                <div class="mb-3">
                                     <label for="reviewComment" class="form-label">Your Review</label>
                                     <textarea class="form-control" id="reviewComment" rows="3" required></textarea>
-                </div>
+                                </div>
                                 <div id="reviewError" class="text-danger mb-2"></div>
-                <button type="submit" class="btn btn-primary">Submit Review</button>
-            </form>
+                                <button type="submit" class="btn btn-primary">Submit Review</button>
+                            </form>
                         </div>
                     </div>
                 `;
@@ -1780,14 +1793,22 @@ async function handleAddReview(event, productNameForLookup) {
     }
 
     try {
-        // Check if user is authenticated
-        const user = await checkAuth();
+        // Ensure we are using the user object already set by renderProductDetailPage
+        // or get a fresh auth check
+        let user = window.user;
+        if (!user) {
+            user = await checkAuth();
+            window.user = user;
+        }
+        
         if (!user) {
             if(errorDiv) errorDiv.textContent = 'You must be logged in to add a review.';
             alert('You must be logged in to add a review.');
             window.location.hash = '#/login';
             return;
         }
+        
+        console.log('[Review] User authenticated:', user);
 
         // Get the hidden product ID from the form or the product detail data directly
         const productIdInput = document.getElementById('productId');
