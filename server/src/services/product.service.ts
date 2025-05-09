@@ -105,6 +105,11 @@ class ProductService {
     product.reviewCount = product.reviews.length;
     product.totalRating = product.reviews.reduce((acc, item) => item.rating + acc, 0);
 
+    // --- BEGIN DIAGNOSTIC LOG ---
+    console.log('[Service/addReview] About to save product. Product ID:', product._id, 'Type:', typeof product._id);
+    console.log('[Service/addReview] Product object (partial):', { name: product.name, category: product.category, _id: product._id });
+    // --- END DIAGNOSTIC LOG ---
+
     await product.save();
     return product;
   }

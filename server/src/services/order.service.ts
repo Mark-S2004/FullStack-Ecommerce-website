@@ -61,8 +61,8 @@ export const create = async (userId: string, cart: OrderItem[], address: string)
       },
       quantity: item.qty,
     })),
-    success_url: `${process.env.CLIENT_URL}/checkout-success?orderId=${order._id}`,
-    cancel_url: `${process.env.CLIENT_URL}/checkout-cancel`,
+    success_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-success?orderId=${order._id}`,
+    cancel_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-cancel`,
     metadata: {
       orderId: order._id.toString(),
     },

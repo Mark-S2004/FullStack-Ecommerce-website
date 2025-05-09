@@ -447,34 +447,28 @@ async function renderProductDetailPage(productName) {
             <h5 class="mt-4">Add a Review</h5>
             <form id="addReviewForm">
                 <div class="mb-3">
-                    <label for="reviewRating" class="form-label">Rating (1-5)</label>
-                    <!-- Try using type=text with numeric pattern instead of type=number -->
-                    <input type="text" inputmode="numeric" pattern="[1-5]" 
-                           class="form-control" id="reviewRating" min="1" max="5" required
-                           placeholder="Enter 1-5">
+                    <label class="form-label">Rating:</label>
+                    <!-- Rating buttons are now the primary input -->
+                    <div id="reviewRatingButtons" class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="1">1</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="2">2</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="3">3</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="4">4</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="5">5</button>
+                    </div>
+                    <!-- Hidden input to store the rating value, will be set by JS -->
+                    <input type="hidden" id="reviewRating" name="reviewRating" required>
+                    <div id="ratingError" class="text-danger mt-1"></div>
                 </div>
                 <div class="mb-3">
                     <label for="reviewComment" class="form-label">Comment</label>
-                    <!-- Add explicit tabindex and style to ensure accessibility -->
                     <textarea class="form-control" id="reviewComment" rows="3" tabindex="0" 
                               required style="pointer-events: auto; user-select: auto;"
                               placeholder="Enter your review here"></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">Submit Review</button>
-                <div id="reviewError" class="text-danger mt-2"></div>
+                <div id="reviewError" class="text-danger mt-2"></div> <!-- General form error -->
             </form>
-            
-            <!-- Add manual numeric buttons as fallback -->
-            <div class="mt-2 mb-3">
-                <small>Click to set rating: </small>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="1">1</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="2">2</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="3">3</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="4">4</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="5">5</button>
-                </div>
-            </div>
         ` : '<p class="mt-4">Please log in to leave a review.</p>';
 
         // For product details page, update price display
@@ -529,14 +523,22 @@ async function renderProductDetailPage(productName) {
             debugReviewForm();
             
             // Add listeners for the rating buttons
-            document.querySelectorAll('.rating-btn').forEach(btn => {
+            document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    const rating = this.getAttribute('data-rating');
-                    const ratingInput = document.getElementById('reviewRating');
-                    if (ratingInput) {
-                        ratingInput.value = rating;
-                        console.log('Set rating to:', rating);
+                    const selectedRating = this.getAttribute('data-rating');
+                    const hiddenRatingInput = document.getElementById('reviewRating');
+                    if (hiddenRatingInput) {
+                        hiddenRatingInput.value = selectedRating;
+                        console.log('Set hidden rating input to:', selectedRating);
                     }
+                    // Visually update buttons (e.g., highlight selected)
+                    document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(b => b.classList.remove('active', 'btn-primary'));
+                    document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(b => b.classList.add('btn-outline-primary'));
+                    this.classList.add('active', 'btn-primary');
+                    this.classList.remove('btn-outline-primary');
+                    
+                    const ratingErrorDiv = document.getElementById('ratingError');
+                    if(ratingErrorDiv) ratingErrorDiv.textContent = ''; // Clear rating error on selection
                 });
             });
             
@@ -1317,17 +1319,18 @@ async function handleCheckout(event) {
 // Handles adding a review to a product
 async function handleAddReview(event, productName) {
     event.preventDefault();
-    const ratingInput = document.getElementById('reviewRating');
+    const ratingInput = document.getElementById('reviewRating'); // This is now the hidden input
     const commentInput = document.getElementById('reviewComment');
     const errorDiv = document.getElementById('reviewError');
+    const ratingErrorDiv = document.getElementById('ratingError');
     errorDiv.textContent = '';
+    ratingErrorDiv.textContent = '';
 
     const rating = parseInt(ratingInput.value, 10);
     const comment = commentInput.value;
 
-    // Basic frontend validation
-    if (isNaN(rating) || rating < 1 || rating > 5) {
-        errorDiv.textContent = 'Please provide a rating between 1 and 5.';
+    if (!ratingInput.value || isNaN(rating) || rating < 1 || rating > 5) {
+        ratingErrorDiv.textContent = 'Please select a rating by clicking one of the stars/buttons.';
         return;
     }
     if (comment.trim() === '') {
