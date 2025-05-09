@@ -142,7 +142,7 @@ window.AdminProducts = {
                         <div class="col-md-4">
                             <label for="productDiscount" class="form-label">Discount (%)</label>
                             <input type="number" class="form-control" id="productDiscount" min="0" max="100" step="1" value="${product ? (product.discountPercentage || 0) : 0}">
-                        </div>
+                            </div>
                         
                         <div class="col-md-4">
                             <label for="productPriceAfterDiscount" class="form-label">Final Price ($)</label>
@@ -173,7 +173,7 @@ window.AdminProducts = {
                         
                         <div class="col-12 mt-3">
                             <button type="submit" class="btn btn-primary me-2">${productName ? 'Update Product' : 'Create Product'}</button>
-                            <a href="#/admin/products" class="btn btn-secondary">Cancel</a>
+                        <a href="#/admin/products" class="btn btn-secondary">Cancel</a>
                         </div>
                     </form>
                 </div>
@@ -287,7 +287,7 @@ window.AdminProducts = {
         if (!confirm(`Are you sure you want to delete the product "${productName}"? This action cannot be undone.`)) {
             return;
         }
-        
+
         try {
             const response = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}`, {
                 method: 'DELETE',
@@ -440,7 +440,7 @@ window.AdminProducts = {
             alert('Failed to apply discount: ' + error.message);
         }
     },
-    
+
     async handleRemoveDiscount(productName, modal) {
         try {
             const response = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}/discount`, {

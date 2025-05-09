@@ -8,13 +8,13 @@ window.AdminOrders = {
         container.innerHTML = '<h3>Manage Orders</h3><div id="adminOrderList">Loading orders...</div>';
         try {
             const response = await fetch(`${API_BASE_URL}/orders`, { credentials: 'include' });
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
+             if (!response.ok) {
+                  if (response.status === 401 || response.status === 403) {
                     renderAccessDenied(); 
                     return;
-                }
-                throw new Error(`Failed to fetch orders: ${response.statusText}`);
-            }
+                  }
+                  throw new Error(`Failed to fetch orders: ${response.statusText}`);
+              }
             const data = await response.json();
             const orders = data.data;
 
@@ -134,18 +134,18 @@ window.AdminOrders = {
                 // Add alternate view for non-grouped orders
                 ordersHtml += `
                     <div id="ordersNonGrouped" style="display: none;">
-                        <table class="table table-striped table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Order ID</th>
+                    <table class="table table-striped table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
                                     <th>Customer</th>
                                     <th>Date</th>
-                                    <th>Total</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                 `;
                 
                 // Sort all orders by date (newest first)
@@ -157,11 +157,11 @@ window.AdminOrders = {
                     const formattedDate = orderDate.toLocaleDateString();
                     
                     ordersHtml += `
-                        <tr>
-                            <td>${order._id}</td>
+                      <tr>
+                          <td>${order._id}</td>
                             <td>${user.name}<br><small>${user.email}</small></td>
                             <td>${formattedDate}</td>
-                            <td>
+                          <td>
                                 <select class="form-select form-select-sm order-status-select" data-order-id="${order._id}">
                                     <option value="Pending" ${order.status === 'Pending' ? 'selected' : ''}>Pending</option>
                                     <option value="Confirmed" ${order.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
@@ -173,7 +173,7 @@ window.AdminOrders = {
                             <td>
                                 <button class="btn btn-sm btn-info view-order-details-btn" data-order-id="${order._id}">Details</button>
                             </td>
-                        </tr>
+                       </tr>
                     `;
                 });
                 
@@ -184,12 +184,12 @@ window.AdminOrders = {
                 `;
                 
                 orderListDiv.innerHTML = ordersHtml;
-                
+
                 // Add event listeners
                 document.querySelectorAll('.order-status-select').forEach(select => {
                     select.addEventListener('change', this.handleUpdateStatus);
                 });
-                
+
                 document.querySelectorAll('.view-order-details-btn').forEach(button => {
                     button.addEventListener('click', (e) => {
                         this.handleViewDetails(e.target.dataset.orderId);
@@ -218,38 +218,38 @@ window.AdminOrders = {
             container.innerHTML = '<p class="text-danger">Failed to load orders: ' + error.message + '</p>';
         }
     },
-    
+
     // Handles updating the status of an order
     async handleUpdateStatus(event) {
         const orderId = event.target.dataset.orderId;
         const newStatus = event.target.value;
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
-                method: 'PUT',
+
+         try {
+              const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+                  method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ status: newStatus }),
-                credentials: 'include'
-            });
-            
+                  body: JSON.stringify({ status: newStatus }),
+                   credentials: 'include'
+              });
+
             if (!response.ok) {
-                const errorData = await response.json();
+                   const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to update order status');
-            }
+              }
             
             // Show success message (optional)
             // alert('Order status updated successfully!');
             
-        } catch (error) {
+          } catch (error) {
             console.error('Error updating order status:', error);
             alert('Failed to update order status: ' + error.message);
             // Revert to previous status
             event.target.value = event.target.getAttribute('data-prev-status') || 'Pending';
-        }
+          }
     },
-    
+
     // Handles viewing details for a specific order
     async handleViewDetails(orderId) {
         try {
@@ -394,7 +394,7 @@ window.AdminOrders = {
                 const modal = new bootstrap.Modal(modalDiv);
                 modal.show();
             }
-            
+
         } catch (error) {
             console.error('Error viewing order details:', error);
             alert('Failed to load order details: ' + error.message);

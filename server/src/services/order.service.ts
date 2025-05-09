@@ -27,12 +27,12 @@ export const create = async (userId: string, cart: OrderItem[], address: string)
       throw new HttpException(400, 'Shipping address is required');
     }
 
-    const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-    
-    // Use the updated calculation methods
-    const shippingCost = calcShipping(address); // Pass the full address string
-    const tax = calcTax(subtotal); // 14% VAT on subtotal
-    const total = subtotal + shippingCost + tax; // Final total for the order
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  
+  // Use the updated calculation methods
+  const shippingCost = calcShipping(address); // Pass the full address string
+  const tax = calcTax(subtotal); // 14% VAT on subtotal
+  const total = subtotal + shippingCost + tax; // Final total for the order
 
     console.log('[Order Service] Processing order:', {
       userId,
@@ -44,29 +44,29 @@ export const create = async (userId: string, cart: OrderItem[], address: string)
       total
     });
 
-    const products = await Promise.all(
-      cart.map(async item => {
-        const product = await productModel.findById(item.product);
-        if (!product) throw new HttpException(404, `Product not found: ${item.product}`);
-        if (product.stock < item.qty) throw new HttpException(400, `Not enough stock for ${product.name} product`);
+  const products = await Promise.all(
+    cart.map(async item => {
+      const product = await productModel.findById(item.product);
+      if (!product) throw new HttpException(404, `Product not found: ${item.product}`);
+      if (product.stock < item.qty) throw new HttpException(400, `Not enough stock for ${product.name} product`);
         
         // Update stock
-        product.stock -= item.qty;
-        await product.save();
+      product.stock -= item.qty;
+      await product.save();
         
-        return { product, item };
-      }),
-    );
+      return { product, item };
+    }),
+  );
 
-    const order = await orderModel.create({
-      user: userId,
-      items: cart, // Cart items with their original prices
-      shippingAddress: address,
-      shippingCost, // Calculated shipping cost
-      tax,          // Calculated tax
-      total,        // Grand total including subtotal, shipping, and tax
-      status: 'Pending',
-    });
+  const order = await orderModel.create({
+    user: userId,
+    items: cart, // Cart items with their original prices
+    shippingAddress: address,
+    shippingCost, // Calculated shipping cost
+    tax,          // Calculated tax
+    total,        // Grand total including subtotal, shipping, and tax
+    status: 'Pending',
+  });
 
     console.log('[Order Service] Created order:', order._id);
 
@@ -120,10 +120,10 @@ export const create = async (userId: string, cart: OrderItem[], address: string)
       payment_method_types: ['card'],
       mode: 'payment',
       line_items: lineItems,
-      success_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-success?orderId=${order._id}`,
-      cancel_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-cancel`,
-      metadata: {
-        orderId: order._id.toString(),
+    success_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-success?orderId=${order._id}`,
+    cancel_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-cancel`,
+    metadata: {
+      orderId: order._id.toString(),
         total: total.toFixed(2),
         subtotal: subtotal.toFixed(2),
         shipping: shippingCost.toFixed(2),
@@ -132,7 +132,7 @@ export const create = async (userId: string, cart: OrderItem[], address: string)
     });
 
     console.log('[Order Service] Stripe session created:', session.id);
-    return { order, sessionUrl: session.url };
+  return { order, sessionUrl: session.url };
   } catch (error) {
     console.error('[Order Service] Error creating order:', error);
     throw error; // Re-throw to be handled by controller

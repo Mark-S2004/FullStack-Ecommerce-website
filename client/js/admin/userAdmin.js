@@ -8,19 +8,19 @@ window.AdminUsers = {
         container.innerHTML = '<h3>Manage Users</h3><p>Loading users...</p>';
         try {
             const response = await fetch(`${API_BASE_URL}/users`, { credentials: 'include' });
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
+             if (!response.ok) {
+                 if (response.status === 401 || response.status === 403) {
                     renderAccessDenied(); 
                     return;
-                }
-                throw new Error(`Failed to fetch users: ${response.statusText}`);
-            }
+                 }
+                  throw new Error(`Failed to fetch users: ${response.statusText}`);
+              }
             const data = await response.json();
             const users = data.data;
 
             let usersHtml = '';
             if (users && users.length > 0) {
-                usersHtml += `
+                 usersHtml += `
                     <table class="table table-striped table-bordered">
                         <thead>
                             <tr>
@@ -33,19 +33,19 @@ window.AdminUsers = {
                         </thead>
                         <tbody>
                 `;
-                usersHtml += users.map(user => `
-                    <tr>
-                        <td>${user._id}</td>
+                 usersHtml += users.map(user => `
+                     <tr>
+                         <td>${user._id}</td>
                         <td>${user.name || 'N/A'}</td>
-                        <td>${user.email}</td>
-                        <td>${user.role}</td>
-                        <td>
+                         <td>${user.email}</td>
+                         <td>${user.role}</td>
+                         <td>
                             <button class="btn btn-sm btn-warning edit-user-btn" data-user-id="${user._id}">Edit</button>
                             <button class="btn btn-sm btn-danger delete-user-btn" data-user-id="${user._id}" data-user-name="${user.name || user.email}">Delete</button>
-                        </td>
-                    </tr>
-                `).join('');
-                usersHtml += '</tbody></table>';
+                         </td>
+                     </tr>
+                 `).join('');
+                 usersHtml += '</tbody></table>';
             } else {
                 usersHtml = '<p>No users found.</p>';
             }
@@ -212,13 +212,13 @@ window.AdminUsers = {
     
     // Handle deleting a user
     async handleDelete(userId, userName) {
-        if (!confirm(`Are you sure you want to delete user "${userName}" (ID: ${userId})? This action cannot be undone.`)) {
-            return;
-        }
+         if (!confirm(`Are you sure you want to delete user "${userName}" (ID: ${userId})? This action cannot be undone.`)) {
+             return;
+         }
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-                method: 'DELETE',
+         try {
+              const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+                  method: 'DELETE',
                 credentials: 'include'
             });
 
@@ -227,12 +227,12 @@ window.AdminUsers = {
                 throw new Error(errorData.message || 'Failed to delete user');
             }
 
-            alert('User deleted successfully!');
-            // Re-render the user list
-            this.renderList(document.getElementById('adminContent'));
-        } catch (error) {
-            console.error('Delete user error:', error);
+                  alert('User deleted successfully!');
+                   // Re-render the user list
+                   this.renderList(document.getElementById('adminContent'));
+          } catch (error) {
+               console.error('Delete user error:', error);
             alert('An error occurred while deleting the user: ' + error.message);
-        }
+          }
     }
 } 
