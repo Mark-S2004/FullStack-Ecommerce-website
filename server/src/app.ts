@@ -20,8 +20,8 @@ import authMiddleware from '@middlewares/auth.middleware';
 import authRequiredMiddleware from '@middlewares/authRequired.middleware';
 import { logger, stream } from '@utils/logger';
 import allRoutes from '@routes/index';
-// Import your Stripe webhook route directly for raw body handling
-import webhookRoute from '@routes/index'; // <-- Use default import based on error message
+// DEFAULT import - this IS the instance/object, NOT a class
+import webhookRouteInstanceFromFile from '@routes/webhook.route';
 
 class App {
   public app: express.Application;
@@ -32,10 +32,15 @@ class App {
     this.app = express();
     this.env = NODE_ENV || 'development';
     this.port = PORT || 3000;
-
+    
     this.connectToDatabase();
     this.initializeMiddlewares();
-    this.initializeRoutes(allRoutes);
+    
+    // Filter out the webhook route from allRoutes before passing to initializeRoutes
+    const otherRoutes = allRoutes.filter(
+      route => webhookRouteInstanceFromFile && route.path !== webhookRouteInstanceFromFile.path
+    );
+    this.initializeRoutes(otherRoutes);
     this.initializeSwagger();
     this.initializeErrorHandling();
   }
@@ -73,13 +78,15 @@ class App {
     this.app.use(helmet());
 
     // Mount Stripe webhook BEFORE body parsing to capture raw body
-    if (webhookRoute && webhookRoute.path && webhookRoute.router) {
-      this.app.use('/api' + webhookRoute.path, webhookRoute.router);
+    // Use the directly imported instance/object
+    if (webhookRouteInstanceFromFile && webhookRouteInstanceFromFile.path && webhookRouteInstanceFromFile.router) {
+      this.app.use('/api' + webhookRouteInstanceFromFile.path, webhookRouteInstanceFromFile.router);
+      logger.info(`Stripe Webhook explicitly mounted at /api${webhookRouteInstanceFromFile.path}`);
     } else {
-      console.warn('Webhook route not found or incorrectly defined, skipping.');
+      logger.warn('Stripe Webhook route instance (from webhook.route.ts) is not correctly defined.');
     }
 
-    // Standard body parsers for JSON and URL-encoded
+    // Standard body parsers for JSON and URL-encoded AFTER webhook
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
@@ -94,18 +101,14 @@ class App {
    * Mount application routes under /api,
    * applying authRequiredMiddleware to routes flagged with needsAuth
    */
-  private initializeRoutes(routes: (Routes & { needsAuth?: boolean })[]) {
-    routes.forEach(route => {
+  private initializeRoutes(routesToInitialize: Routes[]) {
+    routesToInitialize.forEach(route => {
       const routeMiddlewares: express.RequestHandler[] = [];
-
-      if (route.needsAuth) {
+      // Cast to any to check for needsAuth property if it's not on Routes interface directly
+      if ((route as any).needsAuth) { 
         routeMiddlewares.push(authRequiredMiddleware);
       }
-
-      // Avoid re-mounting the webhook route
-      if (route !== webhookRoute) {
-        this.app.use('/api' + (route.path || '/'), ...routeMiddlewares, route.router);
-      }
+      this.app.use('/api' + (route.path || '/'), ...routeMiddlewares, route.router);
     });
 
     // 404 for unmatched /api routes

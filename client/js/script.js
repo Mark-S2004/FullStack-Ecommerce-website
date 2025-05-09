@@ -305,7 +305,7 @@ async function renderProductsPage(categoryFilter = '') {
                                 </div>
                             </a>
                             <div class="card-footer bg-transparent border-top-0">
-                                <button class="btn btn-primary w-100 add-to-cart-btn" data-product-name="${product.name}">Add to Cart</button>
+                                <button class="btn btn-primary w-100 add-to-cart-btn" data-product-id="${product._id}">Add to Cart</button>
                             </div>
                         </div>
                     </div>
@@ -402,7 +402,7 @@ async function renderProductDetailPage(productName) {
                     <p class="h4">${priceDetailHtml}</p>
                     <p><strong>Category:</strong> ${product.category}</p>
                     <p><strong>Stock:</strong> ${product.stock > 0 ? product.stock + ' available' : 'Out of stock'}</p>
-                    ${product.stock > 0 ? '<button class="btn btn-primary btn-lg add-to-cart-btn" data-product-name="' + product.name + '">Add to Cart</button>' : '<button class="btn btn-secondary btn-lg" disabled>Out of Stock</button>'}
+                    ${product.stock > 0 ? '<button class="btn btn-primary btn-lg add-to-cart-btn" data-product-id="' + product._id + '">Add to Cart</button>' : '<button class="btn btn-secondary btn-lg" disabled>Out of Stock</button>'}
                 </div>
             </div>
             <hr class="my-4">
