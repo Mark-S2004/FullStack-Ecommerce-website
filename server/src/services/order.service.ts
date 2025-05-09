@@ -120,10 +120,10 @@ export const create = async (userId: string, cart: OrderItem[], address: string)
       payment_method_types: ['card'],
       mode: 'payment',
       line_items: lineItems,
-    success_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-success?orderId=${order._id}`,
-    cancel_url: `${process.env.CLIENT_URL || 'http://localhost:8000'}/checkout-cancel`,
-    metadata: {
-      orderId: order._id.toString(),
+      success_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/?checkout_status=success&orderId=${order._id}`,
+      cancel_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/?checkout_status=cancel`,
+      metadata: {
+        orderId: order._id.toString(),
         total: total.toFixed(2),
         subtotal: subtotal.toFixed(2),
         shipping: shippingCost.toFixed(2),

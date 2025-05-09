@@ -1934,47 +1934,27 @@ async function handleDeleteReview(event) {
 
 // --- Stripe Redirect Handling ---
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Checking for checkout redirect...');
-    
-    // Check URL for redirect parameters using a more robust approach
-    const currentUrl = window.location.href;
-    console.log('Current URL:', currentUrl);
-    
-    // Advanced URL parsing to handle various Stripe return patterns
-    if (currentUrl.includes('checkout-success') || 
-        currentUrl.includes('success=true') || 
-        currentUrl.includes('payment_status=success')) {
-        
-        // Extract orderId from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const orderIdFromUrl = urlParams.get('orderId') || urlParams.get('order_id');
-        console.log('Success redirect detected, orderId:', orderIdFromUrl);
-        
-        if (orderIdFromUrl) {
-            handleCheckoutRedirect(orderIdFromUrl, true);
-         } else {
-            console.error('No order ID found in success redirect URL');
-            appDiv.innerHTML = `
-                <div class="alert alert-warning" role="alert">
-                    <h4>Payment Possibly Successful</h4>
-                    <p>Your payment was processed, but we couldn't verify your order details.</p>
-                    <p>Please check your order history or contact customer support.</p>
-                </div>
-                <p class="mt-3"><a href="#/orders" class="btn btn-primary">View My Orders</a></p>
-            `;
-            
-            // Clean up URL
-            history.replaceState(null, '', '/');
-        }
-    } else if (currentUrl.includes('checkout-cancel') || 
-              currentUrl.includes('success=false') || 
-              currentUrl.includes('payment_status=cancel')) {
-        console.log('Cancel redirect detected');
-        handleCheckoutRedirect(null, false);
+    console.log('Checking for checkout redirect parameters...');
+    const urlParams = new URLSearchParams(window.location.search); // Get query params from current URL
+    const checkoutStatus = urlParams.get('checkout_status');
+    const orderIdFromUrl = urlParams.get('orderId');
+
+    console.log('URL Params found on load:', { checkoutStatus, orderIdFromUrl });
+
+    if (checkoutStatus === 'success' && orderIdFromUrl) {
+        console.log('Success redirect parameters detected, orderId:', orderIdFromUrl);
+        // Clean the URL query parameters before calling handleCheckoutRedirect
+        // to prevent re-processing on hash changes or if the user reloads the page with old params.
+        history.replaceState(null, '', window.location.pathname + window.location.hash); 
+        handleCheckoutRedirect(orderIdFromUrl, true);
+    } else if (checkoutStatus === 'cancel') {
+        console.log('Cancel redirect parameters detected');
+        history.replaceState(null, '', window.location.pathname + window.location.hash);
+        handleCheckoutRedirect(null, false); // false for cancel
     } else {
-        // Normal page rendering
-        console.log('No checkout redirect detected, rendering page normally');
-        renderPage();
+        // Normal page rendering based on hash if no checkout_status param is found
+        console.log('No checkout redirect parameters detected, proceeding with normal hash-based rendering.');
+        renderPage(); // This is your existing function to render pages based on hash
     }
 });
 
