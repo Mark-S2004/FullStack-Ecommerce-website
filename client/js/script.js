@@ -128,8 +128,16 @@ async function handleLogout() {
             // Clear any stored user data
             window.currentUserRole = null;
             
-            // Show one alert message then redirect
-            alert('You have been logged out successfully.');
+            // Use a flag to prevent multiple alerts
+            if (!window.logoutAlertShown) {
+                window.logoutAlertShown = true;
+                alert('You have been logged out successfully.');
+                
+                // Reset the flag after a delay
+                setTimeout(() => {
+                    window.logoutAlertShown = false;
+                }, 3000);
+            }
             
             // Use direct URL change instead of hash change to ensure clean state
             window.location = '#/login';
@@ -1526,15 +1534,12 @@ async function handleCheckout(event) {
     });
 
     try {
-        // Send all calculated values to the backend for consistent pricing
+        // Send only the address to the backend; let the server calculate shipping, tax, and total
         const response = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                address: shippingAddress,
-                shippingCost: shippingCost,
-                tax: tax,
-                total: total
+                address: shippingAddress
             }),
             credentials: 'include'
         });

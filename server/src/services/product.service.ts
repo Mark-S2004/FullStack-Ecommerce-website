@@ -26,6 +26,19 @@ class ProductService {
     return findProduct;
   }
 
+  public async findProductById(productId: string): Promise<Product> {
+    try {
+      const findProduct: Product = await this.products.findById(productId);
+      if (!findProduct) throw new HttpException(404, "Product doesn't exist");
+      return findProduct;
+    } catch (error) {
+      if (error.name === 'CastError') {
+        throw new HttpException(400, "Invalid product ID format");
+      }
+      throw error;
+    }
+  }
+
   public async createProduct(productData: CreateProductDto): Promise<Product> {
     const findProduct: Product = await this.products.findOne({ name: productData.name });
     if (findProduct) throw new HttpException(409, `This name ${productData.name} already exists`);

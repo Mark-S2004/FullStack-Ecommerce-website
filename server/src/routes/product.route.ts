@@ -22,6 +22,9 @@ export class ProductRoute implements Routes {
     // GET /products/meta/categories (Public)
     this.router.get('/meta/categories', this.productController.getProductCategories);
 
+    // GET /products/id/:id (Public) - Get product by ID
+    this.router.get('/id/:id', this.productController.getProductById);
+
     // GET /products/:name (Public)
     this.router.get('/:name', this.productController.getProductByName);
 
