@@ -3,17 +3,20 @@ import authRoute from './auth.route';
 import usersRoute from './users.route';
 import orderRoute from './order.route';
 import webhookRoute from './webhook.route';
-import productsRoute from './products.route'; // This will be public for GET
+import { ProductRoute } from './product.route'; // Corrected: Import class
 import cartRoute from './cart.route';
 import reviewsRoute from './reviews.route';
 import { Routes } from '@interfaces/routes.interface';
+
+// Instantiate the ProductRoute
+const productsRouteInstance = new ProductRoute();
 
 // Define an array of route objects with their path, router, and authentication requirement
 const routes: (Routes & { needsAuth?: boolean })[] = [
     // Routes that do NOT require authentication
     { path: authRoute.path, router: authRoute.router, needsAuth: false },
     { path: webhookRoute.path, router: webhookRoute.router, needsAuth: false },
-    { path: productsRoute.path, router: productsRoute.router, needsAuth: false }, // Make products public
+    { path: productsRouteInstance.path, router: productsRouteInstance.router, needsAuth: false },
 
     // Routes that DO require authentication
     // Note: Specific methods within a router might still require auth if middleware is applied inside the router file
@@ -24,5 +27,4 @@ const routes: (Routes & { needsAuth?: boolean })[] = [
     { path: reviewsRoute.path, router: reviewsRoute.router, needsAuth: true }, // Reviews (customer)
 ];
 
-// Filter out the webhook route here as it's mounted separately in app.ts
-export default routes.filter(route => route !== webhookRoute);
+export default routes.filter(route => route.path !== webhookRoute.path); // Compare by path for filtering

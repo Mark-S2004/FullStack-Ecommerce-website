@@ -763,17 +763,64 @@ async function handleRemoveFromCart(event) {
     }
 }
 
+// Handles checkout form submission
+async function handleCheckout(event) {
+    event.preventDefault();
+    const shippingAddress = document.getElementById('shippingAddress').value;
+    const errorDiv = document.getElementById('checkoutError');
+    errorDiv.textContent = '';
+
+    if (shippingAddress.trim() === '') {
+        errorDiv.textContent = 'Please enter a shipping address.';
+        return;
+    }
+
+    const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
+    if (!cartCheckResponse.ok) {
+        errorDiv.textContent = 'Could not retrieve cart details for checkout.';
+        console.error('Failed to fetch cart for checkout');
+        return;
+    }
+    const cartData = await cartCheckResponse.json();
+    if (!cartData.data || cartData.data.length === 0) {
+        errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: shippingAddress }), // Backend calculates final total
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (response.ok) {
+            console.log('Order created, redirecting to Stripe:', data.orderId);
+            if (data.sessionUrl) {
+                window.location.href = data.sessionUrl;
+            } else {
+                errorDiv.textContent = 'Order created, but no payment URL received.';
+                alert('Order created, but payment could not be initiated.');
+            }
+        } else {
+            console.error('Checkout failed:', data.message);
+            errorDiv.textContent = data.message || 'Checkout failed. Please try again.';
+        }
+    } catch (error) {
+        console.error('Checkout error:', error);
+        errorDiv.textContent = 'An error occurred during checkout.';
+    }
+}
 
 // Renders the checkout page
 async function renderCheckoutPage() {
-    // Check if user is logged in, redirect if not
     const user = await checkAuth();
     if (!user) {
         renderLoginMessage('Please log in to checkout.');
         return;
     }
 
-    // Fetch the current cart to display summary and ensure it's not empty
     const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
      if (!cartCheckResponse.ok) {
           appDiv.innerHTML = '<p class="text-danger">Failed to load cart for checkout.</p>';
@@ -790,10 +837,8 @@ async function renderCheckoutPage() {
 
     const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
     
-    // Client-side calculation for display (mirroring backend logic for consistency)
-    // These will be RECALCULATED on the backend for security and accuracy.
-    let shippingCost = 75; // Default
-    const tempShippingAddressForDisplay = document.getElementById('shippingAddress')?.value || ''; // Get current value if any for display updates
+    let shippingCost = 75; 
+    const tempShippingAddressForDisplay = document.getElementById('shippingAddress')?.value || ''; 
     const addressLowerForDisplay = tempShippingAddressForDisplay.toLowerCase();
     if (addressLowerForDisplay.includes('cairo')) {
         shippingCost = 50;
@@ -801,7 +846,7 @@ async function renderCheckoutPage() {
         shippingCost = 100;
     }
 
-    const tax = subtotal * 0.14; // 14% VAT
+    const tax = subtotal * 0.14; 
     const total = subtotal + shippingCost + tax;
 
     appDiv.innerHTML = `
@@ -832,7 +877,6 @@ async function renderCheckoutPage() {
         <p class="mt-3"><a href="#/cart">Return to Cart</a></p>
     `;
 
-    // Add event listener to shipping address to update displayed costs dynamically
     const shippingAddressInput = document.getElementById('shippingAddress');
     if (shippingAddressInput) {
         shippingAddressInput.addEventListener('input', (event) => {
@@ -847,7 +891,7 @@ async function renderCheckoutPage() {
             const newTotal = subtotal + newShipping + newTax;
             
             document.getElementById('checkoutShipping').textContent = `$${newShipping.toFixed(2)}`;
-            document.getElementById('checkoutTax').textContent = `$${newTax.toFixed(2)}`; // Tax doesn't change with address, but good to recalc if subtotal could change
+            document.getElementById('checkoutTax').textContent = `$${newTax.toFixed(2)}`;
             document.getElementById('checkoutTotal').textContent = `$${newTotal.toFixed(2)}`;
         });
     }
