@@ -1537,9 +1537,9 @@ async function renderOrderHistoryPage(userId) {
 function getStatusBadgeClass(status) {
     switch(status) {
         case 'Pending': return 'bg-warning text-dark';
-        case 'Confirmed': return 'bg-info text-dark';
+        case 'Confirmed': return 'bg-success'; // Changed from bg-info for better visual distinction of paid orders
         case 'Shipped': return 'bg-primary';
-        case 'Delivered': return 'bg-success';
+        case 'Delivered': return 'bg-success'; // Consider a different shade if Confirmed is also bg-success
         case 'Cancelled': return 'bg-danger';
         default: return 'bg-secondary';
     }
@@ -2076,67 +2076,73 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
             // Update the order status to "Confirmed" after successful payment
             const updateResponse = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'Confirmed' }),
                 credentials: 'include'
             }).catch(err => {
-                console.error('Error updating order status:', err);
-                return null;
+                console.error('Error calling update order status API:', err);
+                return null; 
             });
             
+            let orderStatusUpdated = false;
             if (updateResponse && updateResponse.ok) {
                 console.log('Order status updated to Confirmed');
+                orderStatusUpdated = true;
+            } else if (updateResponse) {
+                 console.error('Failed to update order status. Server response:', await updateResponse.text());
             }
             
-            // Display success message
-       appDiv.innerHTML = `
-                <div class="alert alert-success" role="alert">
-                    <h4 class="alert-heading">Order Successful!</h4>
-                    <p>Your order #${orderId} has been placed and confirmed.</p>
-           <p>Thank you for your purchase!</p>
+            appDiv.innerHTML = `
+                <div class="container mt-5 text-center">
+                    <div class="alert alert-success" role="alert">
+                        <h4 class="alert-heading">Order Successful!</h4>
+                        <p>Your order #${orderId} has been placed ${orderStatusUpdated ? 'and confirmed' : 'but status update may be pending'}.</p>
+                        <p>Thank you for your purchase!</p>
+                        <hr>
+                        <p class="mb-0">You will be redirected to your order history shortly.</p>
+                    </div>
+                    <a href="#/orders" class="btn btn-primary mt-3">View My Orders</a>
                 </div>
-                <p class="mt-3"><a href="#/orders" class="btn btn-primary">View My Orders</a></p>
             `;
             
-            // Clear the pending order from sessionStorage
             sessionStorage.removeItem('pendingOrderId');
             sessionStorage.removeItem('pendingOrderTotal');
         } catch (error) {
             console.error('Error handling successful checkout:', error);
-       appDiv.innerHTML = `
-                <div class="alert alert-success" role="alert">
-                    <h4 class="alert-heading">Payment Received!</h4>
-                    <p>Your payment was successful, but we encountered an error checking your order status.</p>
-                    <p>Your order #${orderId} should be processed shortly.</p>
+            appDiv.innerHTML = `
+                <div class="container mt-5 text-center">
+                    <div class="alert alert-warning" role="alert">
+                        <h4 class="alert-heading">Payment Received!</h4>
+                        <p>Your payment for order #${orderId} was successful, but we encountered an error updating its status or displaying details.</p>
+                        <p>Please check your order history. If the issue persists, contact support.</p>
+                    </div>
+                    <a href="#/orders" class="btn btn-primary mt-3">View My Orders</a>
                 </div>
-                <p class="mt-3"><a href="#/orders" class="btn btn-primary">View My Orders</a></p>
             `;
         }
-    } else { // isCancel or missing orderId
+    } else { 
         appDiv.innerHTML = `
-            <div class="alert alert-warning" role="alert">
-                <h4 class="alert-heading">Checkout Cancelled</h4>
-                <p>Your order was not completed. Your cart has NOT been cleared.</p>
+            <div class="container mt-5 text-center">
+                <div class="alert alert-warning" role="alert">
+                    <h4 class="alert-heading">Checkout Cancelled</h4>
+                    <p>Your order was not completed. Your cart has NOT been cleared.</p>
+                </div>
+                <a href="#/cart" class="btn btn-primary mt-3">Return to Cart</a>
             </div>
-            <p class="mt-3"><a href="#/cart" class="btn btn-primary">Return to Cart</a></p>
         `;
-        
-        // Keep pending order info in case user wants to retry
     }
 
-    // Clean up URL to avoid coming back to this redirect on refresh
-    history.replaceState(null, '', '/');
+    history.replaceState(null, '', window.location.pathname + window.location.hash);
     
-    // Change hash separately to avoid full page reload
+    console.log(`[Redirect] Attempting to navigate to ${isSuccess ? '#/orders' : '#/cart'} after delay.`);
     setTimeout(() => {
         if (isSuccess) {
             window.location.hash = '#/orders';
-} else {
+        } else {
             window.location.hash = '#/cart';
         }
-    }, 500);
+        console.log(`[Redirect] window.location.hash set to ${window.location.hash}`);
+    }, 3000); 
 }
 
 // Expose API_BASE_URL to the window for admin.js to access
