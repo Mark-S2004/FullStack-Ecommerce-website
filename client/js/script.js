@@ -352,9 +352,9 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
         apiUrl += queryParams.join('&');
 
         const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch products: ${response.statusText}`);
-        }
+         if (!response.ok) {
+             throw new Error(`Failed to fetch products: ${response.statusText}`);
+         }
         const data = await response.json();
         const products = data.data;
 
@@ -374,7 +374,7 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
                             <a href="#/products/${encodeURIComponent(product.name)}" class="text-decoration-none text-dark">
                                 <img src="${product.imageUrl || 'https://via.placeholder.com/250x150.png?text=No+Image'}" class="card-img-top" alt="${product.name}" style="height: 200px; object-fit: cover;">
                                 <div class="card-body d-flex flex-column">
-                                    <h5 class="card-title">${product.name}</h5>
+                                <h5 class="card-title">${product.name}</h5>
                                     <p class="card-text flex-grow-1">${product.description.substring(0, 100)}...</p>
                                     <p class="card-text fw-bold">${priceHtml}</p>
                                 </div>
@@ -520,59 +520,72 @@ async function renderProductDetailPage(productName) {
 
         // Add debugging for review form
         setTimeout(() => {
-            debugReviewForm();
+            debugReviewForm(); // This will log found elements and their basic state
             
-            // Add listeners for the rating buttons
+            // Add listeners for the rating buttons (this part is for rating selection)
             document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const selectedRating = this.getAttribute('data-rating');
                     const hiddenRatingInput = document.getElementById('reviewRating');
                     if (hiddenRatingInput) {
                         hiddenRatingInput.value = selectedRating;
-                        console.log('Set hidden rating input to:', selectedRating);
+                        console.log('[ReviewForm] Set hidden rating input to:', selectedRating);
                     }
-                    // Visually update buttons (e.g., highlight selected)
-                    document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(b => b.classList.remove('active', 'btn-primary'));
-                    document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(b => b.classList.add('btn-outline-primary'));
+                    document.querySelectorAll('#reviewRatingButtons .rating-btn').forEach(b => {
+                        b.classList.remove('active', 'btn-primary');
+                        b.classList.add('btn-outline-primary');
+                    });
                     this.classList.add('active', 'btn-primary');
                     this.classList.remove('btn-outline-primary');
                     
                     const ratingErrorDiv = document.getElementById('ratingError');
-                    if(ratingErrorDiv) ratingErrorDiv.textContent = ''; // Clear rating error on selection
+                    if(ratingErrorDiv) ratingErrorDiv.textContent = '';
                 });
             });
-            
-            // Try to ensure form is in standard DOM and focusable
-            const form = document.getElementById('addReviewForm');
-            if (form) {
-                const ratingInput = document.getElementById('reviewRating');
-                if (ratingInput) {
-                    ratingInput.onclick = function() {
-                        console.log('Rating clicked directly');
-                        this.focus();
-                    };
-                }
-                
-                const commentTextarea = document.getElementById('reviewComment');
-                if (commentTextarea) {
-                    commentTextarea.onclick = function() {
-                        console.log('Comment clicked directly');
-                        this.focus();
-                        
-                        // Ensure properties are set for accessibility
-                        this.readOnly = false;
-                        this.disabled = false;
-                        this.style.pointerEvents = 'auto'; // Already in HTML, but good to ensure
-                        this.style.userSelect = 'auto'; // Already in HTML, but good to ensure
-                    };
-                }
+
+            // Simplified interaction check for the comment textarea
+            const commentTextarea = document.getElementById('reviewComment');
+            if (commentTextarea) {
+                commentTextarea.addEventListener('focus', () => {
+                    console.log('[ReviewForm] Comment textarea focused.');
+                });
+                commentTextarea.addEventListener('input', (e) => {
+                    console.log('[ReviewForm] Comment textarea input:', e.target.value);
+                });
+                 // Ensure styles that might block interaction are explicitly set to allow it
+                commentTextarea.style.pointerEvents = 'auto';
+                commentTextarea.style.userSelect = 'auto';
+                commentTextarea.disabled = false;
+                commentTextarea.readOnly = false;
             }
-        }, 500); // Small delay to ensure DOM is fully ready
+
+        }, 500); // Delay to ensure DOM is ready
 
     } catch (error) {
         // Handle errors (e.g., product not found)
         console.error('Error fetching product details:', error);
         appDiv.innerHTML = '<p class="text-danger">Failed to load product details. Product not found.</p>';
+    }
+}
+
+// Simplified debugReviewForm
+function debugReviewForm() {
+    console.log('=== REVIEW FORM DEBUG (Simplified) ===');
+    const form = document.getElementById('addReviewForm');
+    const hiddenRatingInput = document.getElementById('reviewRating'); // The hidden one
+    const commentInput = document.getElementById('reviewComment');
+    
+    console.log('[ReviewFormDebug] Form found:', !!form);
+    console.log('[ReviewFormDebug] Hidden Rating input found:', !!hiddenRatingInput, hiddenRatingInput ? `Value: ${hiddenRatingInput.value}` : '');
+    console.log('[ReviewFormDebug] Comment input found:', !!commentInput);
+    
+    if (commentInput) {
+        console.log('[ReviewFormDebug] Comment input attributes:', {
+            disabled: commentInput.disabled,
+            readOnly: commentInput.readOnly,
+            style: commentInput.style.cssText,
+            value: commentInput.value
+        });
     }
 }
 
@@ -775,50 +788,70 @@ async function renderCheckoutPage() {
          return;
      }
 
-    // Calculate subtotal, shipping, tax, and total based on cart items (can be done on frontend or fetched from backend)
-    // For simplicity, let's assume backend handles this accurately during order creation.
     const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
-    // Note: Shipping and Tax calculation logic exists in the backend service.
-    // You might want to create a backend endpoint (e.g., GET /api/cart/summary) to fetch
-    // the calculated shipping, tax, and total before displaying the checkout page.
-    // For this basic example, we'll just show the subtotal here.
+    
+    // Client-side calculation for display (mirroring backend logic for consistency)
+    // These will be RECALCULATED on the backend for security and accuracy.
+    let shippingCost = 75; // Default
+    const tempShippingAddressForDisplay = document.getElementById('shippingAddress')?.value || ''; // Get current value if any for display updates
+    const addressLowerForDisplay = tempShippingAddressForDisplay.toLowerCase();
+    if (addressLowerForDisplay.includes('cairo')) {
+        shippingCost = 50;
+    } else if (addressLowerForDisplay.includes('alexandria')) {
+        shippingCost = 100;
+    }
 
-    // Display checkout form and cart summary
+    const tax = subtotal * 0.14; // 14% VAT
+    const total = subtotal + shippingCost + tax;
+
     appDiv.innerHTML = `
         <h2>Checkout</h2>
-
         <div class="card mb-4">
             <div class="card-body">
                 <h5 class="card-title">Order Summary</h5>
-                <ul class="list-group list-group-flush">
+                <ul class="list-group list-group-flush" id="checkoutOrderItems">
                    ${cartItems.map(item => `
                         <li class="list-group-item">${item.qty} x Product ID: ${item.product} - $${(item.price * item.qty).toFixed(2)}</li>
                    `).join('')}
                 </ul>
-                <h6 class="mt-3">Subtotal: $${subtotal.toFixed(2)}</h6>
-                <!-- Ideally, fetch and display shipping and tax from backend summary endpoint -->
-                <!-- <h6 class="mt-1">Shipping: $...</h6> -->
-                <!-- <h6 class="mt-1">Tax: $...</h6> -->
-                <!-- <h4>Total: $...</h4> -->
+                <h6 class="mt-3">Subtotal: <span id="checkoutSubtotal">$${subtotal.toFixed(2)}</span></h6>
+                <h6 class="mt-1">Shipping: <span id="checkoutShipping">$${shippingCost.toFixed(2)}</span></h6>
+                <h6 class="mt-1">Tax (14% VAT): <span id="checkoutTax">$${tax.toFixed(2)}</span></h6>
+                <h4 class="mt-2">Total: <span id="checkoutTotal">$${total.toFixed(2)}</span></h4>
             </div>
         </div>
-
-
         <form id="checkoutForm">
             <div class="mb-3">
                 <label for="shippingAddress" class="form-label">Shipping Address</label>
-                <input type="text" class="form-control" id="shippingAddress" required>
+                <input type="text" class="form-control" id="shippingAddress" required value="${tempShippingAddressForDisplay}">
+                <div class="form-text">Enter full address. Shipping is $50 for Cairo, $100 for Alexandria, $75 otherwise.</div>
             </div>
-            <!-- Add more address fields (city, country, postal code) as per your Order interface/model -->
-            <!-- Ensure required attributes are set based on your DTO/model -->
             <button type="submit" class="btn btn-success">Place Order & Pay</button>
-            <div id="checkoutError" class="text-danger mt-2"></div> <!-- Area to display checkout errors -->
+            <div id="checkoutError" class="text-danger mt-2"></div>
         </form>
-
-         <p class="mt-3"><a href="#/cart">Return to Cart</a></p>
+        <p class="mt-3"><a href="#/cart">Return to Cart</a></p>
     `;
 
-    // Add event listener to the checkout form's submit event
+    // Add event listener to shipping address to update displayed costs dynamically
+    const shippingAddressInput = document.getElementById('shippingAddress');
+    if (shippingAddressInput) {
+        shippingAddressInput.addEventListener('input', (event) => {
+            const currentAddress = event.target.value.toLowerCase();
+            let newShipping = 75;
+            if (currentAddress.includes('cairo')) {
+                newShipping = 50;
+            } else if (currentAddress.includes('alexandria')) {
+                newShipping = 100;
+            }
+            const newTax = subtotal * 0.14;
+            const newTotal = subtotal + newShipping + newTax;
+            
+            document.getElementById('checkoutShipping').textContent = `$${newShipping.toFixed(2)}`;
+            document.getElementById('checkoutTax').textContent = `$${newTax.toFixed(2)}`; // Tax doesn't change with address, but good to recalc if subtotal could change
+            document.getElementById('checkoutTotal').textContent = `$${newTotal.toFixed(2)}`;
+        });
+    }
+
     document.getElementById('checkoutForm').addEventListener('submit', handleCheckout);
 }
 
@@ -1119,202 +1152,14 @@ async function handleAddToCart(event) {
             return;
         }
 
-        const data = await response.json();
+            const data = await response.json();
         console.log('[Cart] Item added to cart successfully:', data.data);
-        alert('Item added to cart!');
+            alert('Item added to cart!');
     } catch (error) {
         console.error('[Cart] General error in handleAddToCart:', error);
         alert('An unexpected error occurred while adding to cart.');
     }
 }
-
-// Add debug helper for review form issues
-function debugReviewForm() {
-    console.log('=== REVIEW FORM DEBUG ===');
-    const form = document.getElementById('addReviewForm');
-    const ratingInput = document.getElementById('reviewRating');
-    const commentInput = document.getElementById('reviewComment');
-    
-    console.log('Form found:', !!form);
-    console.log('Rating input found:', !!ratingInput);
-    console.log('Comment input found:', !!commentInput);
-    
-    if (ratingInput) {
-        console.log('Rating input attributes:', {
-            type: ratingInput.type,
-            disabled: ratingInput.disabled,
-            readOnly: ratingInput.readOnly,
-            tabIndex: ratingInput.tabIndex,
-            style: ratingInput.style.cssText
-        });
-    }
-    
-    if (commentInput) {
-        console.log('Comment input attributes:', {
-            disabled: commentInput.disabled,
-            readOnly: commentInput.readOnly,
-            tabIndex: commentInput.tabIndex,
-            style: commentInput.style.cssText
-        });
-    }
-}
-
-// Handles changing quantity or using +/- buttons in the cart page
-async function handleUpdateCartQuantity(event) {
-    // Find the closest ancestor with class 'input-group' to reliably find the input
-    const inputGroup = event.target.closest('.input-group');
-    if (!inputGroup) {
-        console.error('Could not find parent .input-group');
-        return;
-    }
-
-    const inputElement = inputGroup.querySelector('.cart-qty-input');
-    const productId = inputElement.dataset.productId;
-    let newQuantity = parseInt(inputElement.value, 10);
-
-    // If the event came from a +/- button, adjust the quantity
-    if (event.target.dataset.delta) {
-        newQuantity += parseInt(event.target.dataset.delta, 10);
-        // Ensure quantity is at least 1 for +/- buttons
-        if (newQuantity < 1) newQuantity = 1;
-        // Update the input field value visually immediately for better UX
-        inputElement.value = newQuantity;
-    }
-
-    // Handle the case where the quantity becomes 0 or less via direct input or +/- button results in <= 0
-    if (newQuantity < 1) {
-        if (confirm('Quantity is 0. Do you want to remove this item from your cart?')) {
-            // Call the remove handler and return
-            handleRemoveFromCart({ target: { dataset: { productId: productId } } });
-        } else {
-            // If cancelled, revert the quantity in the input field to 1 and re-render
-            inputElement.value = 1;
-            renderCartPage(); // Revert UI state
-        }
-        return; // Stop the function here
-    }
-
-    // If quantity is valid (>= 1), send the update request
-   try {
-       const response = await fetch(`${API_BASE_URL}/cart`, {
-           method: 'PUT',
-           headers: {
-               'Content-Type': 'application/json',
-           },
-           body: JSON.stringify({ productId, quantity: newQuantity }),
-            credentials: 'include'
-       });
-
-       if (response.ok) {
-           console.log('Cart updated successfully');
-            // Re-render the cart page to update totals (backend returns updated cart)
-            renderCartPage();
-       } else {
-            const errorData = await response.json();
-            alert('Failed to update cart: ' + (errorData.message || 'Unknown error'));
-            renderCartPage(); // Revert UI changes on failure
-       }
-   } catch (error) {
-       console.error('Update cart error:', error);
-       alert('An error occurred while updating cart.');
-       renderCartPage(); // Revert UI changes on error
-   }
-}
-
-// Handles clicking the "Remove" button in the cart page
-async function handleRemoveFromCart(event) {
-    const productId = event.target.dataset.productId;
-
-    if (!confirm('Are you sure you want to remove this item from your cart?')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        if (response.ok) {
-            console.log('Item removed from cart');
-            renderCartPage(); // Re-render cart
-        } else {
-             const errorData = await response.json();
-             alert('Failed to remove item from cart: ' + (errorData.message || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Remove from cart error:', error);
-        alert('An error occurred while removing from cart.');
-    }
-}
-
-
-// Handles checkout form submission
-async function handleCheckout(event) {
-    event.preventDefault();
-    const shippingAddress = document.getElementById('shippingAddress').value;
-    const errorDiv = document.getElementById('checkoutError');
-    errorDiv.textContent = '';
-
-    // Ensure the address field is not empty
-    if (shippingAddress.trim() === '') {
-        errorDiv.textContent = 'Please enter a shipping address.';
-        return;
-    }
-
-    // Fetch the current cart to ensure it's not empty before proceeding
-     const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
-     if (!cartCheckResponse.ok) {
-          errorDiv.textContent = 'Could not retrieve cart details for checkout.';
-          console.error('Failed to fetch cart for checkout');
-          return; // Stop checkout process
-      }
-     const cartData = await cartCheckResponse.json();
-     if (!cartData.data || cartData.data.length === 0) {
-         errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
-         return; // Stop checkout process
-     }
-
-
-    try {
-        // Send order creation request to the backend API
-        const response = await fetch(`${API_BASE_URL}/orders`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ address: shippingAddress }),
-            credentials: 'include'
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            console.log('Order created, redirecting to Stripe:', data.orderId);
-            alert('Redirecting to payment...'); // Inform the user
-
-            // Redirect the user's browser to the Stripe checkout page URL provided by the backend
-            if (data.sessionUrl) {
-                 window.location.href = data.sessionUrl;
-            } else {
-                // Handle unexpected success response without Stripe URL
-                errorDiv.textContent = 'Order created, but no payment URL received.';
-                alert('Order created, but payment could not be initiated. Please contact support.');
-            }
-
-        } else {
-            // Handle checkout failure - display error message from backend
-            console.error('Checkout failed:', data.message);
-             errorDiv.textContent = data.message || 'Checkout failed. Please try again.';
-            // Optional: Re-render the cart page if checkout fails due to cart issues (like stock)
-            // window.location.hash = '#/cart';
-        }
-    } catch (error) {
-        console.error('Checkout error:', error);
-        errorDiv.textContent = 'An error occurred during checkout.';
-    }
-}
-
 
 // Handles adding a review to a product
 async function handleAddReview(event, productName) {

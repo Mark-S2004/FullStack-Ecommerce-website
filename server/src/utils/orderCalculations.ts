@@ -1,36 +1,28 @@
-import { OrderItem } from '../models/order.model';
+import { OrderItem } from '@interfaces/orders.interface'; // Adjusted import path assuming standard alias
 
 /**
- * Calculate shipping cost based on country and items
+ * Calculate shipping cost based on shipping address.
+ * - Cairo: 50
+ * - Alexandria: 100
+ * - Default: 75 (if not Cairo or Alexandria)
  */
-export function calcShipping(country: string, items: OrderItem[]): number {
-  // Base shipping rate
-  let baseCost = 5.99;
+export function calcShipping(shippingAddress: string): number {
+  const addressLower = shippingAddress.toLowerCase();
   
-  // Add weight-based costs (simplified)
-  const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
-  const weightCost = totalQty * 0.5; // $0.5 per item
-  
-  // Add country-specific costs
-  if (country === 'US') {
-    // Domestic shipping
-    baseCost = 4.99;
-  } else if (['CA', 'MX'].includes(country)) {
-    // North America
-    baseCost = 9.99;
-  } else {
-    // International
-    baseCost = 14.99;
+  if (addressLower.includes('cairo')) {
+    return 50;
   }
-  
-  return baseCost + weightCost;
+  if (addressLower.includes('alexandria')) {
+    return 100;
+  }
+  // Default shipping cost if neither Cairo nor Alexandria is found
+  return 75; 
 }
 
 /**
- * Calculate tax based on subtotal
+ * Calculate tax based on subtotal (14% VAT).
  */
 export function calcTax(subtotal: number): number {
-  // Simple flat tax rate of 8.5%
-  const taxRate = 0.085;
+  const taxRate = 0.14; // 14% VAT
   return subtotal * taxRate;
 } 
