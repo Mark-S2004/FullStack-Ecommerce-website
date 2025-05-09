@@ -1358,7 +1358,7 @@ async function renderCheckoutPage() {
                    ${cartItems.map(item => {
                         const product = productDetailsMap[item.product];
                         const productName = product ? product.name : `Unknown Product`;
-                        const imageUrl = product && product.image ? product.image : 'https://via.placeholder.com/50x50?text=Product';
+                        const imageUrl = product && product.imageUrl ? product.imageUrl : 'https://via.placeholder.com/50x50?text=Product';
                         return `
                             <li class="list-group-item d-flex align-items-center">
                                 <img src="${imageUrl}" alt="${productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px;">

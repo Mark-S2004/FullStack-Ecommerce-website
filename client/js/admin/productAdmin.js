@@ -63,6 +63,12 @@ window.AdminProducts = {
         window.location.hash = `#/admin/products/edit/${encodeURIComponent(productName)}`;
     },
 
+    // Add new function to render the add form
+    async renderAddForm(container) {
+        // Reuse the edit form renderer with no product name to create a new product
+        await this.renderEditForm(container, null);
+    },
+
     async renderEditForm(container, productName) {
         container.innerHTML = '<h3>' + (productName ? 'Edit' : 'Add New') + ' Product</h3><div id="productFormContainer">Loading...</div>';
         
@@ -465,4 +471,4 @@ window.AdminProducts = {
             alert('Failed to remove discount: ' + error.message);
         }
     }
-}; 
+};
