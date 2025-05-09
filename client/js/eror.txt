@@ -1,106 +1,89 @@
 ----------------
 console log 
 ----------------
-Failed to load resource: the server responded with a status of 401 (Unauthorized)
-script.js:66 Auth check failed: 401 {"message":"Not authenticated"}
-:5173/favicon.ico:1 
-            
-            
-           Failed to load resource: the server responded with a status of 404 (Not Found)
-localhost:3000/api/auth/me:1 
-            
-            
-           Failed to load resource: the server responded with a status of 401 (Unauthorized)
-script.js:66 Auth check failed: 401 {"message":"Not authenticated"}
-script.js:838 Login successful: Object
-250x150.png:1 
-            
-            
-           Failed to load resource: net::ERR_NAME_NOT_RESOLVED
-localhost:3000/api/cart:1 
-            
-            
-           Failed to load resource: the server responded with a status of 400 (Bad Request)
+Error with Permissions-Policy header: Unrecognized feature: 'browsing-topics'.
 
                 
           
           
           
          Chrome is moving towards a new experience that allows users to choose to browse without third-party cookies.
-250x150.png:1 
+via.placeholder.com/250x150.png?text=No+Image:1 
             
             
            GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+script.js:914 
+            
+            
+           POST http://localhost:3000/api/cart 400 (Bad Request)
 
 ----------------------
 server
 -------------------------
-            npm run dev
-   
-> typescript-express-mongoose-starter@1.1.7 dev
-> cross-env NODE_ENV=development nodemon
-
+          
 [nodemon] 2.0.22
 [nodemon] to restart at any time, enter `rs`
 [nodemon] watching path(s): src\**\* .env
 [nodemon] watching extensions: js,ts,json
 [nodemon] starting `ts-node -r tsconfig-paths/register --transpile-only src/server.ts`
-Webhook route not found or incorrectly defined, skipping.
-(node:34496) [MONGOOSE] DeprecationWarning: Mongoose: the `strictQuery` option will be switched back to `false` by default in Mongoose 7. Use `mongoose.set('strictQuery', false);` if you want to prepare for this change. Or use `mongoose.set('strictQuery', true);` to suppress this warning.
+2025-05-09 03:44:42 info: Stripe Webhook explicitly mounted at /api/stripe
+(node:37676) [MONGOOSE] DeprecationWarning: Mongoose: the `strictQuery` option will be switched back to `false` by default in Mongoose 7. Use `mongoose.set('strictQuery', false);` if you want to prepare for this change. Or use `mongoose.set('strictQuery', true);` to suppress this warning.
 (Use `node --trace-deprecation ...` to show where the warning was created)
-2025-05-09 03:18:59 info: =================================
-2025-05-09 03:18:59 info: ======= ENV: development =======
-2025-05-09 03:18:59 info: 🚀 App listening on the port 3000
-2025-05-09 03:18:59 info: =================================
-2025-05-09 03:19:00 info: Database connected
+2025-05-09 03:44:42 info: =================================
+2025-05-09 03:44:42 info: ======= ENV: development =======
+2025-05-09 03:44:42 info: 🚀 App listening on the port 3000
+2025-05-09 03:44:42 info: =================================
+2025-05-09 03:44:48 info: Database connected
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
 Mongoose: users.createIndex({ email: 1 }, { unique: true, background: true })
+2025-05-09 03:44:48 info: GET /api/auth/me 304 4288.912 ms - -
+Mongoose: products.find({}, {})
 Mongoose: users.createIndex({ role: 1 }, { background: true })
-2025-05-09 03:19:18 info: GET /api/auth/me 401 4.820 ms - 31
-2025-05-09 03:19:23 info: GET /api/auth/me 401 0.639 ms - 31
-2025-05-09 03:19:25 info: OPTIONS /api/auth/login 204 0.407 ms - 0
-Mongoose: users.findOne({ email: 'mohamedongo21@gmail.com' }, {})
-2025-05-09 03:19:26 info: POST /api/auth/login 200 1173.634 ms - 229
+2025-05-09 03:44:48 info: GET /api/products 304 168.369 ms - -
+Mongoose: products.createIndex({ name: 1 }, { unique: true, background: true })
+Mongoose: products.createIndex({ category: 1 }, { background: true })
 Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:28 info: GET /api/auth/me 304 105.745 ms - -
+2025-05-09 03:44:51 info: GET /api/auth/me 304 116.363 ms - -
 Mongoose: products.find({}, {})
-2025-05-09 03:19:28 info: GET /api/products 200 107.339 ms - 2248
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:29 info: GET /api/auth/me 304 151.352 ms - -
-2025-05-09 03:19:29 info: OPTIONS /api/cart 204 0.337 ms - 0
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:29 error: [POST] /api/cart >> StatusCode:: 400, Message:: productId must be a string
-2025-05-09 03:19:29 info: POST /api/cart 400 105.951 ms - 40
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:51 info: GET /api/auth/me 304 101.743 ms - -
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:51 info: GET /api/auth/me 304 107.600 ms - -
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:51 info: GET /api/cart 200 206.860 ms - 33
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:52 info: GET /api/auth/me 304 102.625 ms - -
+2025-05-09 03:44:51 info: GET /api/products 304 85.238 ms - -
 Mongoose: products.find({}, {})
-2025-05-09 03:19:52 info: GET /api/products 304 120.175 ms - -
+2025-05-09 03:44:53 info: GET /api/products?category=Men 200 89.018 ms - 2248
+Mongoose: products.find({}, {})
+2025-05-09 03:44:55 info: GET /api/products?category=Women 200 86.291 ms - 2248
+Mongoose: products.find({}, {})
+2025-05-09 03:44:56 info: GET /api/products?category=Kids 200 86.402 ms - 2248
+Mongoose: products.find({}, {})
+2025-05-09 03:44:58 info: GET /api/products 304 86.292 ms - -
 Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:53 info: GET /api/auth/me 304 103.287 ms - -
+2025-05-09 03:44:59 info: GET /api/auth/me 304 86.109 ms - -
+2025-05-09 03:44:59 info: OPTIONS /api/cart 204 0.580 ms - 0
 Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:53 info: GET /api/auth/me 304 113.482 ms - -
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:53 info: GET /api/auth/me 304 130.930 ms - -
-Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-Mongoose: orders.find({ user: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
-2025-05-09 03:19:53 info: GET /api/orders/customer 200 237.215 ms - 958
-
+2025-05-09 03:44:59 error: [POST] /api/cart >> StatusCode:: 400, Message:: productId must be a string
+2025-05-09 03:44:59 info: POST /api/cart 400 109.971 ms - 40
 
 
 ---------------------
 client
 ---------------------
 
-[2025-05-09T00:19:18.662Z]  "GET /" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
-(node:24448) [DEP0066] DeprecationWarning: OutgoingMessage.prototype._headers is deprecated
+
+[2025-05-09T00:44:44.389Z]  "GET /" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+(node:36336) [DEP0066] DeprecationWarning: OutgoingMessage.prototype._headers is deprecated
 (Use `node --trace-deprecation ...` to show where the warning was created)
-[2025-05-09T00:19:18.743Z]  "GET /css/style.css" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
-[2025-05-09T00:19:18.746Z]  "GET /js/script.js" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
-[2025-05-09T00:19:18.796Z]  "GET /favicon.ico" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
-[2025-05-09T00:19:18.797Z]  "GET /favicon.ico" Error (404): "Not found"
+[2025-05-09T00:44:51.465Z]  "GET /" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
