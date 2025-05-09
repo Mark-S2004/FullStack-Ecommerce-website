@@ -1051,16 +1051,19 @@ async function renderProductDetailPage(productName) {
             
             ratingButtons.forEach(button => {
                 button.addEventListener('click', function() {
-                    // Remove active class from all buttons
-                    ratingButtons.forEach(btn => btn.classList.remove('active', 'btn-warning'));
-                    btn.classList.add('btn-outline-warning');
+                    // Remove active class from all buttons and ensure they are in the default state
+                    ratingButtons.forEach(btn => {
+                        btn.classList.remove('active', 'btn-warning');
+                        btn.classList.add('btn-outline-warning'); // Ensure it's in the non-selected state
+                    });
                     
                     // Add active class to clicked button
-                    this.classList.remove('btn-outline-warning');
-                    this.classList.add('active', 'btn-warning');
+                    this.classList.remove('btn-outline-warning'); // Remove outline
+                    this.classList.add('active', 'btn-warning'); // Add solid and active
                     
                     // Set the rating value in the hidden input
                     ratingInput.value = this.dataset.rating;
+                    console.log('[Review Rating] Set rating to:', ratingInput.value); // Added for debugging
                     
                     // Clear any rating error
                     const ratingError = document.getElementById('ratingError');
