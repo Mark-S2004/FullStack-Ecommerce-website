@@ -14,7 +14,6 @@ const API_BASE_URL = 'http://localhost:3000/api';
 async function updateAuthUI() {
     const user = await checkAuth();
     window.currentUserRole = user ? user.role : null;
-    window.user = user; // Ensure window.user is set with the full user object
     const authLinksContainer = document.getElementById('authLinksContainer');
     if (!authLinksContainer) return;
 
@@ -30,7 +29,6 @@ async function updateAuthUI() {
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdownLink">
                     <li><span class="dropdown-item-text"><small>Role: ${user.role}</small></span></li>
-                    <li><a class="dropdown-item" href="#/profile"><i class="fas fa-user-edit me-1"></i>View/Edit Profile</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" id="logoutButton">
                         <i class="fas fa-sign-out-alt me-1"></i>Logout
@@ -344,14 +342,15 @@ function renderRegisterForm() {
 // Renders the list of products 
 async function renderProductsPage(filters = { category: '', search: '' }) {
     const { category: categoryFilter, search: searchTerm } = filters;
-    let currentFilters = filters; // Store for refresh
 
+    // Initial HTML structure with placeholders for search and filters
     let headerHtml = `
         <div class="row mb-3">
             <div class="col-md-6">
                 <label for="categoryFilter" class="form-label">Filter by Category:</label>
                 <select class="form-select" id="categoryFilter">
-                    <option value="">All</option>
+                    <option value="">All</option> <!-- Default option -->
+                    <!-- Categories will be populated here -->
                 </select>
             </div>
             <div class="col-md-6">
@@ -372,74 +371,84 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
     const searchButton = document.getElementById('searchProductButton');
     const clearSearchButton = document.getElementById('clearSearchButton');
 
+    // Fetch and populate categories
     try {
         const categoriesResponse = await fetch(`${API_BASE_URL}/products/meta/categories`);
         if (categoriesResponse.ok) {
             const categoriesData = await categoriesResponse.json();
             const fetchedCategories = categoriesData.data;
+            // Clear existing options except "All"
             categorySelect.innerHTML = '<option value="">All</option>'; 
             fetchedCategories.forEach(cat => {
                 const option = document.createElement('option');
                 option.value = cat;
                 option.textContent = cat;
-                if (cat === categoryFilter) option.selected = true;
+                if (cat === categoryFilter) {
+                    option.selected = true;
+                }
                 categorySelect.appendChild(option);
             });
         } else {
             console.error('Failed to fetch categories');
-            categorySelect.innerHTML += `<option value="Men" ${categoryFilter === 'Men' ? 'selected' : ''}>Men</option><option value="Women" ${categoryFilter === 'Women' ? 'selected' : ''}>Women</option><option value="Kids" ${categoryFilter === 'Kids' ? 'selected' : ''}>Kids</option><option value="Accessories" ${categoryFilter === 'Accessories' ? 'selected' : ''}>Accessories</option>`;
+            // Keep static options as a fallback or show an error
+             categorySelect.innerHTML += `
+                <option value="Men" ${categoryFilter === 'Men' ? 'selected' : ''}>Men</option>
+                <option value="Women" ${categoryFilter === 'Women' ? 'selected' : ''}>Women</option>
+                <option value="Kids" ${categoryFilter === 'Kids' ? 'selected' : ''}>Kids</option>
+                <option value="Accessories" ${categoryFilter === 'Accessories' ? 'selected' : ''}>Accessories</option>
+             `; // Fallback static categories
         }
     } catch (error) {
         console.error('Error fetching categories:', error);
-        categorySelect.innerHTML += `<option value="Men" ${categoryFilter === 'Men' ? 'selected' : ''}>Men</option><option value="Women" ${categoryFilter === 'Women' ? 'selected' : ''}>Women</option><option value="Kids" ${categoryFilter === 'Kids' ? 'selected' : ''}>Kids</option><option value="Accessories" ${categoryFilter === 'Accessories' ? 'selected' : ''}>Accessories</option>`;
+        // Fallback to static categories on error
+        categorySelect.innerHTML += `
+            <option value="Men" ${categoryFilter === 'Men' ? 'selected' : ''}>Men</option>
+            <option value="Women" ${categoryFilter === 'Women' ? 'selected' : ''}>Women</option>
+            <option value="Kids" ${categoryFilter === 'Kids' ? 'selected' : ''}>Kids</option>
+            <option value="Accessories" ${categoryFilter === 'Accessories' ? 'selected' : ''}>Accessories</option>
+        `;
     }
 
+    // Add event listener to the filter dropdown
     if (categorySelect) {
         categorySelect.addEventListener('change', (event) => {
             renderProductsPage({ category: event.target.value, search: searchInput.value });
         });
     }
 
+    // Event listeners for search
     const performSearch = () => {
         renderProductsPage({ category: categorySelect.value, search: searchInput.value });
     };
     searchButton.addEventListener('click', performSearch);
     searchInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') performSearch();
+        if (event.key === 'Enter') {
+            performSearch();
+        }
     });
     clearSearchButton.addEventListener('click', () => {
         searchInput.value = '';
         renderProductsPage({ category: categorySelect.value, search: '' });
     });
 
-    // Fetch cart items to display correct cart controls on product cards
-    let cartItemsMap = new Map();
-    const loggedInUser = await checkAuth(); // Use a different variable name to avoid conflict if window.user is used elsewhere
-    if (loggedInUser) {
-        try {
-            const cartResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
-            if (cartResponse.ok) {
-                const cartData = await cartResponse.json();
-                if (cartData.data) {
-                    cartData.data.forEach(item => cartItemsMap.set(item.product, item.qty)); // Assuming item.product is the product ID
-                }
-            }
-        } catch (error) {
-            console.warn('Could not fetch cart for product list display:', error);
-        }
-    }
-
+    // Fetch and render products
     try {
         let apiUrl = `${API_BASE_URL}/products?`;
         const queryParams = [];
-        if (categoryFilter) queryParams.push(`category=${encodeURIComponent(categoryFilter)}`);
-        if (searchTerm) queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
+        if (categoryFilter) {
+            queryParams.push(`category=${encodeURIComponent(categoryFilter)}`);
+        }
+        if (searchTerm) {
+            queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
+        }
         apiUrl += queryParams.join('&');
 
         const response = await fetch(apiUrl);
-         if (!response.ok) throw new Error(`Failed to fetch products: ${response.statusText}`);
+         if (!response.ok) {
+             throw new Error(`Failed to fetch products: ${response.statusText}`);
+         }
         const data = await response.json();
-        const products = data.data; // Ensure products have _id field
+        const products = data.data;
 
         const productsListDiv = document.getElementById('productsList');
         productsListDiv.innerHTML = ''; 
@@ -451,22 +460,6 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
                     priceHtml = `<span class="text-danger">$${product.price.toFixed(2)}</span> <small class="text-muted text-decoration-line-through">$${product.originalPrice.toFixed(2)}</small>`;
                 }
 
-                let cartInteractionHtml = '';
-                const cartQuantity = cartItemsMap.get(product._id); // Product._id is crucial here
-
-                if (cartQuantity > 0) {
-                    cartInteractionHtml = `
-                        <div class="input-group input-group-sm mb-1">
-                            <button class="btn btn-outline-secondary product-list-qty-change" data-product-id="${product._id}" data-delta="-1" ${cartQuantity <= 1 ? 'disabled' : ''}>−</button>
-                            <input type="number" class="form-control text-center product-list-qty-input" value="${cartQuantity}" min="1" max="${product.stock}" readonly data-product-id="${product._id}">
-                            <button class="btn btn-outline-secondary product-list-qty-change" data-product-id="${product._id}" data-delta="1" ${cartQuantity >= product.stock ? 'disabled' : ''}>+</button>
-                        </div>
-                        <button class="btn btn-sm btn-outline-danger w-100 product-list-remove-from-cart" data-product-id="${product._id}">Remove</button>
-                    `;
-                } else {
-                    cartInteractionHtml = `<button class="btn btn-primary w-100 add-to-cart-btn" data-product-name="${product.name}" data-product-id="${product._id}" ${product.stock <= 0 ? 'disabled' : ''}>Add to Cart</button>`;
-                }
-
                 productsListDiv.innerHTML += `
                     <div class="col-md-4 col-sm-6 mb-4">
                         <div class="card h-100">
@@ -474,7 +467,7 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
                                 <img src="${product.imageUrl || 'https://placehold.co/250x150?text=No+Image'}" class="card-img-top" alt="${product.name}" style="height: 200px; object-fit: cover;">
                                 <div class="card-body d-flex flex-column">
                                 <h5 class="card-title">${product.name}</h5>
-                                    <p class="card-text flex-grow-1">${product.description.substring(0, 60)}...</p>
+                                    <p class="card-text flex-grow-1">${product.description.substring(0, 100)}...</p>
                                     <p class="card-text fw-bold">${priceHtml}</p>
                                 </div>
                             </a>
@@ -1108,75 +1101,23 @@ async function handleRemoveFromCart(event) {
 }
 
 
-// --- Global state for applied coupon ---
-let appliedCoupon = {
-    code: null,
-    discountAmount: 0,
-    isValid: false
-};
-
-// Function to update the checkout summary display
-async function updateCheckoutTotalsUI() {
-    // Ensure elements exist before trying to read/write them.
-    const shippingAddressInput = document.getElementById('shippingAddress');
-    const subtotalEl = document.getElementById('checkoutSubtotal');
-    const discountEl = document.getElementById('checkoutDiscount');
-    const shippingEl = document.getElementById('checkoutShipping');
-    const taxEl = document.getElementById('checkoutTax');
-    const totalEl = document.getElementById('checkoutTotal');
-
-    // If critical elements for calculation/display aren't present, abort.
-    if (!shippingAddressInput || !subtotalEl || !discountEl || !shippingEl || !taxEl || !totalEl) {
-        console.warn('[Checkout UI] One or more summary elements not found. Cannot update totals.');
-        return;
-    }
-
-    const cartResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
-    if (!cartResponse.ok) {
-        console.error('Failed to fetch cart for summary update');
-        // Potentially show an error to the user or revert coupon application if this happens after apply
-        return;
-    }
-    const cartData = await cartResponse.json();
-    const cartItems = cartData.data || [];
-
-    const shippingAddress = shippingAddressInput.value;
-    let subtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
-    
-    let shippingCost = 75; // Default shipping
-    const addressLower = shippingAddress.toLowerCase();
-    if (addressLower.includes('cairo')) shippingCost = 50;
-    else if (addressLower.includes('alexandria')) shippingCost = 100;
-
-    let discountToApply = 0;
-    if (appliedCoupon.isValid && appliedCoupon.code) {
-        discountToApply = appliedCoupon.discountAmount;
-    }
-
-    const subtotalAfterDiscount = subtotal - discountToApply;
-    const tax = subtotalAfterDiscount > 0 ? subtotalAfterDiscount * 0.14 : 0; 
-    const total = subtotalAfterDiscount + shippingCost + tax;
-
-    subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
-    discountEl.textContent = `- $${discountToApply.toFixed(2)}`;
-    shippingEl.textContent = `$${shippingCost.toFixed(2)}`;
-    taxEl.textContent = `$${tax.toFixed(2)}`;
-    totalEl.textContent = `$${total.toFixed(2)}`;
-}
-
+// Renders the checkout page
 async function renderCheckoutPage() {
+    // Check if user is logged in, redirect if not
     const user = await checkAuth();
     if (!user) {
         renderLoginMessage('Please log in to checkout.');
         return;
     }
+
+    // Show loading message
     appDiv.innerHTML = '<h2>Checkout</h2><p>Loading your cart...</p>';
 
-    appliedCoupon = { code: null, discountAmount: 0, isValid: false }; // Reset coupon state
-
+    // Fetch the current cart to display summary and ensure it's not empty
     const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
      if (!cartCheckResponse.ok) {
           appDiv.innerHTML = '<p class="text-danger">Failed to load cart for checkout.</p>';
+          console.error('Failed to fetch cart for checkout');
           return;
       }
      const cartData = await cartCheckResponse.json();
@@ -1187,6 +1128,7 @@ async function renderCheckoutPage() {
          return;
      }
      
+    // Fetch product details for all items in cart
     const productDetailsMap = {};
     await Promise.all(cartItems.map(async (item) => {
         try {
@@ -1195,8 +1137,24 @@ async function renderCheckoutPage() {
                 const productData = await productResponse.json();
                 productDetailsMap[item.product] = productData.data;
             }
-        } catch (error) { console.error(`Error fetching product ${item.product}:`, error); }
+        } catch (error) {
+            console.error(`Error fetching product ${item.product}:`, error);
+        }
     }));
+
+    const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+    
+    let shippingCost = 75; // Default
+    const tempShippingAddressForDisplay = document.getElementById('shippingAddress')?.value || ''; 
+    const addressLowerForDisplay = tempShippingAddressForDisplay.toLowerCase();
+    if (addressLowerForDisplay.includes('cairo')) {
+        shippingCost = 50;
+    } else if (addressLowerForDisplay.includes('alexandria')) {
+        shippingCost = 100;
+    }
+
+    const tax = subtotal * 0.14; // 14% VAT
+    const total = subtotal + shippingCost + tax;
 
     appDiv.innerHTML = `
         <h2>Checkout</h2>
@@ -1207,7 +1165,7 @@ async function renderCheckoutPage() {
                    ${cartItems.map(item => {
                         const product = productDetailsMap[item.product];
                         const productName = product ? product.name : `Unknown Product`;
-                        const imageUrl = product && product.imageUrl ? product.imageUrl : 'https://via.placeholder.com/50x50?text=Product';
+                        const imageUrl = product && product.image ? product.image : 'https://via.placeholder.com/50x50?text=Product';
                         return `
                             <li class="list-group-item d-flex align-items-center">
                                 <img src="${imageUrl}" alt="${productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px;">
@@ -1221,29 +1179,18 @@ async function renderCheckoutPage() {
                             </li>`;
                    }).join('')}
                 </ul>
-                <h6 class="mt-3">Subtotal: <span id="checkoutSubtotal">$0.00</span></h6>
-                <h6 class="mt-1 text-success">Discount: <span id="checkoutDiscount">- $0.00</span></h6>
-                <h6 class="mt-1">Shipping: <span id="checkoutShipping">$0.00</span></h6>
-                <h6 class="mt-1">Tax (14%): <span id="checkoutTax">$0.00</span></h6>
-                <h4 class="mt-2">Total: <span id="checkoutTotal">$0.00</span></h4>
+                <h6 class="mt-3">Subtotal: <span id="checkoutSubtotal">$${subtotal.toFixed(2)}</span></h6>
+                <h6 class="mt-1">Shipping: <span id="checkoutShipping">$${shippingCost.toFixed(2)}</span></h6>
+                <h6 class="mt-1">Tax (14% VAT): <span id="checkoutTax">$${tax.toFixed(2)}</span></h6>
+                <h4 class="mt-2">Total: <span id="checkoutTotal">$${total.toFixed(2)}</span></h4>
             </div>
         </div>
         <form id="checkoutForm">
             <div class="mb-3">
                 <label for="shippingAddress" class="form-label">Shipping Address</label>
-                <input type="text" class="form-control" id="shippingAddress" required value="">
-                <div class="form-text">Enter full address. Shipping: Cairo ($50), Alexandria ($100), Others ($75).</div>
+                <input type="text" class="form-control" id="shippingAddress" required value="${tempShippingAddressForDisplay}">
+                <div class="form-text">Enter full address. Shipping is $50 for Cairo, $100 for Alexandria, $75 otherwise.</div>
             </div>
-            <div class="row mb-3">
-                <div class="col-md-8">
-                    <label for="couponCode" class="form-label">Coupon Code</label>
-                    <input type="text" class="form-control" id="couponCode" placeholder="Enter coupon code">
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button class="btn btn-outline-primary w-100" type="button" id="applyCouponBtn">Apply Coupon</button>
-                </div>
-            </div>
-            <div id="couponMessage" class="mb-2"></div>
             <button type="submit" class="btn btn-success">Place Order & Pay</button>
             <div id="checkoutError" class="text-danger mt-2"></div>
         </form>
@@ -1252,74 +1199,571 @@ async function renderCheckoutPage() {
 
     const shippingAddressInput = document.getElementById('shippingAddress');
     if (shippingAddressInput) {
-        shippingAddressInput.addEventListener('input', updateCheckoutTotalsUI);
+        shippingAddressInput.addEventListener('input', (event) => {
+            const currentAddress = event.target.value.toLowerCase();
+            let newShipping = 75;
+            if (currentAddress.includes('cairo')) {
+                newShipping = 50;
+            } else if (currentAddress.includes('alexandria')) {
+                newShipping = 100;
+            }
+            const newSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.qty, 0); // Recalculate subtotal, though it doesn't change here
+            const newTax = newSubtotal * 0.14;
+            const newTotal = newSubtotal + newShipping + newTax;
+            
+            document.getElementById('checkoutShipping').textContent = `$${newShipping.toFixed(2)}`;
+            document.getElementById('checkoutTax').textContent = `$${newTax.toFixed(2)}`;
+            document.getElementById('checkoutTotal').textContent = `$${newTotal.toFixed(2)}`;
+        });
     }
-    
-    const applyCouponBtn = document.getElementById('applyCouponBtn');
-    if (applyCouponBtn) {
-        applyCouponBtn.addEventListener('click', handleApplyCoupon);
-    }
-
+    // Ensure this ID matches the form ID and handleCheckout is defined in scope
     const checkoutForm = document.getElementById('checkoutForm');
     if (checkoutForm) {
         checkoutForm.addEventListener('submit', handleCheckout);
+    } else {
+        console.error('[Checkout] Checkout form not found, cannot attach submit listener.');
     }
-    await updateCheckoutTotalsUI(); // Initial call to set totals based on current cart and default address/coupon state
 }
 
-async function handleApplyCoupon() {
-    const couponCodeInput = document.getElementById('couponCode');
-    const couponCode = couponCodeInput.value.trim().toUpperCase();
-    const couponMessageDiv = document.getElementById('couponMessage');
-    const applyBtn = document.getElementById('applyCouponBtn');
+// Renders the order history page for the logged-in user
+async function renderOrderHistoryPage(userId) {
+    // Show loading message
+    appDiv.innerHTML = '<h2>My Orders</h2><div id="orderList">Loading orders...</div>';
 
-    if (!couponCode) {
-        couponMessageDiv.textContent = 'Please enter a coupon code.';
-        couponMessageDiv.className = 'mb-2 text-danger';
+     // Check if user is logged in (already done in renderPage, but defensive)
+    const user = await checkAuth();
+    if (!user) {
+        renderLoginMessage('Please log in to view your orders.');
         return;
     }
 
-    applyBtn.disabled = true;
-    applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
-    couponMessageDiv.textContent = ''; 
+    try {
+        // Fetch orders for the current user from the backend API (requires authentication)
+        const response = await fetch(`${API_BASE_URL}/orders/customer`, { credentials: 'include' });
+         if (!response.ok) {
+              // Handle authentication required specifically for order history
+            if (response.status === 401) {
+                 renderLoginMessage('Please log in to view your orders.');
+                 return;
+            }
+              throw new Error(`Failed to fetch orders: ${response.statusText}`);
+          }
+        const data = await response.json();
+        const orders = data.data; // Assuming API returns orders in 'data'
+
+        const orderListDiv = document.getElementById('orderList');
+        orderListDiv.innerHTML = '';
+
+        // Check if orders were returned
+        if (orders && orders.length > 0) {
+            // First, collect all unique product IDs across all orders
+            const allProductIds = new Set();
+            orders.forEach(order => {
+                order.items.forEach(item => {
+                    allProductIds.add(item.product);
+                });
+            });
+            
+            // Fetch all product details in one go for efficiency
+            const productDetailsMap = {};
+            await Promise.all(Array.from(allProductIds).map(async (productId) => {
+                try {
+                    const productResponse = await fetch(`${API_BASE_URL}/products/id/${productId}`);
+                    if (productResponse.ok) {
+                        const productData = await productResponse.json();
+                        productDetailsMap[productId] = productData.data;
+                    }
+                } catch (error) {
+                    console.error(`Error fetching product ${productId}:`, error);
+                }
+            }));
+            
+            // Iterate through orders and create HTML for each
+            orders.forEach(order => {
+                let itemsHtml = '<ul class="list-group">';
+                // List items in the order
+                order.items.forEach(item => {
+                    // Get product name from the map, or use ID if not found
+                    const product = productDetailsMap[item.product];
+                    const productName = product ? product.name : `Unknown Product (ID: ${item.product})`;
+                    
+                    itemsHtml += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold">${productName}</span>
+                                <br><small>Quantity: ${item.qty}</small>
+                            </div>
+                            <span>$${item.price.toFixed(2)}</span>
+                        </li>
+                    `;
+                });
+                itemsHtml += '</ul>';
+
+                // Format date nicely with options
+                const orderDate = new Date(order.createdAt);
+                const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                const formattedDate = orderDate.toLocaleDateString(undefined, dateOptions);
+
+                // Display order details
+                orderListDiv.innerHTML += `
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between">
+                            <h5 class="mb-0">Order #${order._id}</h5>
+                            <span class="badge ${getStatusBadgeClass(order.status)}">${order.status}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Date:</strong> ${formattedDate}</p>
+                                    <p class="mb-1"><strong>Shipping Address:</strong> ${order.shippingAddress}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Subtotal:</strong> $${(order.total - order.shippingCost - order.tax).toFixed(2)}</p>
+                                    <p class="mb-1"><strong>Shipping:</strong> $${order.shippingCost.toFixed(2)}</p>
+                                    <p class="mb-1"><strong>Tax:</strong> $${order.tax.toFixed(2)}</p>
+                                    <p class="mb-0"><strong>Total:</strong> $${order.total.toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <h6>Items:</h6>
+                            ${itemsHtml}
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            // Display message if no orders found
+            orderListDiv.innerHTML = '<div class="alert alert-info">You have no orders yet.</div>';
+        }
+    } catch (error) {
+        console.error('Error fetching order history:', error);
+        appDiv.innerHTML = '<p class="text-danger">Failed to load order history.</p>';
+    }
+}
+
+// Helper function to get the appropriate badge class based on order status
+function getStatusBadgeClass(status) {
+    switch(status) {
+        case 'Pending': return 'bg-warning text-dark';
+        case 'Confirmed': return 'bg-info text-dark';
+        case 'Shipped': return 'bg-primary';
+        case 'Delivered': return 'bg-success';
+        case 'Cancelled': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+// Renders the main admin dashboard structure and delegates content rendering
+async function renderAdminPage(adminPath, editProductName = null) {
+    // Basic structure
+    appDiv.innerHTML = `
+       <h2>Admin Dashboard</h2>
+       <ul class="nav nav-tabs mb-3">
+           <li class="nav-item"><a class="nav-link ${adminPath === '/users' ? 'active' : ''} nav-link" href="#/admin/users">Manage Users</a></li>
+           <li class="nav-item"><a class="nav-link ${adminPath.startsWith('/products') ? 'active' : ''} nav-link" href="#/admin/products">Manage Products</a></li>
+           <li class="nav-item"><a class="nav-link ${adminPath === '/orders' ? 'active' : ''} nav-link" href="#/admin/orders">Manage Orders</a></li>
+       </ul>
+       <div id="adminContent">
+           <!-- Admin content loads here -->
+       </div>
+    `;
+
+    const adminContentDiv = document.getElementById('adminContent');
+    if (!adminContentDiv) {
+        console.error('Could not find adminContent div');
+                 return;
+             }
+
+    // Check if admin module is loaded
+    if (typeof window.AdminUsers === 'undefined' || 
+        typeof window.AdminProducts === 'undefined' || 
+        typeof window.AdminOrders === 'undefined') {
+        console.error('Admin modules not loaded. Make sure the admin module files from the js/admin/ directory are included in your HTML.');
+        adminContentDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <h4>Admin Module Missing</h4>
+                <p>The required admin module files could not be loaded. Please check your network connection or contact support.</p>
+            </div>
+        `;
+                 return;
+             }
+
+    // Delegate rendering to namespaced functions from admin.js
+    try {
+        if (adminPath === '/users') {
+            AdminUsers.renderList(adminContentDiv);
+        } else if (adminPath === '/products') {
+            AdminProducts.renderList(adminContentDiv);
+        } else if (adminPath === '/products/new') {
+            AdminProducts.renderAddForm(adminContentDiv);
+        } else if (adminPath.startsWith('/products/edit/') && editProductName) {
+            AdminProducts.renderEditForm(adminContentDiv, editProductName);
+        } else if (adminPath === '/orders') {
+            AdminOrders.renderList(adminContentDiv);
+        } else {
+            adminContentDiv.innerHTML = '<p>Welcome to the Admin Dashboard. Select a section from the tabs above.</p>';
+        }
+    } catch (error) {
+        console.error('Error rendering admin section:', error);
+        adminContentDiv.innerHTML = `<p class="text-danger">Error loading admin section: ${error.message}. Make sure admin.js file is loaded correctly.</p>`;
+    }
+}
+
+// --- Keep generic helpers ---
+function renderNotFound() {
+   appDiv.innerHTML = '<h2>404 Not Found</h2><p>The page you are looking for does not exist.</p>';
+}
+
+function renderAccessDenied() {
+   appDiv.innerHTML = '<h2>Access Denied</h2><p>You do not have permission to view this page.</p>';
+}
+
+function renderLoginMessage(message) {
+    appDiv.innerHTML = `<h2>Login Required</h2><p>${message}</p><p><a href="#/login">Click here to login</a></p>`;
+}
+
+
+// --- Event Handlers for Forms and Buttons ---
+
+// Handles login form submission
+async function handleLogin(event) {
+   event.preventDefault();
+   const email = document.getElementById('loginEmail').value;
+   const password = document.getElementById('loginPassword').value;
+   const errorDiv = document.getElementById('loginError');
+   errorDiv.textContent = '';
+
+   try {
+       const response = await fetch(`${API_BASE_URL}/auth/login`, {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({ email, password }),
+           credentials: 'include'
+       });
+
+       const data = await response.json();
+
+       if (response.ok) {
+           console.log('Login successful:', data.data);
+           alert('Login successful!');
+           window.location.hash = '#/products'; // Redirect on success
+       } else {
+            console.error('Login failed:', data.message);
+            errorDiv.textContent = data.message || 'Login failed. Please check your credentials.';
+       }
+   } catch (error) {
+       console.error('Login error:', error);
+       errorDiv.textContent = 'An error occurred during login. Please try again.';
+   }
+}
+
+// Handles registration form submission
+async function handleRegister(event) {
+   event.preventDefault();
+   const name = document.getElementById('registerName').value;
+   const email = document.getElementById('registerEmail').value;
+   const password = document.getElementById('registerPassword').value;
+   // Assume role is always customer for public registration
+   const role = 'customer'; // Hardcode role to 'customer' for public signup
+   const errorDiv = document.getElementById('registerError');
+    errorDiv.textContent = '';
+
+    // Basic frontend validation
+    if (name.trim() === '' || email.trim() === '' || password.trim() === '') {
+        errorDiv.textContent = 'Please fill in all fields.';
+        return;
+    }
+     // Add basic email format check if needed
+     // if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+     //     errorDiv.textContent = 'Please enter a valid email address.';
+     //     return;
+     // }
+     // Add password strength validation if needed
+
+   try {
+       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({ name, email, password, role }),
+       });
+
+       const data = await response.json();
+
+       if (response.ok) {
+           console.log('Registration successful:', data.data);
+           alert('Registration successful! Please log in.');
+           window.location.hash = '#/login'; // Redirect to login
+       } else {
+           console.error('Registration failed:', data.message);
+           errorDiv.textContent = data.message || 'Registration failed. Please try again.';
+       }
+   } catch (error) {
+       console.error('Registration error:', error);
+       errorDiv.textContent = 'An error occurred during registration. Please try again.';
+   }
+}
+
+// Handles clicking "Add to Cart" button on product listings or detail page
+async function handleAddToCart(event) {
+    // Ensure we get the button element, even if an inner element was clicked
+    const button = event.target.closest('.add-to-cart-btn');
+    if (!button) {
+        console.error('Add to cart button not found from event target:', event.target);
+        alert('Could not add to cart. Please try again.'); // User-facing error
+        return;
+    }
+    
+    // Get productId from product name (which should be a string)
+    const productName = button.dataset.productName; 
+    
+    console.log('Using product name:', productName);
+
+    const quantity = 1;
+
+    const user = await checkAuth();
+    if (!user) {
+        alert('Please log in to add items to your cart.');
+        window.location.hash = '#/login';
+        return;
+    }
+
+    if (!productName) {
+        console.error('Product name is missing from add-to-cart button.', button);
+        alert('Could not identify product. Please try again.');
+        return;
+    }
 
     try {
-        // Backend endpoint: POST /api/coupons/validate (or similar)
-        // Expected request: { couponCode: "CODE" }
-        // Expected response on success (200 OK): { isValid: true, discountAmount: 10.00, message: "Coupon applied!" }
-        // Expected response on failure (400/404): { isValid: false, message: "Invalid coupon" }
-        const response = await fetch(`${API_BASE_URL}/coupons/validate`, { 
+        // First, look up the product ID from the name
+        console.log('[Cart] Fetching product data for product name:', productName);
+        const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}`, {
+            credentials: 'include'
+       });
+
+        if (!productResponse.ok) {
+            const errorText = await productResponse.text();
+            console.error('[Cart] Failed to fetch product data. Status:', productResponse.status, 'Response:', errorText);
+            alert('Failed to find product details. Please try again.');
+            return;
+        }
+        
+        const productData = await productResponse.json();
+        console.log('[Cart] Raw product data from server:', JSON.stringify(productData, null, 2));
+
+        if (!productData || !productData.data || typeof productData.data._id === 'undefined') {
+            console.error('[Cart] CRITICAL: Product data or product ID is missing or undefined.', productData);
+            alert('Error: Product information is incomplete. Cannot add to cart.');
+        return;
+    }
+
+        const productIdFromServer = productData.data._id;
+        console.log('[Cart] Retrieved product ID from server:', productIdFromServer, 'Type:', typeof productIdFromServer);
+
+        if (typeof productIdFromServer !== 'string' || productIdFromServer.trim() === '') {
+            console.error('[Cart] CRITICAL: productIdFromServer is not a valid string or is empty. Value:', productIdFromServer);
+            alert('Error: Product ID is invalid. Cannot add to cart.');
+        return;
+    }
+
+        const productIdString = productIdFromServer.trim(); // Ensure it's trimmed
+        
+        console.log('[Cart] Final productId being sent to cart API:', productIdString, 'Type:', typeof productIdString);
+        
+        const response = await fetch(`${API_BASE_URL}/cart`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ couponCode }), 
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                productId: productIdString, 
+                quantity 
+            }),
             credentials: 'include'
         });
 
-        const data = await response.json();
-        if (response.ok && data.isValid) {
-            appliedCoupon = { code: couponCode, discountAmount: data.discountAmount, isValid: true };
-            couponMessageDiv.textContent = data.message || `Coupon "${couponCode}" applied! Discount: $${data.discountAmount.toFixed(2)}`;
-            couponMessageDiv.className = 'mb-2 text-success';
-            couponCodeInput.disabled = true;
-            applyBtn.textContent = 'Applied';
-        } else {
-            appliedCoupon = { code: null, discountAmount: 0, isValid: false };
-            couponMessageDiv.textContent = data.message || 'Invalid or expired coupon.';
-            couponMessageDiv.className = 'mb-2 text-danger';
-            applyBtn.disabled = false;
-            applyBtn.innerHTML = 'Apply Coupon';
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response from server.'}));
+            console.error('[Cart] Add to cart server error. Status:', response.status, 'Error Data:', errorData);
+            alert('Failed to add item to cart: ' + (errorData.message || 'Unknown server error'));
+            return;
         }
+
+            const data = await response.json();
+        console.log('[Cart] Item added to cart successfully:', data.data);
+            alert('Item added to cart!');
     } catch (error) {
-        console.error("Apply coupon error:", error);
-        appliedCoupon = { code: null, discountAmount: 0, isValid: false }; 
-        couponMessageDiv.textContent = 'Error applying coupon. Please try again.';
-        couponMessageDiv.className = 'mb-2 text-danger';
-        applyBtn.disabled = false;
-        applyBtn.innerHTML = 'Apply Coupon';
+        console.error('[Cart] General error in handleAddToCart:', error);
+        alert('An unexpected error occurred while adding to cart.');
     }
-    await updateCheckoutTotalsUI(); 
 }
 
+// Handles adding a review to a product
+async function handleAddReview(event, productNameForLookup) {
+    event.preventDefault();
+    const ratingInput = document.getElementById('reviewRating');
+    const commentInput = document.getElementById('reviewComment');
+    const errorDiv = document.getElementById('reviewError');
+    const ratingErrorDiv = document.getElementById('ratingError');
+    if(errorDiv) errorDiv.textContent = '';
+    if(ratingErrorDiv) ratingErrorDiv.textContent = '';
+
+    const rating = parseInt(ratingInput.value, 10);
+    const comment = commentInput.value;
+
+    if (!ratingInput.value || isNaN(rating) || rating < 1 || rating > 5) {
+        if(ratingErrorDiv) ratingErrorDiv.textContent = 'Please select a rating by clicking one of the buttons.';
+        return;
+    }
+    if (!comment || comment.trim() === '') {
+        if(errorDiv) errorDiv.textContent = 'Please provide a comment.';
+        return;
+    }
+
+    try {
+        // Get the hidden product ID from the form or the product detail data directly
+        const productIdInput = document.getElementById('productId');
+        let productId;
+        
+        if (productIdInput && productIdInput.value) {
+            // Use value from hidden input if available
+            productId = productIdInput.value;
+            console.log('[Review] Using product ID from form:', productId);
+        } else {
+            // Otherwise, fetch product ID by name
+            console.log('[Review] Fetching product ID for name:', productNameForLookup);
+            const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productNameForLookup)}`, { 
+                credentials: 'include' 
+            });
+            
+            if (!productResponse.ok) {
+                if(errorDiv) errorDiv.textContent = 'Failed to find product. Please try again.';
+                return;
+            }
+            
+            const productData = await productResponse.json();
+            productId = productData.data._id;
+        }
+        
+        console.log('[Review] Submitting review for product ID:', productId);
+        console.log('[Review] Review details - Rating:', rating, 'Comment:', comment);
+        
+        // Submit the review using product ID
+        const reviewResponse = await fetch(`${API_BASE_URL}/products/id/${productId}/reviews`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ rating, comment }),
+            credentials: 'include' 
+        });
+
+        if (!reviewResponse.ok) {
+            const errorData = await reviewResponse.json().catch(() => ({ message: 'Failed to parse error response' }));
+            console.error('[Review] Add review failed:', errorData.message || reviewResponse.statusText);
+            if(errorDiv) errorDiv.textContent = errorData.message || 'Failed to add review.';
+            
+            if (reviewResponse.status === 401) {
+                alert('You must be logged in to add a review.');
+                window.location.hash = '#/login';
+            }
+            return;
+        }
+
+        const reviewSubmitData = await reviewResponse.json();
+        console.log('[Review] Review added successfully:', reviewSubmitData.data);
+        alert('Review added successfully!');
+        
+        // Re-render the product page to show the new review
+        renderProductDetailPage(productNameForLookup);
+        
+    } catch (error) {
+        console.error('[Review] General error in handleAddReview:', error);
+        if(errorDiv) errorDiv.textContent = 'An error occurred while adding the review.';
+    }
+}
+
+// --- Add new handler function for deleting reviews ---
+
+async function handleDeleteReview(event) {
+    const button = event.target;
+    const productName = button.dataset.productName;
+    const reviewId = button.dataset.reviewId;
+
+    if (!confirm(`Are you sure you want to delete review ${reviewId} for product ${productName}?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}/reviews/${reviewId}`, {
+             method: 'DELETE',
+            credentials: 'include' // Requires admin auth on backend
+         });
+
+         if (response.ok) {
+            alert('Review deleted successfully!');
+            // Re-render the product detail page to reflect the change
+            renderProductDetailPage(productName);
+         } else {
+              const errorData = await response.json();
+            alert(`Failed to delete review: ${errorData.message || 'Unknown error'}`);
+            if (response.status === 401 || response.status === 403) renderAccessDenied();
+         }
+     } catch (error) {
+        console.error('Delete review error:', error);
+        alert('An error occurred while deleting the review.');
+    }
+}
+
+// --- Stripe Redirect Handling ---
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Checking for checkout redirect...');
+    
+    // Check URL for redirect parameters using a more robust approach
+    const currentUrl = window.location.href;
+    console.log('Current URL:', currentUrl);
+    
+    // Advanced URL parsing to handle various Stripe return patterns
+    if (currentUrl.includes('checkout-success') || 
+        currentUrl.includes('success=true') || 
+        currentUrl.includes('payment_status=success')) {
+        
+        // Extract orderId from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderIdFromUrl = urlParams.get('orderId') || urlParams.get('order_id');
+        console.log('Success redirect detected, orderId:', orderIdFromUrl);
+        
+        if (orderIdFromUrl) {
+            handleCheckoutRedirect(orderIdFromUrl, true);
+         } else {
+            console.error('No order ID found in success redirect URL');
+            appDiv.innerHTML = `
+                <div class="alert alert-warning" role="alert">
+                    <h4>Payment Possibly Successful</h4>
+                    <p>Your payment was processed, but we couldn't verify your order details.</p>
+                    <p>Please check your order history or contact customer support.</p>
+                </div>
+                <p class="mt-3"><a href="#/orders" class="btn btn-primary">View My Orders</a></p>
+            `;
+            
+            // Clean up URL
+            history.replaceState(null, '', '/');
+        }
+    } else if (currentUrl.includes('checkout-cancel') || 
+              currentUrl.includes('success=false') || 
+              currentUrl.includes('payment_status=cancel')) {
+        console.log('Cancel redirect detected');
+        handleCheckoutRedirect(null, false);
+    } else {
+        // Normal page rendering
+        console.log('No checkout redirect detected, rendering page normally');
+        renderPage();
+    }
+});
+
+// Make sure handleCheckout sends tax and shipping to backend
 async function handleCheckout(event) {
     event.preventDefault();
     const shippingAddress = document.getElementById('shippingAddress').value;
@@ -1331,37 +1775,52 @@ async function handleCheckout(event) {
         return;
     }
 
+    // Show processing indicator
     const submitButton = event.target.querySelector('button[type="submit"]');
     const originalButtonText = submitButton.innerHTML;
     submitButton.disabled = true;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
+    try {
     const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
     if (!cartCheckResponse.ok) {
-        if(errorDiv) errorDiv.textContent = 'Could not retrieve fresh cart details. Please try again.';
-        submitButton.disabled = false; submitButton.innerHTML = originalButtonText;
+        if(errorDiv) errorDiv.textContent = 'Could not retrieve cart details for checkout.';
+        console.error('[Checkout] Failed to fetch cart for checkout');
         return;
     }
     const cartData = await cartCheckResponse.json();
     if (!cartData.data || cartData.data.length === 0) {
         if(errorDiv) errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
-        submitButton.disabled = false; submitButton.innerHTML = originalButtonText;
          return;
      }
 
-    // Backend calculates all financial details. Client sends address and potentially applied coupon code.
-    const orderPayload = {
-        address: shippingAddress,
-        couponCode: appliedCoupon.isValid ? appliedCoupon.code : null 
-    };
+    // Calculate shipping based on address
+    let shippingCost = 75; // Default
+    const addressLower = shippingAddress.toLowerCase();
+    if (addressLower.includes('cairo')) {
+        shippingCost = 50;
+    } else if (addressLower.includes('alexandria')) {
+        shippingCost = 100;
+    }
     
-    console.log('[Checkout] Final order payload for /api/orders:', orderPayload);
+    // Calculate subtotal
+    const subtotal = cartData.data.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const tax = subtotal * 0.14; // 14% VAT
+    const total = subtotal + shippingCost + tax;
 
-    try {
+    console.log('[Checkout] Order summary:', {
+        subtotal: subtotal,
+        shipping: shippingCost,
+        tax: tax,
+        total: total,
+        address: shippingAddress
+    });
+
+        // Send only the address to the backend; let the server calculate shipping, tax, and total
         const response = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(orderPayload),
+            body: JSON.stringify({ address: shippingAddress }),
             credentials: 'include'
         });
         
@@ -1369,25 +1828,39 @@ async function handleCheckout(event) {
             const errorData = await response.json().catch(() => ({ message: 'Unknown error occurred' }));
             console.error('[Checkout] Checkout failed:', errorData.message);
             if(errorDiv) errorDiv.textContent = errorData.message || 'Checkout failed. Please try again or contact support.';
-            submitButton.disabled = false; submitButton.innerHTML = originalButtonText;
+            
+            // Reset button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
             return;
         }
         
         const data = await response.json();
         if (data.sessionUrl) {
             console.log('[Checkout] Order created, redirecting to Stripe:', data.orderId);
+            
+            // Store order details in sessionStorage before redirect (helps with recovery)
             sessionStorage.setItem('pendingOrderId', data.orderId);
+            sessionStorage.setItem('pendingOrderTotal', total.toFixed(2));
+            
+            // Alert user before redirect
             alert('Redirecting to payment gateway...');
             window.location.href = data.sessionUrl;
          } else {
             console.error('[Checkout] Checkout failed: No session URL received');
             if(errorDiv) errorDiv.textContent = 'Could not initialize payment. Please try again or contact support.';
-            submitButton.disabled = false; submitButton.innerHTML = originalButtonText;
+            
+            // Reset button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
          }
      } catch (error) {
         console.error('[Checkout] Checkout error:', error);
         if(errorDiv) errorDiv.textContent = 'An error occurred during checkout.';
-        submitButton.disabled = false; submitButton.innerHTML = originalButtonText;
+        
+        // Reset button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
     }
 }
 
@@ -1695,45 +2168,5 @@ async function handleUpdateProfile(event) {
         // Re-enable form
         submitButton.disabled = false;
         submitButton.innerHTML = originalButtonText;
-    }
-}
-
-// Add the new handleCancelOrder function
-async function handleCancelOrder(event) {
-    const orderId = event.target.dataset.orderId;
-    if (!confirm(`Are you sure you want to cancel order #${orderId}? This action cannot be undone.`)) {
-        return;
-    }
-
-    const button = event.target;
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
-
-    try {
-        // Backend needs to implement: POST /api/orders/:orderId/cancel
-        // This endpoint should handle logic like checking if cancellation is allowed,
-        // processing refunds via Stripe (if applicable), and updating order status.
-        const response = await fetch(`${API_BASE_URL}/orders/${orderId}/cancel`, {
-            method: 'POST', // Or PUT, depending on backend API design
-            credentials: 'include'
-        });
-
-        if (response.ok) {
-            alert('Order cancelled successfully.');
-            // Re-render order history to reflect the change
-            // Assuming current user ID is available or renderOrderHistoryPage can get it
-            const user = await checkAuth(); 
-            if (user) renderOrderHistoryPage(user._id);
-        } else {
-            const errorData = await response.json().catch(() => ({ message: 'Failed to cancel order. Please try again.' }));
-            alert(`Error cancelling order: ${errorData.message}`);
-            button.disabled = false;
-            button.innerHTML = 'Cancel Order';
-        }
-    } catch (error) {
-        console.error('Cancel order error:', error);
-        alert('An unexpected error occurred while trying to cancel the order.');
-        button.disabled = false;
-        button.innerHTML = 'Cancel Order';
     }
 }
