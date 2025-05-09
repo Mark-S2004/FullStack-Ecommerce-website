@@ -423,7 +423,7 @@ async function renderProductDetailPage(productName) {
          // Add event listener to the Add Review form (if it exists)
          const addReviewForm = document.getElementById('addReviewForm');
          if (addReviewForm) {
-             addReviewForm.addEventListener('submit', (e) => handleAddReview(e, product._id));
+             addReviewForm.addEventListener('submit', (e) => handleAddReview(e, product.name));
          }
 
          // Add event listeners for delete review buttons (if any)
@@ -898,15 +898,26 @@ async function handleRegister(event) {
 
 // Handles clicking "Add to Cart" button on product listings or detail page
 async function handleAddToCart(event) {
-    const productId = event.target.dataset.productId;
-    // productPrice is not strictly needed on frontend for adding to cart if backend handles price lookup
-    // const productPrice = parseFloat(event.target.dataset.productPrice);
+    // Ensure we get the button element, even if an inner element was clicked
+    const button = event.target.closest('.add-to-cart-btn');
+    if (!button) {
+        console.error('Add to cart button not found from event target:', event.target);
+        alert('Could not add to cart. Please try again.'); // User-facing error
+        return;
+    }
+    const productId = button.dataset.productId; // Read from the button
     const quantity = 1; // Assuming adding one at a time
 
     const user = await checkAuth();
     if (!user) {
         alert('Please log in to add items to your cart.');
         window.location.hash = '#/login';
+        return;
+    }
+
+    if (!productId) { // Added check for productId
+        console.error('Product ID is missing from add-to-cart button.', button);
+        alert('Could not identify product. Please try again.');
         return;
     }
 
@@ -1093,12 +1104,15 @@ async function handleCheckout(event) {
 
 
 // Handles adding a review to a product
-async function handleAddReview(event, productId) {
+async function handleAddReview(event, productName) {
     event.preventDefault();
-    const rating = parseInt(document.getElementById('reviewRating').value, 10);
-    const comment = document.getElementById('reviewComment').value;
+    const ratingInput = document.getElementById('reviewRating');
+    const commentInput = document.getElementById('reviewComment');
     const errorDiv = document.getElementById('reviewError');
     errorDiv.textContent = '';
+
+    const rating = parseInt(ratingInput.value, 10);
+    const comment = commentInput.value;
 
     // Basic frontend validation
     if (isNaN(rating) || rating < 1 || rating > 5) {
@@ -1111,8 +1125,8 @@ async function handleAddReview(event, productId) {
     }
 
     try {
-        // Send add review request to the backend API (requires authentication)
-        const response = await fetch(`${API_BASE_URL}/products/${productId}/reviews`, {
+        // The API endpoint expects productName for this route
+        const response = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}/reviews`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1126,13 +1140,12 @@ async function handleAddReview(event, productId) {
         if (response.ok) {
             console.log('Review added successfully:', data.data);
             alert('Review added successfully!');
-            // Re-render the product detail page to show the new review and updated average rating
-            renderProductDetailPage(data.data.name); // Assuming the backend returns the updated product object on success
+            // Re-render the product detail page to show the new review
+            // The product name is data.data.name from the response (updated product)
+            renderProductDetailPage(data.data.name); 
         } else {
-             // Handle review failure - display error message from backend
              console.error('Add review failed:', data.message);
             errorDiv.textContent = data.message || 'Failed to add review.';
-            // If it's an auth error, maybe redirect to login
             if (response.status === 401) {
                 alert('You must be logged in to add a review.');
                 window.location.hash = '#/login';
