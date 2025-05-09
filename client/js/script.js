@@ -305,7 +305,7 @@ async function renderProductsPage(categoryFilter = '') {
                                 </div>
                             </a>
                             <div class="card-footer bg-transparent border-top-0">
-                                <button class="btn btn-primary w-100 add-to-cart-btn" data-product-id="${product._id}">Add to Cart</button>
+                                <button class="btn btn-primary w-100 add-to-cart-btn" data-product-id="${String(product._id)}">Add to Cart</button>
                             </div>
                         </div>
                     </div>
@@ -373,15 +373,33 @@ async function renderProductDetailPage(productName) {
             <form id="addReviewForm">
                 <div class="mb-3">
                     <label for="reviewRating" class="form-label">Rating (1-5)</label>
-                    <input type="number" class="form-control" id="reviewRating" min="1" max="5" required>
+                    <!-- Try using type=text with numeric pattern instead of type=number -->
+                    <input type="text" inputmode="numeric" pattern="[1-5]" 
+                           class="form-control" id="reviewRating" min="1" max="5" required
+                           placeholder="Enter 1-5">
                 </div>
                 <div class="mb-3">
                     <label for="reviewComment" class="form-label">Comment</label>
-                    <textarea class="form-control" id="reviewComment" rows="3" required></textarea>
+                    <!-- Add explicit tabindex and style to ensure accessibility -->
+                    <textarea class="form-control" id="reviewComment" rows="3" tabindex="0" 
+                              required style="pointer-events: auto; user-select: auto;"
+                              placeholder="Enter your review here"></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">Submit Review</button>
-                 <div id="reviewError" class="text-danger mt-2"></div> <!-- Area to display review errors -->
+                <div id="reviewError" class="text-danger mt-2"></div>
             </form>
+            
+            <!-- Add manual numeric buttons as fallback -->
+            <div class="mt-2 mb-3">
+                <small>Click to set rating: </small>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="1">1</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="2">2</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="3">3</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="4">4</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rating-btn" data-rating="5">5</button>
+                </div>
+            </div>
         ` : '<p class="mt-4">Please log in to leave a review.</p>';
 
         // For product details page, update price display
@@ -402,7 +420,7 @@ async function renderProductDetailPage(productName) {
                     <p class="h4">${priceDetailHtml}</p>
                     <p><strong>Category:</strong> ${product.category}</p>
                     <p><strong>Stock:</strong> ${product.stock > 0 ? product.stock + ' available' : 'Out of stock'}</p>
-                    ${product.stock > 0 ? '<button class="btn btn-primary btn-lg add-to-cart-btn" data-product-id="' + product._id + '">Add to Cart</button>' : '<button class="btn btn-secondary btn-lg" disabled>Out of Stock</button>'}
+                    ${product.stock > 0 ? '<button class="btn btn-primary btn-lg add-to-cart-btn" data-product-id="' + String(product._id) + '">Add to Cart</button>' : '<button class="btn btn-secondary btn-lg" disabled>Out of Stock</button>'}
                 </div>
             </div>
             <hr class="my-4">
@@ -430,6 +448,55 @@ async function renderProductDetailPage(productName) {
          document.querySelectorAll('.delete-review-btn').forEach(button => {
              button.addEventListener('click', handleDeleteReview);
          });
+
+        // Add debugging for review form
+        setTimeout(() => {
+            debugReviewForm();
+            
+            // Add listeners for the rating buttons
+            document.querySelectorAll('.rating-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const rating = this.getAttribute('data-rating');
+                    const ratingInput = document.getElementById('reviewRating');
+                    if (ratingInput) {
+                        ratingInput.value = rating;
+                        console.log('Set rating to:', rating);
+                    }
+                });
+            });
+            
+            // Try to ensure form is in standard DOM and focusable
+            const form = document.getElementById('addReviewForm');
+            if (form) {
+                // Add direct click handlers to the form elements
+                const ratingInput = document.getElementById('reviewRating');
+                if (ratingInput) {
+                    ratingInput.onclick = function() {
+                        console.log('Rating clicked directly');
+                        this.focus();
+                    };
+                }
+                
+                const commentTextarea = document.getElementById('reviewComment');
+                if (commentTextarea) {
+                    commentTextarea.onclick = function() {
+                        console.log('Comment clicked directly');
+                        this.focus();
+                        
+                        // Try removing any potential issues
+                        this.readOnly = false;
+                        this.disabled = false;
+                        this.style.pointerEvents = 'auto';
+                    };
+                    
+                    // Force focus on page load to test accessibility
+                    setTimeout(() => {
+                        commentTextarea.focus();
+                        console.log('Forced focus on comment textarea');
+                    }, 1000);
+                }
+            }
+        }, 500); // Small delay to ensure DOM is fully ready
 
     } catch (error) {
         // Handle errors (e.g., product not found)
@@ -906,6 +973,14 @@ async function handleAddToCart(event) {
         return;
     }
     const productId = button.dataset.productId; // Read from the button
+    
+    // DEBUGGING OUTPUT
+    console.log('Add to Cart - Button:', button);
+    console.log('Add to Cart - productId from dataset:', productId);
+    console.log('Add to Cart - dataset attributes:', button.dataset);
+    console.log('Add to Cart - productId type:', typeof productId);
+    console.log('Add to Cart - All button attributes:', button.attributes);
+    
     const quantity = 1; // Assuming adding one at a time
 
     const user = await checkAuth();
@@ -922,6 +997,14 @@ async function handleAddToCart(event) {
     }
 
     try {
+        // MORE DEBUGGING - Log exact data being sent to API
+        console.log('Add to Cart - Sending to API:', { 
+            url: `${API_BASE_URL}/cart`,
+            method: 'POST',
+            data: { productId, quantity },
+            productIdType: typeof productId
+        });
+        
         const response = await fetch(`${API_BASE_URL}/cart`, {
             method: 'POST',
             headers: {
@@ -931,18 +1014,50 @@ async function handleAddToCart(event) {
             credentials: 'include' // Send cookie
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            console.log('Item added to cart:', data.data);
-            alert('Item added to cart!');
-            // Optional: Provide visual feedback like updating a cart count icon
-        } else {
-             const errorData = await response.json();
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Add to cart server error:', errorData);
             alert('Failed to add item to cart: ' + (errorData.message || 'Unknown error'));
+            return;
         }
+
+        const data = await response.json();
+        console.log('Item added to cart:', data.data);
+        alert('Item added to cart!');
     } catch (error) {
         console.error('Add to cart error:', error);
         alert('An error occurred while adding to cart.');
+    }
+}
+
+// Add debug helper for review form issues
+function debugReviewForm() {
+    console.log('=== REVIEW FORM DEBUG ===');
+    const form = document.getElementById('addReviewForm');
+    const ratingInput = document.getElementById('reviewRating');
+    const commentInput = document.getElementById('reviewComment');
+    
+    console.log('Form found:', !!form);
+    console.log('Rating input found:', !!ratingInput);
+    console.log('Comment input found:', !!commentInput);
+    
+    if (ratingInput) {
+        console.log('Rating input attributes:', {
+            type: ratingInput.type,
+            disabled: ratingInput.disabled,
+            readOnly: ratingInput.readOnly,
+            tabIndex: ratingInput.tabIndex,
+            style: ratingInput.style.cssText
+        });
+    }
+    
+    if (commentInput) {
+        console.log('Comment input attributes:', {
+            disabled: commentInput.disabled,
+            readOnly: commentInput.readOnly,
+            tabIndex: commentInput.tabIndex,
+            style: commentInput.style.cssText
+        });
     }
 }
 
