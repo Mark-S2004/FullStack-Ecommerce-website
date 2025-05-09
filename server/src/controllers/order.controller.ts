@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import * as orderService from '@services/order.service';
 import * as cartService from '@services/cart.service';
+import { HttpException } from '@exceptions/HttpException';
 
 export const getOrders = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -40,8 +41,12 @@ export async function createOrder(req: Request, res: Response) {
 
     res.status(201).json({ orderId: order._id, sessionUrl });
   } catch (error) {
-    console.error('Create Order Error:', error); // 👈 log it
-    res.status(500).json({ message: 'Error creating order', error });
+    console.error('Create Order Error:', error); // Keep detailed log
+    if (error instanceof HttpException) {
+      res.status(error.status || 500).json({ message: error.message || 'Error creating order' });
+    } else {
+      res.status(500).json({ message: 'An unexpected error occurred while creating the order' });
+    }
   }
 }
 
