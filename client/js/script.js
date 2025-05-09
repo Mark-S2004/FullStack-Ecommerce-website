@@ -591,39 +591,46 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
             
             document.querySelectorAll('.decrement-quantity').forEach(button => {
                 button.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    
+                    // Disable the button to prevent double-clicks
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    
                     const productId = e.target.dataset.productId;
                     const quantityInput = e.target.closest('.cart-quantity-control').querySelector('.product-quantity');
                     const currentQty = parseInt(quantityInput.value);
-                    const newQty = currentQty - 1;
                     
                     try {
-                        // Disable button during update
-                        e.target.disabled = true;
-                        
-                        // If new quantity would be 0, directly remove from cart
-                        if (newQty === 0) {
-                            // Show "removing" state in the UI
+                        // If current quantity is 1, remove from cart
+                        if (currentQty <= 1) {
+                            console.log('[Cart] Removing item from cart:', productId);
+                            
+                            // Show removal state in UI
                             const cardFooter = e.target.closest('.card-footer');
                             if (cardFooter) {
                                 cardFooter.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Removing...</div>';
                             }
                             
-                            // Remove from cart entirely
                             const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
                                 method: 'DELETE',
                                 credentials: 'include'
                             });
                             
-                            if (response.ok) {
-                                // Refresh the list to show "Add to Cart" button
-                                renderProductsPage({ category: categoryFilter, search: searchTerm });
-                            } else {
-                                console.error('Failed to remove from cart');
-                                alert('Failed to remove from cart');
-                                e.target.disabled = false;
+                            if (!response.ok) {
+                                throw new Error('Failed to remove item from cart');
                             }
-                        } else if (newQty >= 1) {
-                            // Just update the quantity
+                            
+                            // Success - refresh the product page to show "Add to Cart" button
+                            renderProductsPage({ 
+                                category: categorySelect ? categorySelect.value : '', 
+                                search: searchInput ? searchInput.value : '' 
+                            });
+                        } else {
+                            // Decrement quantity
+                            const newQty = currentQty - 1;
+                            console.log('[Cart] Updating quantity to:', newQty);
+                            
                             const response = await fetch(`${API_BASE_URL}/cart`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
@@ -631,19 +638,21 @@ async function renderProductsPage(filters = { category: '', search: '' }) {
                                 credentials: 'include'
                             });
                             
-                            if (response.ok) {
-                                // Refresh the list to reflect changes
-                                renderProductsPage({ category: categoryFilter, search: searchTerm });
-                            } else {
-                                console.error('Failed to update cart');
-                                alert('Failed to update quantity');
-                                e.target.disabled = false;
+                            if (!response.ok) {
+                                throw new Error('Failed to update cart quantity');
                             }
+                            
+                            // Success - refresh the page
+                            renderProductsPage({ 
+                                category: categorySelect ? categorySelect.value : '', 
+                                search: searchInput ? searchInput.value : '' 
+                            });
                         }
                     } catch (error) {
-                        console.error('Error updating cart:', error);
-                        alert('Error updating cart');
-                        e.target.disabled = false;
+                        console.error('[Cart] Error:', error);
+                        alert(error.message);
+                        button.disabled = false;
+                        button.innerHTML = '−';
                     }
                 });
             });
@@ -663,19 +672,22 @@ async function renderProductDetailPage(productName) {
     appDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" role="status"></div><p>Loading product...</p></div>';
     
     try {
+        // Get current user info and store it globally
+        const currentUser = await checkAuth();
+        console.log('[Product Detail] Current user:', currentUser);
+        
+        // Store current user globally so it's accessible by review functions
+        window.user = currentUser;
+        
         // Fetch the product data from the API
         const response = await fetch(`${API_BASE_URL}/products/${productName}`);
-         if (!response.ok) {
+        if (!response.ok) {
             appDiv.innerHTML = '<div class="alert alert-danger">Product not found.</div>';
             return;
         }
         
         const result = await response.json();
         const product = result.data;
-
-        // Get current user info and store it in window.user
-        const user = await checkAuth();
-        window.user = user; // Set this so review functionality can access it
 
         // Check if the product is already in the user's cart
         let cartItem = null;
@@ -701,9 +713,9 @@ async function renderProductDetailPage(productName) {
             ? product.reviews.map(review => {
                 const date = new Date(review.createdAt).toLocaleDateString();
                 const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
-                const isCurrentUserReview = user && review.user === user._id;
+                const isCurrentUserReview = currentUser && review.user === currentUser._id;
 
-                 return `
+                return `
                 <div class="card mb-2">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
@@ -727,9 +739,9 @@ async function renderProductDetailPage(productName) {
             
         // Generate the review form HTML if the user is logged in
         let addReviewFormHtml = '';
-        if (user) {
+        if (currentUser) {
             // Check if the user has already reviewed this product
-            const userReview = product.reviews && product.reviews.find(review => review.user === user._id);
+            const userReview = product.reviews && product.reviews.find(review => review.user === currentUser._id);
             
             if (userReview) {
                 addReviewFormHtml = `
@@ -747,6 +759,7 @@ async function renderProductDetailPage(productName) {
                         <div class="card-header">Write a Review</div>
                         <div class="card-body">
                             <form id="addReviewForm">
+                                <input type="hidden" id="productId" value="${product._id}">
                                 <div class="mb-3">
                                     <label class="form-label">Rating</label>
                                     <div class="rating-buttons">
@@ -927,16 +940,42 @@ async function renderProductDetailPage(productName) {
         
         if (decrementBtn) {
             decrementBtn.addEventListener('click', async (e) => {
-                const productId = e.target.dataset.productId;
-                const quantityInput = appDiv.querySelector('.product-quantity');
-                const newQty = parseInt(quantityInput.value) - 1;
+                e.preventDefault();
                 
                 // Disable buttons during update
-                incrementBtn.disabled = true;
                 decrementBtn.disabled = true;
+                if (incrementBtn) incrementBtn.disabled = true;
                 
-                if (newQty >= 1) {
-                    try {
+                const productId = e.target.dataset.productId;
+                const quantityInput = appDiv.querySelector('.product-quantity');
+                const currentQty = parseInt(quantityInput.value);
+                
+                try {
+                    // If quantity would be 0, remove from cart entirely
+                    if (currentQty <= 1) {
+                        console.log('[Product Detail] Removing item from cart:', productId);
+                        
+                        const removeBtn = appDiv.querySelector('.remove-from-cart');
+                        if (removeBtn) {
+                            removeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+                        }
+                        
+                        const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
+                            method: 'DELETE',
+                            credentials: 'include'
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to remove from cart');
+                        }
+                        
+                        // Success - refresh product page to show "Add to Cart" button
+                        renderProductDetailPage(productName);
+                    } else {
+                        // Just update the quantity
+                        const newQty = currentQty - 1;
+                        console.log('[Product Detail] Updating quantity to:', newQty);
+                        
                         const response = await fetch(`${API_BASE_URL}/cart`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
@@ -944,41 +983,22 @@ async function renderProductDetailPage(productName) {
                             credentials: 'include'
                         });
                         
-                        if (response.ok) {
-                            quantityInput.value = newQty;
-                            // Enable increment button since we decreased
-                            incrementBtn.disabled = false;
-                            // Disable decrement button if we're at 1
-                            decrementBtn.disabled = newQty <= 1;
-                        } else {
-                            console.error('Failed to update cart');
-                            alert('Failed to update quantity');
+                        if (!response.ok) {
+                            throw new Error('Failed to update cart');
                         }
-                    } catch (error) {
-                        console.error('Error updating cart:', error);
-                        alert('Error updating quantity');
-                    }
-                } else if (newQty === 0) {
-                    // If quantity would be 0, remove from cart entirely
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
-                            method: 'DELETE',
-                            credentials: 'include'
-                        });
                         
-                        if (response.ok) {
-                            // Refresh product page to show "Add to Cart" button
-                            renderProductDetailPage(productName);
-                        } else {
-                            console.error('Failed to remove from cart');
-                            alert('Failed to remove from cart');
-                            decrementBtn.disabled = false;
-                        }
-                    } catch (error) {
-                        console.error('Error removing from cart:', error);
-                        alert('Error removing from cart');
-                        decrementBtn.disabled = false;
+                        // Success - update the input value and button states
+                        quantityInput.value = newQty;
+                        decrementBtn.disabled = newQty <= 1;
+                        if (incrementBtn) incrementBtn.disabled = false;
                     }
+                } catch (error) {
+                    console.error('[Product Detail] Cart update error:', error);
+                    alert(error.message);
+                    
+                    // Reset button states
+                    decrementBtn.disabled = false;
+                    if (incrementBtn) incrementBtn.disabled = false;
                 }
             });
         }
@@ -1773,77 +1793,66 @@ async function handleAddToCart(event) {
 // Handles adding a review to a product
 async function handleAddReview(event, productNameForLookup) {
     event.preventDefault();
+    
     const ratingInput = document.getElementById('reviewRating');
     const commentInput = document.getElementById('reviewComment');
+    const productIdInput = document.getElementById('productId');
     const errorDiv = document.getElementById('reviewError');
     const ratingErrorDiv = document.getElementById('ratingError');
+    
     if(errorDiv) errorDiv.textContent = '';
     if(ratingErrorDiv) ratingErrorDiv.textContent = '';
 
-    const rating = parseInt(ratingInput.value, 10);
-    const comment = commentInput.value;
-
-    if (!ratingInput.value || isNaN(rating) || rating < 1 || rating > 5) {
+    // Validate inputs
+    if (!ratingInput || !ratingInput.value || isNaN(parseInt(ratingInput.value, 10))) {
         if(ratingErrorDiv) ratingErrorDiv.textContent = 'Please select a rating by clicking one of the buttons.';
         return;
     }
-    if (!comment || comment.trim() === '') {
+    
+    if (!commentInput || !commentInput.value || commentInput.value.trim() === '') {
         if(errorDiv) errorDiv.textContent = 'Please provide a comment.';
         return;
     }
+    
+    if (!productIdInput || !productIdInput.value) {
+        if(errorDiv) errorDiv.textContent = 'Product ID is missing. Please refresh the page and try again.';
+        console.error('[Review] Product ID input is missing from the form');
+        return;
+    }
+
+    const rating = parseInt(ratingInput.value, 10);
+    const comment = commentInput.value.trim();
+    const productId = productIdInput.value;
 
     try {
-        // Ensure we are using the user object already set by renderProductDetailPage
-        // or get a fresh auth check
-        let user = window.user;
-        if (!user) {
-            user = await checkAuth();
-            window.user = user;
-        }
-        
-        if (!user) {
-            if(errorDiv) errorDiv.textContent = 'You must be logged in to add a review.';
-            alert('You must be logged in to add a review.');
-            window.location.hash = '#/login';
-            return;
-        }
-        
-        console.log('[Review] User authenticated:', user);
-
-        // Get the hidden product ID from the form or the product detail data directly
-        const productIdInput = document.getElementById('productId');
-        let productId;
-        
-        if (productIdInput && productIdInput.value) {
-            // Use value from hidden input if available
-            productId = productIdInput.value;
-            console.log('[Review] Using product ID from form:', productId);
-        } else {
-            // Otherwise, fetch product ID by name
-            console.log('[Review] Fetching product ID for name:', productNameForLookup);
-            const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productNameForLookup)}`, { 
-                credentials: 'include' 
-            });
-            
-            if (!productResponse.ok) {
-                if(errorDiv) errorDiv.textContent = 'Failed to find product. Please try again.';
+        // Ensure the user is authenticated
+        if (!window.user || !window.user._id) {
+            // Try to refresh the authentication
+            const refreshedUser = await checkAuth();
+            if (!refreshedUser) {
+                console.error('[Review] User not authenticated');
+                if(errorDiv) errorDiv.textContent = 'You must be logged in to add a review.';
+                alert('Please log in to add a review.');
+                window.location.hash = '#/login';
                 return;
             }
-            
-            const productData = await productResponse.json();
-            productId = productData.data._id;
-            console.log('[Review] Retrieved product ID:', productId);
+            window.user = refreshedUser;
         }
         
-        if (!productId) {
-            if(errorDiv) errorDiv.textContent = 'Could not determine product ID. Please try again.';
-            return;
-        }
+        console.log('[Review] Submitting review with:', {
+            productId: productId,
+            userId: window.user._id,
+            rating: rating,
+            comment: comment
+        });
         
-        console.log('[Review] Submitting review for product ID:', productId);
-        console.log('[Review] Review details - Rating:', rating, 'Comment:', comment);
+        // Create a loading state in the submit button
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
         
-        // Submit the review using product ID
+        // Submit the review using product ID directly from the hidden input
         const reviewResponse = await fetch(`${API_BASE_URL}/products/id/${productId}/reviews`, {
             method: 'POST',
             headers: {
@@ -1853,10 +1862,20 @@ async function handleAddReview(event, productNameForLookup) {
             credentials: 'include' 
         });
 
+        // Reset button state
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+
         if (!reviewResponse.ok) {
-            const errorData = await reviewResponse.json().catch(() => ({ message: 'Failed to parse error response' }));
-            console.error('[Review] Add review failed:', errorData.message || reviewResponse.statusText);
-            if(errorDiv) errorDiv.textContent = errorData.message || 'Failed to add review.';
+            const responseText = await reviewResponse.text();
+            console.error('[Review] Server response:', responseText);
+            
+            try {
+                const errorData = JSON.parse(responseText);
+                if(errorDiv) errorDiv.textContent = errorData.message || 'Failed to add review.';
+            } catch (e) {
+                if(errorDiv) errorDiv.textContent = 'Failed to add review. Server error.';
+            }
             
             if (reviewResponse.status === 401) {
                 alert('You must be logged in to add a review.');
@@ -1975,47 +1994,53 @@ async function handleCheckout(event) {
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
     try {
-    const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
-    if (!cartCheckResponse.ok) {
-        if(errorDiv) errorDiv.textContent = 'Could not retrieve cart details for checkout.';
-        console.error('[Checkout] Failed to fetch cart for checkout');
-        return;
-    }
-    const cartData = await cartCheckResponse.json();
-    if (!cartData.data || cartData.data.length === 0) {
-        if(errorDiv) errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
-         return;
-     }
+        const cartCheckResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
+        if (!cartCheckResponse.ok) {
+            if(errorDiv) errorDiv.textContent = 'Could not retrieve cart details for checkout.';
+            console.error('[Checkout] Failed to fetch cart for checkout');
+            
+            // Reset button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+            return;
+        }
+        const cartData = await cartCheckResponse.json();
+        if (!cartData.data || cartData.data.length === 0) {
+            if(errorDiv) errorDiv.textContent = 'Your cart is empty. Cannot checkout.';
+            
+            // Reset button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+            return;
+        }
 
-    // Calculate shipping based on address (client-side calculation for display only)
-    let shippingCost = 75; // Default
-    const addressLower = shippingAddress.toLowerCase();
-    if (addressLower.includes('cairo')) {
-        shippingCost = 50;
-    } else if (addressLower.includes('alexandria')) {
-        shippingCost = 100;
-    }
-    
-    // Calculate subtotal (client-side calculation for display only)
-    const subtotal = cartData.data.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const tax = subtotal * 0.14; // 14% VAT
-    const total = subtotal + shippingCost + tax;
+        // Calculate shipping based on address (client-side calculation for display only)
+        let shippingCost = 75; // Default
+        const addressLower = shippingAddress.toLowerCase();
+        if (addressLower.includes('cairo')) {
+            shippingCost = 50;
+        } else if (addressLower.includes('alexandria')) {
+            shippingCost = 100;
+        }
+        
+        // Calculate subtotal (client-side calculation for display only)
+        const subtotal = cartData.data.reduce((sum, item) => sum + item.price * item.qty, 0);
+        const tax = subtotal * 0.14; // 14% VAT
+        const total = subtotal + shippingCost + tax;
 
-    console.log('[Checkout] Order summary:', {
-        subtotal: subtotal,
-        shipping: shippingCost,
-        tax: tax,
-        total: total,
-        address: shippingAddress
-    });
+        console.log('[Checkout] Order summary:', {
+            subtotal: subtotal,
+            shipping: shippingCost,
+            tax: tax,
+            total: total,
+            address: shippingAddress
+        });
 
-        // Send ONLY the address to the backend - let the server calculate shipping and tax
+        // Send ONLY the address to the backend - the server will calculate shipping and tax
         const response = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                address: shippingAddress
-            }),
+            body: JSON.stringify({ address: shippingAddress }),
             credentials: 'include'
         });
         
@@ -2041,15 +2066,15 @@ async function handleCheckout(event) {
             // Alert user before redirect
             alert('Redirecting to payment gateway...');
             window.location.href = data.sessionUrl;
-         } else {
+        } else {
             console.error('[Checkout] Checkout failed: No session URL received');
             if(errorDiv) errorDiv.textContent = 'Could not initialize payment. Please try again or contact support.';
             
             // Reset button
             submitButton.disabled = false;
             submitButton.innerHTML = originalButtonText;
-         }
-     } catch (error) {
+        }
+    } catch (error) {
         console.error('[Checkout] Checkout error:', error);
         if(errorDiv) errorDiv.textContent = 'An error occurred during checkout.';
         
