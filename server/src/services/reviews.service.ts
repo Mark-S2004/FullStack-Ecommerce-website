@@ -13,6 +13,13 @@ export const addReview = async (productId: string, userId: string, reviewData: C
   const product = await productModel.findById(productId);
   if (!product) throw new HttpException(404, 'Product not found');
 
+  // Ensure product has a category field set
+  if (!product.category || product.category === '') {
+    // Set a default category if missing
+    product.category = 'Uncategorized';
+    console.log(`Added default category 'Uncategorized' to product ${product.name}`);
+  }
+
   const newReview = { user: userId, rating: reviewData.rating, comment: reviewData.comment };
 
   (product.reviews as Types.DocumentArray<Review & Document>).push(newReview);

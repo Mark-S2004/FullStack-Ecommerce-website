@@ -305,7 +305,7 @@ async function renderProductsPage(categoryFilter = '') {
                                 </div>
                             </a>
                             <div class="card-footer bg-transparent border-top-0">
-                                <button class="btn btn-primary w-100 add-to-cart-btn" data-product-id="${String(product._id)}">Add to Cart</button>
+                                <button class="btn btn-primary w-100 add-to-cart-btn" data-product-name="${product.name}">Add to Cart</button>
                             </div>
                         </div>
                     </div>
@@ -420,7 +420,7 @@ async function renderProductDetailPage(productName) {
                     <p class="h4">${priceDetailHtml}</p>
                     <p><strong>Category:</strong> ${product.category}</p>
                     <p><strong>Stock:</strong> ${product.stock > 0 ? product.stock + ' available' : 'Out of stock'}</p>
-                    ${product.stock > 0 ? '<button class="btn btn-primary btn-lg add-to-cart-btn" data-product-id="' + String(product._id) + '">Add to Cart</button>' : '<button class="btn btn-secondary btn-lg" disabled>Out of Stock</button>'}
+                    ${product.stock > 0 ? '<button class="btn btn-primary btn-lg add-to-cart-btn" data-product-name="' + product.name + '">Add to Cart</button>' : '<button class="btn btn-secondary btn-lg" disabled>Out of Stock</button>'}
                 </div>
             </div>
             <hr class="my-4">
@@ -972,16 +972,13 @@ async function handleAddToCart(event) {
         alert('Could not add to cart. Please try again.'); // User-facing error
         return;
     }
-    const productId = button.dataset.productId; // Read from the button
     
-    // DEBUGGING OUTPUT
-    console.log('Add to Cart - Button:', button);
-    console.log('Add to Cart - productId from dataset:', productId);
-    console.log('Add to Cart - dataset attributes:', button.dataset);
-    console.log('Add to Cart - productId type:', typeof productId);
-    console.log('Add to Cart - All button attributes:', button.attributes);
+    // Get productId from product name (which should be a string)
+    const productName = button.dataset.productName; 
     
-    const quantity = 1; // Assuming adding one at a time
+    console.log('Using product name:', productName);
+
+    const quantity = 1;
 
     const user = await checkAuth();
     if (!user) {
@@ -990,28 +987,48 @@ async function handleAddToCart(event) {
         return;
     }
 
-    if (!productId) { // Added check for productId
-        console.error('Product ID is missing from add-to-cart button.', button);
+    if (!productName) {
+        console.error('Product name is missing from add-to-cart button.', button);
         alert('Could not identify product. Please try again.');
         return;
     }
 
     try {
-        // MORE DEBUGGING - Log exact data being sent to API
-        console.log('Add to Cart - Sending to API:', { 
-            url: `${API_BASE_URL}/cart`,
-            method: 'POST',
-            data: { productId, quantity },
-            productIdType: typeof productId
+        // First, look up the product ID from the name
+        console.log('Fetching product data for:', productName);
+        const productResponse = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(productName)}`, {
+            credentials: 'include'
         });
         
+        if (!productResponse.ok) {
+            console.error('Failed to fetch product data:', await productResponse.text());
+            alert('Failed to find product. Please try again.');
+            return;
+        }
+        
+        const productData = await productResponse.json();
+        const productId = productData.data._id;
+        
+        console.log('Retrieved product ID from name:', { 
+            productName, 
+            productId,
+            type: typeof productId
+        });
+        
+        // Ensure productId is a string before sending to the backend
+        const productIdString = String(productId);
+        
+        console.log('Adding to cart with ID (as string):', productIdString);
         const response = await fetch(`${API_BASE_URL}/cart`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ productId, quantity }),
-            credentials: 'include' // Send cookie
+            body: JSON.stringify({ 
+                productId: productIdString, 
+                quantity 
+            }),
+            credentials: 'include'
         });
 
         if (!response.ok) {

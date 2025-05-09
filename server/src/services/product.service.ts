@@ -48,6 +48,13 @@ class ProductService {
     // For simplicity, we assume direct price updates might reset discount implicitly
     // or admin uses discount functions.
     const updateData: any = { ...productData };
+    
+    // Ensure category is never missing or empty
+    if (!updateData.category || updateData.category.trim() === '') {
+      updateData.category = 'Uncategorized';
+      console.log(`Setting default category 'Uncategorized' for product ${productName}`);
+    }
+    
     if (productData.price !== undefined && (productData.discountPercentage === undefined || productData.discountPercentage === 0)) {
         // If price is changed and no discount, assume it's the new base price
         updateData.originalPrice = productData.price;
