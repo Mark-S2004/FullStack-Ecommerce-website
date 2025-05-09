@@ -1987,7 +1987,7 @@ async function handleCheckout(event) {
          return;
      }
 
-    // Calculate shipping based on address
+    // Calculate shipping based on address (client-side calculation for display only)
     let shippingCost = 75; // Default
     const addressLower = shippingAddress.toLowerCase();
     if (addressLower.includes('cairo')) {
@@ -1996,7 +1996,7 @@ async function handleCheckout(event) {
         shippingCost = 100;
     }
     
-    // Calculate subtotal
+    // Calculate subtotal (client-side calculation for display only)
     const subtotal = cartData.data.reduce((sum, item) => sum + item.price * item.qty, 0);
     const tax = subtotal * 0.14; // 14% VAT
     const total = subtotal + shippingCost + tax;
@@ -2009,14 +2009,12 @@ async function handleCheckout(event) {
         address: shippingAddress
     });
 
-        // Send the address, shipping cost, and tax to the backend
+        // Send ONLY the address to the backend - let the server calculate shipping and tax
         const response = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                address: shippingAddress,
-                shippingCost: shippingCost,
-                tax: tax
+                address: shippingAddress
             }),
             credentials: 'include'
         });
