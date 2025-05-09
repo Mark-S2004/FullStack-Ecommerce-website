@@ -19,29 +19,11 @@ export class ProductController {
 
   public getProducts = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const category = req.query.category as string; // Get category from query param
-      const search = req.query.search as string; // Get search term from query param
-      
-      let findAllProductsData: Product[];
-      
-      if (search) {
-        // If there's a search parameter, use search method
-        findAllProductsData = await this.productService.searchProducts(search);
-      } else {
-        // Otherwise use regular category filtering
-        findAllProductsData = await this.productService.findAllProduct(category);
-      }
+      const category = req.query.category as string;
+      const searchTerm = req.query.search as string; // Get search term from query params
+      const findAllProductsData: Product[] = await this.productService.findAllProduct(category, searchTerm);
 
       res.status(200).json({ data: findAllProductsData, message: 'findAll' });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  public getCategories = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const categories = await this.productService.getAllCategories();
-      res.status(200).json({ data: categories, message: 'categories' });
     } catch (error) {
       next(error);
     }
@@ -87,6 +69,15 @@ export class ProductController {
       const deleteProductData: Product = await this.productService.deleteProduct(productName);
 
       res.status(200).json({ data: deleteProductData, message: 'deleted' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getProductCategories = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const categories: string[] = await this.productService.getUniqueCategories();
+      res.status(200).json({ data: categories, message: 'findAllCategories' });
     } catch (error) {
       next(error);
     }

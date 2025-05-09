@@ -19,6 +19,9 @@ export class ProductRoute implements Routes {
     // GET /api/products (Public, optional filter)
     this.router.get(`${this.path}`, this.productController.getProducts);
 
+    // GET /api/products/meta/categories (Public)
+    this.router.get(`${this.path}/meta/categories`, this.productController.getProductCategories);
+
     // GET /api/products/:name (Public)
     this.router.get(`${this.path}/:name`, this.productController.getProductByName);
 

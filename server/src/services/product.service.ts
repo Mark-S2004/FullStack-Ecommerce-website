@@ -6,28 +6,16 @@ import { CreateProductDto } from '@dtos/products.dto';
 class ProductService {
   public products = productModel;
 
-  public async findAllProduct(category?: string): Promise<Product[]> {
-    const query = category ? { category: category } : {};
+  public async findAllProduct(category?: string, searchTerm?: string): Promise<Product[]> {
+    const query: any = {};
+    if (category) {
+      query.category = category;
+    }
+    if (searchTerm) {
+      query.name = { $regex: searchTerm, $options: 'i' }; // Case-insensitive search
+    }
     const products: Product[] = await this.products.find(query);
     return products;
-  }
-
-  public async searchProducts(searchTerm: string): Promise<Product[]> {
-    // Create a case-insensitive regex search
-    const regex = new RegExp(searchTerm, 'i');
-    const products: Product[] = await this.products.find({
-      $or: [
-        { name: regex },
-        { description: regex }
-      ]
-    });
-    return products;
-  }
-
-  public async getAllCategories(): Promise<string[]> {
-    // Get distinct categories from products
-    const categories: string[] = await this.products.distinct('category');
-    return categories.filter(cat => cat && cat.trim() !== '');
   }
 
   public async findProductByName(productName: string): Promise<Product> {
@@ -89,6 +77,12 @@ class ProductService {
     if (!deleteProductByName) throw new HttpException(409, "Product doesn't exist");
 
     return deleteProductByName;
+  }
+
+  public async getUniqueCategories(): Promise<string[]> {
+    const categories: string[] = await this.products.distinct('category');
+    // Filter out null, undefined, or empty/whitespace-only strings
+    return categories.filter(category => category && category.trim() !== '').sort();
   }
 
   public async addReview(productName: string, userId: string, reviewData: { rating: number; comment: string }): Promise<Product> {
