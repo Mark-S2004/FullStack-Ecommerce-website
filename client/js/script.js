@@ -20,57 +20,54 @@ async function updateAuthUI() {
     authLinksContainer.innerHTML = ''; // Clear previous auth links
 
     if (user) {
-        // User is logged in: Show user dropdown
+        // User is logged in: Show user dropdown with person icon
         const userDropdownHtml = `
-            <li class="nav-item dropdown user-dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="userDropdownLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user-circle me-1"></i> ${user.name || user.email}
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdownLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle me-1"></i>
+                    <span>${user.name || user.email}</span>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdownLink">
                     <li><span class="dropdown-item-text"><small>Role: ${user.role}</small></span></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" id="logoutButton"><i class="fas fa-sign-out-alt"></i>Logout</a></li>
+                    <li><a class="dropdown-item" href="#" id="logoutButton">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </a></li>
                 </ul>
             </li>
         `;
         authLinksContainer.innerHTML = userDropdownHtml;
 
-        const logoutButton = document.getElementById('logoutButton');
-        if (logoutButton) {
-            logoutButton.addEventListener('click', async (e) => {
+        // Attach logout event listener using delegated event handling
+        // This avoids issues with elements being recreated
+        authLinksContainer.addEventListener('click', function(e) {
+            // Check if the clicked element is the logout button or a child of it
+            if (e.target.id === 'logoutButton' || e.target.closest('#logoutButton')) {
                 e.preventDefault();
-                try {
-                    const response = await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
-                    if (response.ok) {
-                        alert('Logout successful!');
-                        window.location.hash = '#/login'; 
-                        updateAuthUI(); // Re-render auth section
-                    } else {
-                        alert('Logout failed: ' + (await response.json().message || 'Unknown error'));
-                    }
-                } catch (error) {
-                    console.error('Logout error:', error);
-                    alert('An error occurred during logout.');
-                }
-            });
-        }
+                handleLogout();
+            }
+        });
 
         // Show/hide admin main nav link based on role
         if (adminLinkLi) {
-        if (user.role === 'admin') {
+            if (user.role === 'admin') {
                 adminLinkLi.classList.remove('d-none');
-        } else {
+            } else {
                 adminLinkLi.classList.add('d-none');
             }
         }
     } else {
-        // User is not logged in: Show Login and Register buttons
+        // User is not logged in: Show Login and Register buttons with better styling
         const guestLinksHtml = `
-            <li class="nav-item">
-                <a class="nav-link" href="#/login"><i class="fas fa-sign-in-alt me-1"></i>Login</a>
+            <li class="nav-item me-2">
+                <a class="nav-link btn btn-outline-light btn-sm px-3" href="#/login">
+                    <i class="fas fa-sign-in-alt me-1"></i>Login
+                </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#/register"><i class="fas fa-user-plus me-1"></i>Register</a>
+                <a class="nav-link btn btn-light text-dark btn-sm px-3" href="#/register">
+                    <i class="fas fa-user-plus me-1"></i>Register
+                </a>
             </li>
         `;
         authLinksContainer.innerHTML = guestLinksHtml;
@@ -79,6 +76,38 @@ async function updateAuthUI() {
         if (adminLinkLi) {
             adminLinkLi.classList.add('d-none');
         }
+    }
+}
+
+// Helper function to handle logout
+async function handleLogout() {
+    try {
+        console.log('Logout requested');
+        
+        // Debug the state of the DOM and event
+        console.log('DOM state at logout:', {
+            logoutButton: document.getElementById('logoutButton'),
+            dropdownVisible: document.querySelector('.dropdown-menu.show'),
+            authContainer: document.getElementById('authLinksContainer')
+        });
+        
+        const response = await fetch(`${API_BASE_URL}/auth/logout`, { 
+            method: 'POST', 
+            credentials: 'include' 
+        });
+        
+        if (response.ok) {
+            console.log('Logout successful');
+            alert('Logout successful!');
+            window.location.hash = '#/login'; 
+            updateAuthUI(); // Re-render auth section
+        } else {
+            console.error('Logout failed with status:', response.status);
+            alert('Logout failed: ' + ((await response.json()).message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert('An error occurred during logout.');
     }
 }
 
@@ -1308,15 +1337,20 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
    // window.location.hash = '#/'; // Optional: Redirect to home after a delay
 }
 
-const currentPath = window.location.pathname;
-if (currentPath.includes('/checkout-success') && orderIdFromUrl) {
-    handleCheckoutRedirect(orderIdFromUrl, true);
-} else if (currentPath.includes('/checkout-cancel')) {
-    handleCheckoutRedirect(null, false);
-} else {
-   // If no specific redirect parameters, render the normal page based on hash
-    renderPage(); // Initial page render happens here now
-}
+// Listen for DOM content loaded to ensure everything is properly initialized
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM content loaded, initializing application...');
+    
+    const currentPath = window.location.pathname;
+    if (currentPath.includes('/checkout-success') && orderIdFromUrl) {
+        handleCheckoutRedirect(orderIdFromUrl, true);
+    } else if (currentPath.includes('/checkout-cancel')) {
+        handleCheckoutRedirect(null, false);
+    } else {
+        // If no specific redirect parameters, render the normal page based on hash
+        renderPage(); // Initial page render happens here now
+    }
+});
 
 // Make sure handleCheckout is defined
 async function handleCheckout(event) {
