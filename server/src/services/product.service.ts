@@ -128,6 +128,36 @@ class ProductService {
     return product;
   }
 
+  // Add review by product ID instead of name
+  public async addReviewById(productId: string, userId: string, reviewData: { rating: number; comment: string }): Promise<Product> {
+    const product = await this.findProductById(productId);
+    if (!product) throw new HttpException(404, 'Product not found');
+
+    const alreadyReviewed = product.reviews.some(review => review.user.toString() === userId.toString());
+    if (alreadyReviewed) {
+      throw new HttpException(400, 'You have already reviewed this product');
+    }
+
+    const review = {
+      user: userId,
+      rating: reviewData.rating,
+      comment: reviewData.comment,
+      createdAt: new Date(),
+    };
+
+    product.reviews.push(review);
+    product.reviewCount = product.reviews.length;
+    product.totalRating = product.reviews.reduce((acc, item) => item.rating + acc, 0);
+
+    // --- BEGIN DIAGNOSTIC LOG ---
+    console.log('[Service/addReviewById] About to save product. Product ID:', product._id, 'Type:', typeof product._id);
+    console.log('[Service/addReviewById] Product object (partial):', { name: product.name, category: product.category, _id: product._id });
+    // --- END DIAGNOSTIC LOG ---
+
+    await product.save();
+    return product;
+  }
+
   // Simple review deletion by Admin
   public async deleteReview(productName: string, reviewId: string): Promise<Product> {
     const product = await this.findProductByName(productName);

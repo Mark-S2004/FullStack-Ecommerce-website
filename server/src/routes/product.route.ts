@@ -52,6 +52,9 @@ export class ProductRoute implements Routes {
     // POST /products/:name/reviews (Customer only)
     this.router.post('/:name/reviews', authRequiredMiddleware, this.productController.addReview);
 
+    // POST /products/id/:id/reviews (Customer only) - Add review by product ID
+    this.router.post('/id/:id/reviews', authRequiredMiddleware, this.productController.addReviewById);
+
     // DELETE /products/:name/reviews/:reviewId (Admin only)
     this.router.delete('/:name/reviews/:reviewId', adminRequiredMiddleware, this.productController.deleteReview);
 

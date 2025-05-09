@@ -113,6 +113,24 @@ export class ProductController {
     }
   };
 
+  public addReviewById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const productId: string = req.params.id;
+      const userId = req.user?._id; // Get user ID from authenticated user
+      const reviewData = req.body; // { rating, comment }
+
+      if (!userId) {
+        return next(new HttpException(401, 'Authentication required to add review'));
+      }
+
+      const updatedProduct: Product = await this.productService.addReviewById(productId, userId, reviewData);
+
+      res.status(201).json({ data: updatedProduct, message: 'reviewAdded' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public deleteReview = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const productName: string = req.params.name;

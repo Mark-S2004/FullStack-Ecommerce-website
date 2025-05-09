@@ -1374,8 +1374,8 @@ async function handleAddReview(event, productNameForLookup) {
         console.log('[Review] Submitting review for product:', productNameForLookup, 'ID:', productId);
         console.log('[Review] Review details - Rating:', rating, 'Comment:', comment);
         
-        // Submit the review using product ID
-        const reviewResponse = await fetch(`${API_BASE_URL}/products/${productId}/reviews`, {
+        // Submit the review using product ID instead of name
+        const reviewResponse = await fetch(`${API_BASE_URL}/products/id/${productId}/reviews`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1576,20 +1576,29 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
     
     if (isSuccess && orderId) {
         try {
-            // Optionally: Verify the order status directly with the server
-            const verifyResponse = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+            // Update the order status to "Confirmed" after successful payment
+            const updateResponse = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: 'Confirmed' }),
                 credentials: 'include'
             }).catch(err => {
-                console.error('Error verifying order:', err);
+                console.error('Error updating order status:', err);
                 return null;
             });
             
-            // Even if verification fails, still show success message based on URL
-       appDiv.innerHTML = `
+            if (updateResponse && updateResponse.ok) {
+                console.log('Order status updated to Confirmed');
+            }
+            
+            // Display success message
+            appDiv.innerHTML = `
                 <div class="alert alert-success" role="alert">
                     <h4 class="alert-heading">Order Successful!</h4>
-           <p>Your order #${orderId} has been placed.</p>
-           <p>Thank you for your purchase!</p>
+                    <p>Your order #${orderId} has been placed and confirmed.</p>
+                    <p>Thank you for your purchase!</p>
                 </div>
                 <p class="mt-3"><a href="#/orders" class="btn btn-primary">View My Orders</a></p>
             `;
@@ -1599,7 +1608,7 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
             sessionStorage.removeItem('pendingOrderTotal');
         } catch (error) {
             console.error('Error handling successful checkout:', error);
-       appDiv.innerHTML = `
+            appDiv.innerHTML = `
                 <div class="alert alert-success" role="alert">
                     <h4 class="alert-heading">Payment Received!</h4>
                     <p>Your payment was successful, but we encountered an error checking your order status.</p>
@@ -1627,7 +1636,7 @@ async function handleCheckoutRedirect(orderId, isSuccess) {
     setTimeout(() => {
         if (isSuccess) {
             window.location.hash = '#/orders';
-} else {
+        } else {
             window.location.hash = '#/cart';
         }
     }, 500);

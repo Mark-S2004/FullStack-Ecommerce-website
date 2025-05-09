@@ -56,7 +56,7 @@ export const updateUser = async (userId: string, userData: CreateUserDto): Promi
     userData = { ...userData, password: hashedPassword };
   }
 
-  const updateUserById: User = await userModel.findByIdAndUpdate(userId, { userData });
+  const updateUserById: User = await userModel.findByIdAndUpdate(userId, userData, { new: true });
   if (!updateUserById) {
     throw new HttpException(409, "User doesn't exist");
   }
