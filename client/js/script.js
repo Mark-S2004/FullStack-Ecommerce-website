@@ -2329,7 +2329,23 @@ async function handleUpdateProfile(event) {
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
     
     try {
-        const response = await fetch(`${API_BASE_URL}/users/profile`, {
+        // First get the current user ID
+        const userResponse = await fetch(`${API_BASE_URL}/auth/me`, {
+            credentials: 'include'
+        });
+        
+        if (!userResponse.ok) {
+            throw new Error('Failed to get user information. Please try again.');
+        }
+        
+        const userData = await userResponse.json();
+        
+        if (!userData._id) {
+            throw new Error('Could not find user ID. The server may not be returning the complete user data.');
+        }
+        
+        // Now update using the specific user endpoint
+        const response = await fetch(`${API_BASE_URL}/users/${userData._id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'

@@ -14,7 +14,12 @@ router.post('/login', validationMiddleware(loginUserDto, 'body'), authController
 // '/me' endpoint needs access to req.user set by authMiddleware
 router.get('/me', (req: RequestWithUser, res) => {
   if (req.user) {
-      res.status(200).json({ role: req.user.role, email: req.user.email }); // Return more info
+      res.status(200).json({ 
+          _id: req.user._id,
+          role: req.user.role, 
+          email: req.user.email,
+          name: req.user.name
+      }); // Return complete user information needed by client
   } else {
       // Although authRequiredMiddleware will likely catch this first if needsAuth is true,
       // handling it here makes this specific route file more self-contained.
