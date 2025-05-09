@@ -33,14 +33,14 @@ class App {
     this.env = NODE_ENV || 'development';
     this.port = PORT || 3000;
     
-    this.connectToDatabase();
-    this.initializeMiddlewares();
+    console.log('▶️  [App] constructor start');
+  this.connectToDatabase();
+  console.log('▶️  [App] after connectToDatabase');
+  this.initializeMiddlewares();
+  console.log('▶️  [App] after initializeMiddlewares');
+  this.initializeRoutes(allRoutes);
+  console.log('▶️  [App] after initializeRoutes');
     
-    // Filter out the webhook route from allRoutes before passing to initializeRoutes
-    const otherRoutes = allRoutes.filter(
-      route => webhookRouteInstanceFromFile && route.path !== webhookRouteInstanceFromFile.path
-    );
-    this.initializeRoutes(otherRoutes);
     this.initializeSwagger();
     this.initializeErrorHandling();
   }
@@ -103,6 +103,7 @@ class App {
    */
   private initializeRoutes(routesToInitialize: Routes[]) {
     routesToInitialize.forEach(route => {
+      console.log('→ mounting:', route.path);
       const routeMiddlewares: express.RequestHandler[] = [];
       // Cast to any to check for needsAuth property if it's not on Routes interface directly
       if ((route as any).needsAuth) { 

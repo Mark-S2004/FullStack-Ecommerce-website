@@ -35,9 +35,11 @@
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.13.8",
     "morgan": "^1.10.0",
+    "reflect-metadata": "^0.2.2",
     "stripe": "^18.0.0",
     "swagger-jsdoc": "^6.2.1",
     "swagger-ui-express": "^4.5.0",
+    "typedi": "^0.10.0",
     "typescript-express-mongoose-starter": "file:",
     "winston": "^3.8.1",
     "winston-daily-rotate-file": "^4.7.1"

@@ -2,7 +2,8 @@ import { HttpException } from '@exceptions/HttpException';
 import productModel from '@models/products.model';
 import { Product } from '@interfaces/products.interface';
 import { CreateProductDto } from '@dtos/products.dto';
-
+import { Service } from 'typedi';
+@Service()
 class ProductService {
   public products = productModel;
 
