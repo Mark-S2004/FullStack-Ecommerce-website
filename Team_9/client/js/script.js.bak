@@ -1,0 +1,680 @@
+// client/js/script.js
+
+// Get references to key DOM elements
+const appDiv = document.getElementById('app');
+const adminLinkLi = document.querySelector('.admin-link'); // Keep this to show/hide admin main nav link
+
+// IMPORTANT: Set the base URL for your backend API
+// Use http://localhost:3000/api during local development
+// After deployment, change this to your deployed backend URL + /api
+const API_BASE_URL = 'http://localhost:3000/api';
+
+// --- Authentication Handling ---
+
+async function updateAuthUI() {
+    const user = await checkAuth();
+    window.currentUserRole = user ? user.role : null;
+    // Set window.user properly for use across the app
+    window.user = user;
+    const authLinksContainer = document.getElementById('authLinksContainer');
+    if (!authLinksContainer) return;
+
+    authLinksContainer.innerHTML = ''; // Clear previous auth links
+
+    if (user) {
+        // User is logged in: Show user dropdown with person icon
+        const userDropdownHtml = `
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdownLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle me-1"></i>
+                    <span>${user.name || user.email}</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdownLink">
+                    <li><span class="dropdown-item-text"><small>Role: ${user.role}</small></span></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" id="logoutButton">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </a></li>
+                </ul>
+            </li>
+        `;
+        authLinksContainer.innerHTML = userDropdownHtml;
+
+        // Remove any existing event listener for the container first
+        authLinksContainer.removeEventListener('click', handleAuthContainerClick);
+        
+        // Then add new event listener using named function for better control
+        authLinksContainer.addEventListener('click', handleAuthContainerClick);
+
+        // Show/hide admin main nav link based on role
+        if (adminLinkLi) {
+        if (user.role === 'admin') {
+                adminLinkLi.classList.remove('d-none');
+        } else {
+                adminLinkLi.classList.add('d-none');
+            }
+        }
+    } else {
+        // User is not logged in: Show Login and Register buttons with better styling
+        const guestLinksHtml = `
+            <li class="nav-item me-2">
+                <a class="nav-link btn btn-outline-light btn-sm px-3" href="#/login">
+                    <i class="fas fa-sign-in-alt me-1"></i>Login
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link btn btn-light text-dark btn-sm px-3" href="#/register">
+                    <i class="fas fa-user-plus me-1"></i>Register
+                </a>
+            </li>
+        `;
+        authLinksContainer.innerHTML = guestLinksHtml;
+        
+        // Hide admin main nav link if not logged in
+        if (adminLinkLi) {
+            adminLinkLi.classList.add('d-none');
+        }
+    }
+}
+
+// Handler function to process clicks in the auth container
+function handleAuthContainerClick(e) {
+    // Check if the clicked element is the logout button or a child of it
+    if (e.target.id === 'logoutButton' || e.target.closest('#logoutButton')) {
+        e.preventDefault();
+        
+        // Immediately disable the button to prevent multiple clicks
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.classList.add('disabled');
+            logoutButton.setAttribute('disabled', 'true');
+            logoutButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Logging out...';
+        }
+        
+        // Remove this event listener to prevent multiple calls
+        e.currentTarget.removeEventListener('click', handleAuthContainerClick);
+        
+        // Proceed with logout
+        handleLogout();
+    }
+}
+
+// Helper function to handle logout
+async function handleLogout() {
+    try {
+        console.log('Logout requested');
+        
+        // Disable logoutButton to prevent multiple clicks
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.classList.add('disabled');
+            logoutButton.setAttribute('disabled', 'true');
+            logoutButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Logging out...';
+        }
+        
+        // Remove all event listeners from the auth container to prevent multiple calls
+        const authContainer = document.getElementById('authLinksContainer');
+        if (authContainer) {
+            const clone = authContainer.cloneNode(true);
+            authContainer.parentNode.replaceChild(clone, authContainer);
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/auth/logout`, { 
+            method: 'POST', 
+            credentials: 'include' 
+        });
+        
+        if (response.ok) {
+            console.log('Logout successful');
+            
+            // Clear any stored user data
+            window.currentUserRole = null;
+            
+            // Use a flag to prevent multiple alerts
+            if (!window.logoutAlertShown) {
+                window.logoutAlertShown = true;
+                alert('You have been logged out successfully.');
+                
+                // Reset the flag after a delay
+                setTimeout(() => {
+                    window.logoutAlertShown = false;
+                }, 3000);
+            }
+            
+            // Use direct URL change instead of hash change to ensure clean state
+            window.location = '#/login';
+            
+            // Force update auth UI after logout
+            setTimeout(() => {
+                updateAuthUI();
+            }, 100);
+        } else {
+            console.error('Logout failed with status:', response.status);
+            alert('Logout failed: ' + ((await response.json()).message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert('An error occurred during logout.');
+    }
+}
+
+// Function to check authentication status by calling a protected backend endpoint
+async function checkAuth() {
+    try {
+       const response = await fetch(`${API_BASE_URL}/auth/me`, {
+           method: 'GET',
+           credentials: 'include' // Send cookies
+       });
+
+       if (response.ok) {
+            const data = await response.json();
+            // Backend /auth/me now returns { role, email, name, _id }
+            // Set window.user directly here as well in case updateAuthUI isn't called
+            const userData = { email: data.email, role: data.role, name: data.name, _id: data._id };
+            window.user = userData;
+            return userData;
+       } else {
+           console.log('Auth check failed:', response.status, await response.text()); // Log response details on failure
+           window.user = null;
+           return null; // Not authenticated or token invalid
+       }
+   } catch (error) {
+       console.error('Auth check failed:', error);
+       window.user = null;
+       return null; // Network error or other issue
+   }
+}
+
+// --- Client-Side Routing / Page Rendering ---
+
+// Function to render different pages based on the URL hash
+async function renderPage() {
+    const hash = window.location.hash || '#/';
+    if(appDiv) appDiv.innerHTML = ''; // Clear main content area
+    await updateAuthUI(); // Update navbar based on auth state
+
+    // Show loading indicator while page is loading
+    if (hash !== '#/' && hash !== '#/login' && hash !== '#/register') {
+        appDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-border" role="status"></div><p>Loading...</p></div>';
+    }
+
+    try {
+    if (hash === '#/') {
+        renderHomePage();
+    } else if (hash === '#/login') {
+        renderLoginForm();
+    } else if (hash === '#/register') {
+        renderRegisterForm();
+    } else if (hash === '#/products') {
+        // Check for query params in hash for products page for direct navigation with filters
+        const params = new URLSearchParams(hash.split('?')[1] || '');
+        renderProductsPage({ 
+            category: params.get('category') || '', 
+            search: params.get('search') || '' 
+        });
+    } else if (hash.startsWith('#/products/')) {
+        const parts = hash.split('/');
+        const productName = decodeURIComponent(parts[parts.length - 1]); // Decode product name
+         if (productName) {
+            renderProductDetailPage(productName);
+         } else {
+             renderNotFound();
+         }
+    } else if (hash === '#/cart') {
+        renderCartPage();
+    } else if (hash === '#/checkout') {
+        renderCheckoutPage();
+    } else if (hash === '#/orders') {
+         const user = await checkAuth();
+         if (user) {
+             renderOrderHistoryPage(user._id);
+         } else {
+             renderLoginMessage('Please log in to view your orders.');
+         }
+        } else if (hash === '#/profile') {
+            const user = await checkAuth();
+            if (user) {
+                renderUserProfilePage(user);
+            } else {
+                renderLoginMessage('Please log in to view your profile.');
+            }
+    } else if (hash.startsWith('#/admin')) {
+         const user = await checkAuth();
+         if (user && user.role === 'admin') {
+             const adminPath = hash.substring('#/admin'.length);
+             // Decode product names if they appear in edit paths
+             const editMatch = adminPath.match(/^\/products\/edit\/(.+)$/);
+             const editProductName = editMatch ? decodeURIComponent(editMatch[1]) : null;
+
+             renderAdminPage(adminPath, editProductName);
+         } else {
+             renderAccessDenied();
+         }
+        } else {
+        renderNotFound();
+        }
+    } catch (error) {
+        console.error('Error rendering page:', error);
+        appDiv.innerHTML = '<div class="alert alert-danger">An error occurred while loading the page. Please try again later.</div>';
+    }
+}
+
+window.addEventListener('hashchange', renderPage);
+// Initial render is now handled by the Stripe Redirect check at the bottom
+// renderPage(); // Remove initial call here
+
+
+// --- Helper functions for rendering specific page content ---
+
+function renderHomePage() {
+    appDiv.innerHTML = `
+        <h2>Welcome to My Ecommerce Store!</h2>
+        <p>Browse our wide selection of products.</p>
+        <a href="#/products" class="btn btn-primary">View Products</a>
+    `;
+}
+
+function renderLoginForm() {
+    appDiv.innerHTML = `
+        <h2>Login</h2>
+        <form id="loginForm">
+            <div class="mb-3">
+                <label for="loginEmail" class="form-label">Email address</label>
+                <input type="email" class="form-control" id="loginEmail" required>
+            </div>
+            <div class="mb-3">
+                <label for="loginPassword" class="form-label">Password</label>
+                <input type="password" class="form-control" id="loginPassword" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Login</button>
+             <div id="loginError" class="text-danger mt-2"></div> <!-- Area to display login errors -->
+             <p class="mt-3">Don't have an account? <a href="#/register">Register here</a></p>
+        </form>
+    `;
+    // Add event listener to the login form's submit event
+    document.getElementById('loginForm').addEventListener('submit', handleLogin);
+}
+
+function renderRegisterForm() {
+     appDiv.innerHTML = `
+        <h2>Register</h2>
+        <form id="registerForm">
+            <div class="mb-3">
+                <label for="registerName" class="form-label">Name</label>
+                <input type="text" class="form-control" id="registerName" required>
+            </div>
+            <div class="mb-3">
+                <label for="registerEmail" class="form-label">Email address</label>
+                <input type="email" class="form-control" id="registerEmail" required>
+            </div>
+            <div class="mb-3">
+                <label for="registerPassword" class="form-label">Password</label>
+                <input type="password" class="form-control" id="registerPassword" required>
+            </div>
+             <!-- Role selection - Maybe hide this for public registration unless intended -->
+             <!-- For a simple e-commerce, typically only customer role is available for signup -->
+             <!-- If admin signup is needed, might require a secret code or manual creation by existing admin -->
+             <!-- For this example, we'll keep it simple, but be mindful of security -->
+             <div class="mb-3">
+                <label for="registerRole" class="form-label">Role</label>
+                 <select class="form-select" id="registerRole" required>
+                    <option value="customer">Customer</option>
+                    <!-- <option value="admin">Admin</option> -- Uncomment if admin signup is allowed -->
+                 </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Register</button>
+             <div id="registerError" class="text-danger mt-2"></div> <!-- Area to display registration errors -->
+            <p class="mt-3">Already have an account? <a href="#/login">Login here</a></p>
+        </form>
+    `;
+    // Add event listener to the registration form's submit event
+    document.getElementById('registerForm').addEventListener('submit', handleRegister);
+     // Hide admin role option if it's not intended for public signup
+     // const roleSelect = document.getElementById('registerRole');
+     // if (roleSelect) {
+     //      Array.from(roleSelect.options).forEach(option => {
+     //          if (option.value === 'admin') {
+     //              option.style.display = 'none';
+     //          }
+     //      });
+     //       // If only customer remains, auto-select it and potentially disable select
+     //       if (roleSelect.options.length === 1) {
+     //           roleSelect.value = 'customer';
+     //           roleSelect.disabled = true;
+     //       }
+     // }
+}
+
+// Renders the list of products 
+async function renderProductsPage(filters = { category: '', search: '' }) {
+    const { category: categoryFilter, search: searchTerm } = filters;
+
+    // Initial HTML structure with placeholders for search and filters
+    let headerHtml = `
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="categoryFilter" class="form-label">Filter by Category:</label>
+                <select class="form-select" id="categoryFilter">
+                    <option value="">All</option> <!-- Default option -->
+                    <!-- Categories will be populated here -->
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="searchProductInput" class="form-label">Search by Name:</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Enter product name..." id="searchProductInput" value="${searchTerm || ''}">
+                    <button class="btn btn-primary" type="button" id="searchProductButton">Search</button>
+                    <button class="btn btn-outline-secondary" type="button" id="clearSearchButton">Clear</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    appDiv.innerHTML = `<h2>Products</h2>${headerHtml}<div id="productsList" class="row">Loading products...</div>`;
+
+    const categorySelect = document.getElementById('categoryFilter');
+    const searchInput = document.getElementById('searchProductInput');
+    const searchButton = document.getElementById('searchProductButton');
+    const clearSearchButton = document.getElementById('clearSearchButton');
+
+    // Fetch and populate categories
+    try {
+        const categoriesResponse = await fetch(`${API_BASE_URL}/products/meta/categories`);
+        if (categoriesResponse.ok) {
+            const categoriesData = await categoriesResponse.json();
+            const fetchedCategories = categoriesData.data;
+            // Clear existing options except "All"
+            categorySelect.innerHTML = '<option value="">All</option>'; 
+            fetchedCategories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                if (cat === categoryFilter) {
+                    option.selected = true;
+                }
+                categorySelect.appendChild(option);
+            });
+        } else {
+            console.error('Failed to fetch categories');
+            // Keep static options as a fallback or show an error
+             categorySelect.innerHTML += `
+                <option value="Men" ${categoryFilter === 'Men' ? 'selected' : ''}>Men</option>
+                <option value="Women" ${categoryFilter === 'Women' ? 'selected' : ''}>Women</option>
+                <option value="Kids" ${categoryFilter === 'Kids' ? 'selected' : ''}>Kids</option>
+                <option value="Accessories" ${categoryFilter === 'Accessories' ? 'selected' : ''}>Accessories</option>
+             `; // Fallback static categories
+        }
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        // Fallback to static categories on error
+        categorySelect.innerHTML += `
+            <option value="Men" ${categoryFilter === 'Men' ? 'selected' : ''}>Men</option>
+            <option value="Women" ${categoryFilter === 'Women' ? 'selected' : ''}>Women</option>
+            <option value="Kids" ${categoryFilter === 'Kids' ? 'selected' : ''}>Kids</option>
+            <option value="Accessories" ${categoryFilter === 'Accessories' ? 'selected' : ''}>Accessories</option>
+        `;
+    }
+
+    // Add event listener to the filter dropdown
+    if (categorySelect) {
+        categorySelect.addEventListener('change', (event) => {
+            renderProductsPage({ category: event.target.value, search: searchInput.value });
+        });
+    }
+
+    // Event listeners for search
+    const performSearch = () => {
+        renderProductsPage({ category: categorySelect.value, search: searchInput.value });
+    };
+    searchButton.addEventListener('click', performSearch);
+    searchInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            performSearch();
+        }
+    });
+    clearSearchButton.addEventListener('click', () => {
+        searchInput.value = '';
+        renderProductsPage({ category: categorySelect.value, search: '' });
+    });
+
+    // Get cart data to check if products are already in the cart
+    let cartData = { data: [] };
+    try {
+        const cartResponse = await fetch(`${API_BASE_URL}/cart`, { credentials: 'include' });
+        if (cartResponse.ok) {
+            cartData = await cartResponse.json();
+        }
+    } catch (error) {
+        console.error('Error fetching cart data:', error);
+    }
+
+    // Fetch and render products
+    try {
+        let apiUrl = `${API_BASE_URL}/products?`;
+        const queryParams = [];
+        if (categoryFilter) {
+            queryParams.push(`category=${encodeURIComponent(categoryFilter)}`);
+        }
+        if (searchTerm) {
+            queryParams.push(`search=${encodeURIComponent(searchTerm)}`);
+        }
+        apiUrl += queryParams.join('&');
+
+        const response = await fetch(apiUrl);
+         if (!response.ok) {
+             throw new Error(`Failed to fetch products: ${response.statusText}`);
+         }
+        const data = await response.json();
+        const products = data.data;
+
+        const productsListDiv = document.getElementById('productsList');
+        productsListDiv.innerHTML = ''; 
+
+        if (products && products.length > 0) {
+            products.forEach(product => {
+                // Check if product is in cart
+                const cartItem = cartData.data.find(item => item.product === product._id);
+                const cartItemQuantity = cartItem ? cartItem.qty : 0;
+
+                let priceHtml = `$${product.price.toFixed(2)}`;
+                if (product.discountPercentage && product.discountPercentage > 0 && product.originalPrice) {
+                    priceHtml = `<span class="text-danger">$${product.price.toFixed(2)}</span> <small class="text-muted text-decoration-line-through">$${product.originalPrice.toFixed(2)}</small>`;
+                }
+
+                // Create cart interaction HTML based on whether item is in cart or not
+                let cartInteractionHtml = '';
+                if (cartItemQuantity > 0) {
+                    cartInteractionHtml = `
+                        <div class="cart-quantity-control">
+                            <div class="input-group mb-2">
+                                <button class="btn btn-outline-primary btn-sm decrement-quantity" 
+                                    data-product-id="${product._id}" 
+                                    ${cartItemQuantity <= 1 ? 'disabled' : ''}>−</button>
+                                <input type="number" class="form-control form-control-sm text-center product-quantity" 
+                                    value="${cartItemQuantity}" min="1" max="${product.stock}" readonly>
+                                <button class="btn btn-outline-primary btn-sm increment-quantity" 
+                                    data-product-id="${product._id}"
+                                    ${cartItemQuantity >= product.stock ? 'disabled' : ''}>+</button>
+                            </div>
+                            <button class="btn btn-danger btn-sm w-100 remove-from-cart" 
+                                data-product-id="${product._id}">
+                                <i class="fas fa-trash-alt me-1"></i>Remove
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    cartInteractionHtml = `
+                        <button class="btn btn-primary w-100 add-to-cart-btn" data-product-name="${product.name}" 
+                            ${product.stock <= 0 ? 'disabled' : ''}>
+                            <i class="fas fa-shopping-cart me-1"></i>
+                            ${product.stock <= 0 ? 'Out of Stock' : 'Add to Cart'}
+                        </button>
+                    `;
+                }
+
+                productsListDiv.innerHTML += `
+                    <div class="col-md-4 col-sm-6 mb-4">
+                        <div class="card h-100">
+                            <a href="#/products/${encodeURIComponent(product.name)}" class="text-decoration-none text-dark">
+                                <img src="${product.imageUrl || 'https://placehold.co/250x150?text=No+Image'}" class="card-img-top" alt="${product.name}" style="height: 200px; object-fit: cover;">
+                                <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">${product.name}</h5>
+                                    <p class="card-text flex-grow-1">${product.description.substring(0, 100)}...</p>
+                                    <p class="card-text fw-bold">${priceHtml}</p>
+                                </div>
+                            </a>
+                            <div class="card-footer bg-transparent border-top-0" id="cartControl-${product._id}">
+                                ${cartInteractionHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Add event listeners for all cart controls
+            document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const originalText = button.innerHTML;
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+                    
+                    try {
+                        await handleAddToCart(e);
+                        // Refresh product list to show updated cart controls
+                        renderProductsPage({ category: categorySelect.value, search: searchInput.value });
+                    } catch (error) {
+                        console.error('Error adding to cart:', error);
+                        button.disabled = false;
+                        button.innerHTML = originalText;
+                    }
+                });
+            });
+
+            document.querySelectorAll('.increment-quantity').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const productId = e.target.dataset.productId;
+                    const quantityInput = e.target.closest('.input-group').querySelector('.product-quantity');
+                    const currentQty = parseInt(quantityInput.value);
+                    const product = products.find(p => p._id === productId);
+                    const maxStock = product ? product.stock : 99;
+                    
+                    if (currentQty < maxStock) {
+                        // Disable all buttons in this product's cart controls during update
+                        const cartControlDiv = document.getElementById(`cartControl-${productId}`);
+                        const allButtons = cartControlDiv.querySelectorAll('button');
+                        allButtons.forEach(btn => btn.disabled = true);
+                        
+                        try {
+                            const response = await fetch(`${API_BASE_URL}/cart`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ productId, quantity: currentQty + 1 }),
+                                credentials: 'include'
+                            });
+                            
+                            if (response.ok) {
+                                // Refresh product list to reflect changes
+                                renderProductsPage({ category: categorySelect.value, search: searchInput.value });
+                            } else {
+                                alert('Failed to update cart');
+                                // Re-enable buttons
+                                allButtons.forEach(btn => btn.disabled = false);
+                            }
+                        } catch (error) {
+                            console.error('Error updating cart:', error);
+                            alert('Error updating cart');
+                            // Re-enable buttons
+                            allButtons.forEach(btn => btn.disabled = false);
+                        }
+                    }
+                });
+            });
+
+            document.querySelectorAll('.decrement-quantity').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const productId = e.target.dataset.productId;
+                    const quantityInput = e.target.closest('.input-group').querySelector('.product-quantity');
+                    const currentQty = parseInt(quantityInput.value);
+                    
+                    // Disable all buttons in this product's cart controls during update
+                    const cartControlDiv = document.getElementById(`cartControl-${productId}`);
+                    const allButtons = cartControlDiv.querySelectorAll('button');
+                    allButtons.forEach(btn => btn.disabled = true);
+                    
+                    try {
+                        if (currentQty > 1) {
+                            const response = await fetch(`${API_BASE_URL}/cart`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ productId, quantity: currentQty - 1 }),
+                                credentials: 'include'
+                            });
+                            
+                            if (response.ok) {
+                                // Refresh to reflect changes
+                                renderProductsPage({ category: categorySelect.value, search: searchInput.value });
+                            } else {
+                                alert('Failed to update cart');
+                                allButtons.forEach(btn => btn.disabled = false);
+                            }
+                        } else {
+                            // If qty would be 0, remove from cart
+                            const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
+                                method: 'DELETE',
+                                credentials: 'include'
+                            });
+                            
+                            if (response.ok) {
+                                renderProductsPage({ category: categorySelect.value, search: searchInput.value });
+                            } else {
+                                alert('Failed to remove from cart');
+                                allButtons.forEach(btn => btn.disabled = false);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error updating cart:', error);
+                        alert('Error updating cart');
+                        allButtons.forEach(btn => btn.disabled = false);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.remove-from-cart').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const productId = e.target.closest('.remove-from-cart').dataset.productId;
+                    
+                    // Disable button during processing
+                    const removeBtn = e.target.closest('.remove-from-cart');
+                    removeBtn.disabled = true;
+                    removeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+                    
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
+                            method: 'DELETE',
+                            credentials: 'include'
+                        });
+                        
+                        if (response.ok) {
+                            renderProductsPage({ category: categorySelect.value, search: searchInput.value });
+                        } else {
+                            alert('Failed to remove from cart');
+                            removeBtn.disabled = false;
+                            removeBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Remove';
+                        }
+                    } catch (error) {
+                        console.error('Error removing from cart:', error);
+                        alert('Error removing from cart');
+                        removeBtn.disabled = false;
+                        removeBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Remove';
+                    }
+                });
+            });
+        } else {
+            productsListDiv.innerHTML = '<p>No products found matching your criteria.</p>';
+        }
+
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        appDiv.innerHTML = '<p class="text-danger">Failed to load products.</p>';
+    }
+}

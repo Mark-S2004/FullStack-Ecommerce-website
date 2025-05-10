@@ -60,3 +60,12 @@ export const updateOrderStatus = async (req: Request, res: Response, next: NextF
     next(error);
   }
 };
+export const cancelOrder = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const orderId = req.params.id; 
+    const updatedOrder = await orderService.cancelOrder(orderId);
+    res.status(200).json({ data: updatedOrder, message: 'updatedStatus' });
+  } catch (error) {
+    next(error);
+  }
+};

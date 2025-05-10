@@ -1217,7 +1217,7 @@ async function handleUpdateCartQuantity(event) {
         inputElement.value = newQuantity;
     }
 
-    // If the quantity becomes 0 or less (only possible via direct input after the above check),
+    // If quantity becomes 0 or less (only possible via direct input after the above check),
     // confirm removal before sending request.
     if (newQuantity < 1) {
         if (confirm('Quantity is 0. Do you want to remove this item from your cart?')) {
@@ -1516,17 +1516,29 @@ async function renderOrderHistoryPage(userId) {
                                     <p class="mb-1"><strong>Tax:</strong> $${order.tax.toFixed(2)}</p>
                                     <p class="mb-0"><strong>Total:</strong> $${order.total.toFixed(2)}</p>
                                 </div>
-                            </div>
-                            <h6>Items:</h6>
+                            </div>                            <h6>Items:</h6>
                             ${itemsHtml}
+                            ${order.status === 'Confirmed' ? `
+                                <div class="mt-3">
+                                    <button class="btn btn-danger" data-order-id="${order._id}">Cancel and get refund</button>
+                                </div>
+                            ` : order.status === 'Pending' ? `
+                                <div class="mt-3">
+                                    <button class="btn btn-warning" data-order-id="${order._id}">Cancel Order</button>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
-            });
-        } else {
+            });        } else {
             // Display message if no orders found
             orderListDiv.innerHTML = '<div class="alert alert-info">You have no orders yet.</div>';
         }
+
+        // Add event listeners to cancel buttons
+        document.querySelectorAll('[data-order-id]').forEach(button => {
+            button.addEventListener('click', handleCancelOrder);
+        });
     } catch (error) {
         console.error('Error fetching order history:', error);
         appDiv.innerHTML = '<p class="text-danger">Failed to load order history.</p>';
@@ -2394,5 +2406,44 @@ async function handleUpdateProfile(event) {
         // Re-enable form
         submitButton.disabled = false;
         submitButton.innerHTML = originalButtonText;
+    }
+}
+
+// Handles cancellation and refund of an order
+async function handleCancelOrder(event) {
+    const button = event.target;
+    const orderId = button.dataset.orderId;    // Get order status from the button's parent card
+    const orderCard = button.closest('.card');
+    const statusBadge = orderCard.querySelector('.badge');
+    const orderStatus = statusBadge.textContent;
+    
+    // Different confirmation messages based on status
+    const confirmMessage = orderStatus === 'Confirmed' 
+        ? 'Are you sure you want to cancel this order and request a refund?' 
+        : 'Are you sure you want to cancel this order?';
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    try {
+        // Send cancellation request to the backend API
+        const response = await fetch(`${API_BASE_URL}/orders/${orderId}/cancel`, {
+            method: 'PUT',
+            credentials: 'include'
+        });        if (response.ok) {
+            const successMessage = orderStatus === 'Confirmed'
+                ? 'Order cancelled successfully! Your refund will be processed.'
+                : 'Order cancelled successfully!';
+            alert(successMessage);
+            // Refresh the order history to show updated status
+            renderOrderHistoryPage();
+        } else {
+            const errorData = await response.json();
+            alert('Failed to cancel order: ' + (errorData.message || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Cancel order error:', error);
+        alert('An error occurred while cancelling the order.');
     }
 }

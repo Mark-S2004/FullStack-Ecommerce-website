@@ -12,5 +12,6 @@ router.get('/', orderController.getOrders); // Full path: /api/orders (likely ad
 router.get('/customer', orderController.getOrdersByCustomer); // Full path: /api/orders/customer (customer)
 router.post('/', validationMiddleware(CreateOrderDto, 'body'), orderController.createOrder); // Full path: /api/orders (customer)
 router.put('/:id/status', orderController.updateOrderStatus); // Full path: /api/orders/:id/status (likely admin)
+router.put('/:id/cancel', orderController.cancelOrder); // Full path: /api/orders/:id/status (likely admin)
 
 export default { path, router };

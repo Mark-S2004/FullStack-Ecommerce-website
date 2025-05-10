@@ -144,3 +144,9 @@ export const updateOrderStatus = async (orderId: string, status: string) => {
   if (!order) throw new HttpException(404, 'Order not found');
   return order;
 };
+
+export const cancelOrder = async (orderId: string) => {
+  const order = await orderModel.findByIdAndUpdate(orderId, { status: 'Cancelled' }, { new: true });
+  if (!order) throw new HttpException(404, 'Order not found');
+  return order;
+};
