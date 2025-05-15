@@ -1,0 +1,107 @@
+----------------
+console log 
+----------------
+GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+script.js:914 
+            
+            
+           POST http://localhost:3000/api/cart 400 (Bad Request)
+handleAddToCart @ script.js:914
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+via.placeholder.com/250x150.png?text=No+Image:1 
+            
+            
+           GET https://via.placeholder.com/250x150.png?text=No+Image net::ERR_NAME_NOT_RESOLVED
+script.js:914 
+            
+            
+           POST http://localhost:3000/api/cart 400 (Bad Request)
+handleAddToCart @ script.js:914
+
+----------------------
+server
+-------------------------
+        
+[nodemon] 2.0.22
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): src\**\* .env
+[nodemon] watching extensions: js,ts,json
+[nodemon] starting `ts-node -r tsconfig-paths/register --transpile-only src/server.ts`
+2025-05-09 04:15:41 info: Stripe Webhook explicitly mounted at /api/stripe
+(node:4136) [MONGOOSE] DeprecationWarning: Mongoose: the `strictQuery` option will be switched back to `false` by default in Mongoose 7. Use `mongoose.set('strictQuery', false);` if you want to prepare for this change. Or use `mongoose.set('strictQuery', true);` to suppress this warning.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+2025-05-09 04:15:41 info: =================================
+2025-05-09 04:15:41 info: ======= ENV: development =======
+2025-05-09 04:15:41 info: 🚀 App listening on the port 3000
+2025-05-09 04:15:41 info: =================================
+2025-05-09 04:15:43 info: Database connected
+Mongoose: users.createIndex({ email: 1 }, { unique: true, background: true })
+Mongoose: users.createIndex({ role: 1 }, { background: true })
+Mongoose: products.createIndex({ name: 1 }, { unique: true, background: true })
+Mongoose: products.createIndex({ category: 1 }, { background: true })
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:15:48 info: GET /api/auth/me 304 100.746 ms - -
+Mongoose: products.findOne({ name: 'pepsi' }, {})
+2025-05-09 04:15:48 info: GET /api/products/pepsi 200 88.403 ms - 626
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:15:48 info: GET /api/auth/me 304 84.142 ms - -
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:15:54 info: GET /api/auth/me 304 84.870 ms - -
+2025-05-09 04:15:54 info: OPTIONS /api/cart 204 0.358 ms - 0
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:15:54 error: [POST] /api/cart >> StatusCode:: 400, Message:: productId must be a string
+2025-05-09 04:15:54 info: POST /api/cart 400 108.167 ms - 40
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:16:01 info: GET /api/auth/me 304 149.021 ms - -
+Mongoose: products.find({}, {})
+2025-05-09 04:16:01 info: GET /api/products 200 92.540 ms - 2389
+Mongoose: products.find({}, {})
+2025-05-09 04:16:02 info: GET /api/products?category=Men 200 86.539 ms - 2389
+Mongoose: products.find({}, {})
+2025-05-09 04:16:04 info: GET /api/products?category=Women 200 86.048 ms - 2389
+Mongoose: products.find({}, {})
+2025-05-09 04:16:08 info: GET /api/products?category=Accessories 200 88.628 ms - 2389
+Mongoose: products.find({}, {})
+2025-05-09 04:16:20 info: GET /api/products?category=Kids 200 88.653 ms - 2389
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:16:24 info: GET /api/auth/me 304 85.257 ms - -
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:16:25 info: GET /api/auth/me 304 84.953 ms - -
+Mongoose: products.find({}, {})
+2025-05-09 04:16:25 info: GET /api/products 304 84.515 ms - -
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:16:26 info: GET /api/auth/me 304 85.112 ms - -
+2025-05-09 04:16:26 info: OPTIONS /api/cart 204 0.149 ms - 0
+Mongoose: users.findOne({ _id: new ObjectId("6810c85c1a7bb768fffc6e4b") }, {})
+2025-05-09 04:16:26 error: [POST] /api/cart >> StatusCode:: 400, Message:: productId must be a string
+2025-05-09 04:16:26 info: POST /api/cart 400 85.789 ms - 40
+
+
+---------------------
+client
+---------------------
+
+
+
+[2025-05-09T01:15:48.223Z]  "GET /" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+(node:30416) [DEP0066] DeprecationWarning: OutgoingMessage.prototype._headers is deprecated
+(Use `node --trace-deprecation ...` to show where the warning was created)

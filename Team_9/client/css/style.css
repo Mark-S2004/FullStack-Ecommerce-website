@@ -1,0 +1,163 @@
+/* Basic styles to show/hide admin links */
+/* These will be controlled by JavaScript based on user role */
+.admin-link {
+    /* Display will be handled by JS */
+}
+
+/* Adjustments for Auth links */
+#loginLink,
+#registerLink {
+    /* Display will be handled by JS */
+}
+
+#userInfo,
+#logoutButton {
+    /* Display will be handled by JS */
+}
+
+body {
+    background-color: #f8f9fa; /* Light gray background for contrast */
+    padding-top: 56px; /* Offset for fixed navbar, adjust if navbar height changes */
+}
+
+#app {
+    padding-bottom: 3rem; /* Add some space at the bottom */
+}
+
+.card {
+    border: none; /* Remove default card border for a cleaner look */
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); /* Subtle shadow */
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1); /* Add shadow to navbar */
+}
+
+/* Better navbar styling */
+.navbar-nav .nav-link.btn {
+    margin: 0 0.25rem;
+    text-align: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.navbar-nav .dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    border: none;
+    padding: 0.5rem 0;
+    min-width: 200px;
+}
+
+.navbar-nav .dropdown-item {
+    padding: 0.5rem 1rem;
+    color: #495057;
+    transition: background-color 0.2s;
+}
+
+.navbar-nav .dropdown-item:hover {
+    background-color: #f1f3f5;
+}
+
+.navbar-nav .dropdown-item-text {
+    padding: 0.5rem 1rem;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Adjust admin table button spacing if needed */
+.admin-link.nav-item a.nav-link {
+    font-weight: bold;
+    color: #dc3545; /* Example: Make admin link red */
+}
+
+/* Style the user info in navbar */
+#userInfo .navbar-text {
+    font-size: 0.9rem;
+}
+
+.main-content-wrapper {
+    display: flex;
+    justify-content: center; /* Center the content area */
+    padding: 20px;
+}
+
+/* Constrained container for the app content */
+#app-container-constrained {
+    max-width: 1200px; /* Adjust as desired, e.g., 960px, 1140px, 1200px */
+    width: 100%;
+    background-color: #ffffff; /* White background for the content area */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+/* Styling for the user dropdown in navbar */
+.navbar-nav .dropdown-toggle {
+    display: flex;
+    align-items: center;
+}
+
+.navbar-nav .dropdown-toggle .fa-user-circle {
+    font-size: 1.25rem;
+    margin-right: 0.5rem;
+}
+
+/* Dropdown alignment fix for Bootstrap 5 */
+.dropdown-menu-end {
+    right: 0;
+    left: auto;
+}
+
+.dropdown-item i {
+    width: 20px; /* Fixed width for icons for better alignment */
+    margin-right: 8px;
+    text-align: center;
+}
+
+/* Responsive adjustments for smaller screens if needed */
+@media (max-width: 768px) {
+    #app-container-constrained {
+        margin: 10px;
+        padding: 15px;
+    }
+    .main-content-wrapper {
+        padding: 10px;
+    }
+    
+    /* Adjustments for navbar on mobile */
+    .navbar-nav .nav-link.btn {
+        margin: 0.25rem 0;
+        display: block;
+        width: 100%;
+    }
+    
+    .navbar-nav .dropdown-menu {
+        position: static;
+        float: none;
+        width: auto;
+        box-shadow: none;
+        padding: 0.5rem;
+        margin-top: 0.5rem;
+        background-color: rgba(0,0,0,0.05);
+    }
+}
+
+/* Make sure the admin link is properly handled in the navbar */
+.navbar-nav .admin-link a {
+    color: #ffc107; /* Example: yellow color for admin link */
+}
+.navbar-nav .admin-link a:hover {
+    color: #ffdd70;
+}
+
+/* Icon colors in navbar */
+.navbar-dark .navbar-nav .nav-link i {
+    color: rgba(255, 255, 255, 0.75); /* Lighter color for icons on dark navbar */
+}
+
+.navbar-dark .navbar-nav .nav-link:hover i,
+.navbar-dark .navbar-nav .nav-link.active i {
+    color: #ffffff;
+}

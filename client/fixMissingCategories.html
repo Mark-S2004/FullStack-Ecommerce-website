@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Missing Categories</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+        button { padding: 10px; margin: 10px 0; cursor: pointer; }
+        .log { max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>Product Category Fixer</h1>
+    <button id="fixCategories">Check and Fix Missing Categories</button>
+    <div class="log" id="log"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3000/api';
+        const categories = ['Men', 'Women', 'Kids', 'Accessories', 'Electronics'];
+        const logElement = document.getElementById('log');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `<pre>[${timestamp}] ${message}</pre>`;
+            console.log(message);
+        }
+        
+        async function login() {
+            try {
+                // Try to log in as admin to have permission to update products
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@example.com',
+                        password: 'password123'
+                    }),
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    log('✅ Successfully logged in as admin');
+                    return true;
+                } else {
+                    log('❌ Failed to log in as admin. Please log in manually through the app.');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Login error: ${error.message}`);
+                return false;
+            }
+        }
+        
+        async function getAllProducts() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/products`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch products: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                return data.data; // Assuming the API returns data in a 'data' field
+            } catch (error) {
+                log(`❌ Error getting products: ${error.message}`);
+                return [];
+            }
+        }
+        
+        async function updateProduct(product) {
+            try {
+                // Pick a random category
+                const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+                
+                // Update the product with a PUT request
+                const response = await fetch(`${API_BASE_URL}/products/${product._id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...product,
+                        category: randomCategory
+                    }),
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to update product: ${response.statusText}`);
+                }
+                
+                log(`✅ Updated product "${product.name}" with category "${randomCategory}"`);
+                return true;
+            } catch (error) {
+                log(`❌ Error updating product ${product.name}: ${error.message}`);
+                return false;
+            }
+        }
+        
+        async function fixCategories() {
+            // First login to get admin access
+            const isLoggedIn = await login();
+            if (!isLoggedIn) {
+                log('⚠️ Please log in as admin first and try again');
+                return;
+            }
+            
+            // Get all products
+            log('📊 Fetching all products...');
+            const products = await getAllProducts();
+            log(`📋 Found ${products.length} total products`);
+            
+            // Filter products without category or with empty category
+            const productsToFix = products.filter(p => !p.category || p.category === '');
+            log(`🔍 Found ${productsToFix.length} products without category`);
+            
+            if (productsToFix.length === 0) {
+                log('✅ All products have categories. No fixes needed!');
+                return;
+            }
+            
+            // Update each product
+            let successCount = 0;
+            for (const product of productsToFix) {
+                const updated = await updateProduct(product);
+                if (updated) successCount++;
+            }
+            
+            log(`🎉 Successfully updated ${successCount} out of ${productsToFix.length} products`);
+        }
+        
+        document.getElementById('fixCategories').addEventListener('click', fixCategories);
+    </script>
+</body>
+</html> 
